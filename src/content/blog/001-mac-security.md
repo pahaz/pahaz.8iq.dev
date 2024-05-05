@@ -49,3 +49,87 @@ considering for an Evil Maid attack via the connection of an **external USB devi
 **imitation device** pretends to be a keyboard, touchpad, monitor, or something USB-compatible. Once connected,
 the imitator, using software or hardware vulnerabilities, achieves the ability to execute its own code.
 You can check out a [collection by Andrey Konovalov, where he demonstrates examples of attacks using various USB devices](https://github.com/xairy/usb-hacking).
+
+The scariest part is making changes to the firmware of peripheral devices; this is hard to detect.
+In MacBooks, there are many such devices whose firmware and drivers can be altered: **Thunderbolt** and **USB** controllers, **Wi-Fi** and **Bluetooth** modules,
+**SSD/HDD** disks, as well as **BIOS/UEFI**.
+[Example 1](https://thehackernews.com/2015/06/mac-osx-rootkit-malware.html),
+[example 2](https://thehackernews.com/2015/01/thunderstrike-infecting-apple-macbooks.html),
+[video](https://www.youtube.com/watch?v=n_3eIFMR46Y),
+[Rubber Ducky](https://hak5.org/products/usb-rubber-ducky).
+
+## What can be done?
+
+1. It's clear that to counter attacks, you need to regularly update the OS.
+
+2. Additionally, I would recommend enabling [Lockdown mode](https://support.apple.com/en-us/105120) to block USB devices when the Mac is locked.
+
+3. And a standard method of protection is setting a [firmware password](https://support.apple.com/en-us/102384) and enabling the [Startup Full Security option](https://support.apple.com/en-us/102522) to prevent booting from external disks, which could lead to modifications in the firmware or bootloader.
+
+4. Consider how you can detect tampering with your laptop. An opened case provides a large surface for attacks with direct access to all peripherals.
+
+## DoNotDisturb monitoring
+
+Beyond basic protection methods, let's delve deeper into monitoring intrusion attempts and gathering more data at the moment of attack.
+For this, we will use the open-source utility [DoNotDisturb](https://objective-see.org/products/dnd.html) (or DND),
+developed by Patrick Wardle (aka @patrickwardle).
+
+The working mechanism is simple: when the laptop is opened, we receive a notification. Unfortunately, DND ignores power on/off events and the connection of new USB devices, activating only when the **laptop is opened**. At this moment, DND can:
+
+- execute a command;
+- send a notification to a specific app (not available in the Russian region);
+- start monitoring USB devices and running processes.
+
+We will send ourselves a message on Telegram with logs of connected USB devices.
+
+## DoNotDisturb Setup for Telegram
+
+Overall, it's simple: download [DoNotDisturb](https://objective-see.org/products/dnd.html), install it. We won't use the special app, but instead, we'll run our script when the laptop is opened.
+
+![DND1](@assets/images/001-dnd-1.png)
+
+In DND, there's an option to perform certain actions through a special app; since we are not using it, we set the option to No Remote Tasking.
+You can also disable automatic updates (the last release was 6 years ago).
+
+![DND2](@assets/images/001-dnd-2.png)
+
+Enable the Monitoring option to collect logs of running processes and connected USB devices.
+Enter the bash command that will be executed when the laptop lid is opened.
+
+And a script for sending messages to Telegram. For this, you need to register a new bot using [BotFather](https://t.me/BotFather);
+I won't go into details on that. Additionally, we will send logs collected by DND about running processes and connected USB devices.
+Copy the script to a folder of your choice, and don't forget to make it executable (`chmod +x`).
+
+Alarm code:
+
+```bash
+#!/bin/bash
+
+set -e
+
+# !!! You need to change this to your own Telegram token
+API_TOKEN="589612151:AAFbC0GM0ATFehCgife13tr3vER3eBbEzaX"
+# !!! You need to change this to your own Telegram chat identifier
+CHAT_ID="-1042193212045"
+
+# How to quickly find the CHAT_ID?
+# Add the bot to a chat, send it a message there,
+# then execute the command `curl $API_URL/getUpdates`,
+# the chat identifier will be in the response text.
+
+API_URL="https://api.telegram.org/bot$API_TOKEN"
+ABS_LOG_PATH="/Library/Objective-See/DND/DND.log"
+LOG_FILE="/tmp/.capture.output.txt"
+MESSAGE="ALARM: $@"
+
+echo "$(date)" > $LOG_FILE
+
+# Immediately notify upon lid opening!
+curl -s -X POST "$API_URL/sendMessage" -d "chat_id=$CHAT_ID" -d "text=$MESSAGE" >> $LOG_FILE 2>&1
+
+# Wait 1 second before sending logs
+sleep 1
+
+# Send logs collected by DND, can resend after some time
+curl -F "chat_id=$CHAT_ID" -F "document=@$ABS_LOG_PATH" "$API_URL/sendDocument"
+```
