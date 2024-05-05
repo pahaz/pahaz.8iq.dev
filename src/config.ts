@@ -5,7 +5,7 @@ export const SITE: Site = {
   author: "Pahaz White",
   desc: "Pahaz technical blog",
   title: "PahazBlog",
-  //ogImage: "astropaper-og.jpg",
+  ogImage: "astropaper-og.jpg",
   lightAndDarkMode: true,
   postPerPage: 3,
   scheduledPostMargin: 15 * 60 * 1000, // 15 minutes
