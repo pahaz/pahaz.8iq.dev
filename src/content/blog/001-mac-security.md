@@ -1,7 +1,7 @@
 ---
 author: Pahaz White
 pubDatetime: 2024-03-02T10:02:21.243Z
-modDatetime: 2024-05-05T10:04:22.153Z
+modDatetime: 2024-05-05T10:09:48.123Z
 title: Who touched my Mac? Catching the cleaning staff or evil maid detection
 slug: macbook-evil-maid-detection
 featured: true
@@ -9,6 +9,7 @@ draft: false
 tags:
   - security
   - macbook
+  - evil maid
 description:
   "I often go on business trips and travel, and I always worry about the security of my MacBook
   when it's left alone in the room 😀. During my last trip, I had an unpleasant surprise:
@@ -133,3 +134,18 @@ sleep 1
 # Send logs collected by DND, can resend after some time
 curl -F "chat_id=$CHAT_ID" -F "document=@$ABS_LOG_PATH" "$API_URL/sendDocument"
 ```
+
+## Bonus: Detecting Tampering
+
+There's a [good article that describes methods for protecting against tampering](https://dys2p.com/en/2021-12-tamper-evident-protection.html).
+One of the recommended methods is the use of a [glitter nail polish](https://shop.proxysto.re/conf/501) protects that is difficult to restore.
+
+![glitter nail](@assets/images/001-glitter.jpeg)
+
+In the image above, there's an example where access was gained by replicating a fairly complex pattern using glitter nail.
+
+It seems that the safest method currently is to use vacuum packaging with multicolored grains and check for tampering using a [special app](https://github.com/proninyaroslav/blink-comparison).
+
+![packaging with multicolored grains](@assets/images/001-rice.jpeg)
+
+However, these are methods for the truly paranoid, as it's hard to imagine packing your laptop in a vacuum-sealed bag with rice every time you leave a hotel room. It might be simpler just to carry the laptop with you 🧑‍💻.
