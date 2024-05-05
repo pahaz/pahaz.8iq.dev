@@ -4,8 +4,8 @@ export const SITE: Site = {
   website: "https://pahaz.8iq.dev/",
   author: "Pahaz White",
   desc: "Pahaz technical blog",
-  title: "Pahaz",
-  ogImage: "astropaper-og.jpg",
+  title: "PahazBlog",
+  //ogImage: "astropaper-og.jpg",
   lightAndDarkMode: true,
   postPerPage: 3,
   scheduledPostMargin: 15 * 60 * 1000, // 15 minutes
