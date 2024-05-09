@@ -12,7 +12,7 @@ tags:
   - evil maid
 description:
   "I often go on business trips and travel, and I always worry about the security of my MacBook
-  when it's left alone in the room 😀. During my last trip, I had an unpleasant surprise:
+  when it's left alone in the room. During my last trip, I had an unpleasant surprise:
   I noticed that someone had touched my closed laptop while I was away. In this article,
   we'll look at how to detect attempts of physical access to your MacBook,
   gather data about the intrusion, and send it to yourself via Telegram."
