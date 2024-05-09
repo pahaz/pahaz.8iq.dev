@@ -1,5 +1,7 @@
 import type { Site, SocialObjects } from "./types";
 
+export const CODES = {};
+
 export const SITE: Site = {
   website: "https://pahaz.8iq.dev/",
   author: "Pahaz White",
