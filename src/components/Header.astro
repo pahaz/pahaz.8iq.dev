@@ -18,15 +18,13 @@ const { activeNav } = Astro.props;
         {
           LOGO_IMAGE.enable ? (
             <img
-              src={`/assets/${LOGO_IMAGE.svg ? "logo.svg" : "logo.png"}`}
+              src={LOGO_IMAGE.src}
               alt={SITE.title}
-              width={LOGO_IMAGE.width}
               height={LOGO_IMAGE.height}
             />
-          ) : (
-            SITE.title
-          )
+          ) : null
         }
+        <span>{SITE.title}</span>
       </a>
       <nav id="nav-menu">
         <button
@@ -122,7 +120,7 @@ const { activeNav } = Astro.props;
     @apply relative flex w-full items-start justify-between p-4 sm:items-center sm:py-8;
   }
   .logo {
-    @apply absolute py-1 text-xl font-semibold sm:static sm:text-2xl;
+    @apply absolute py-1 text-xl font-semibold sm:static sm:text-2xl rounded-full inline-block align-text-top;
   }
   .hamburger-menu {
     @apply self-end p-2 sm:hidden;
