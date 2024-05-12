@@ -1,9 +1,7 @@
 ---
-import { LOCALE, SITE, CODES } from "@config";
+import { LOCALE, SITE } from "@config";
 import "@styles/base.css";
 import { ViewTransitions } from "astro:transitions";
-
-const googleSiteVerification = import.meta.env.PUBLIC_GOOGLE_SITE_VERIFICATION;
 
 export interface Props {
   title?: string;
@@ -50,6 +48,7 @@ const socialImageURL = new URL(
     <meta name="title" content={title} />
     <meta name="description" content={description} />
     <meta name="author" content={author} />
+    <meta name="theme-color" content="" />
     <link rel="sitemap" href="/sitemap-index.xml" />
 
     <!-- Open Graph / Facebook -->
@@ -91,15 +90,20 @@ const socialImageURL = new URL(
       rel="stylesheet"
     />
 
-    <meta name="theme-color" content="" />
-
     <!-- Yandex -->
     <meta name="yandex-verification" content="086874566e0d5b3e" />
+
+    <ViewTransitions />
+
+    <script is:inline src="/toggle-theme.js"></script>
+  </head>
+  <body>
+    <slot />
 
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-F0T8PJG6NN"
     ></script>
-    <script>
+    <script type="text/javascript">
       window.dataLayer = window.dataLayer || [];
       function gtag() {
         dataLayer.push(arguments);
@@ -149,12 +153,5 @@ const socialImageURL = new URL(
         />
       </div></noscript
     >
-
-    <ViewTransitions />
-
-    <script is:inline src="/toggle-theme.js"></script>
-  </head>
-  <body>
-    <slot />
   </body>
 </html>
