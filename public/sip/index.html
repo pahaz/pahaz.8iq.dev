@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>SIP/WSS Tester</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="./jssip-ui.css">
+</head>
+<body>
+<div class="app">
+    <header class="header">
+        <div class="header-top">
+            <div class="app-title">
+                <div class="app-title-dot"></div>
+                <div class="status-chip">
+                    <span class="status-chip-label">Call</span>
+                    <span class="status-chip-value" id="statusbar-call">Idle</span>
+                </div>
+                <span class="status-value" id="summary-account">-</span>
+            </div>
+
+            <div class="status-group">
+                <div class="status-line">
+                    <div class="status-dot warn" id="ws-status-dot"></div>
+                    <span class="status-label">WebSocket:</span>
+                    <span class="status-value" id="ws-status-text">Disconnected</span>
+                </div>
+                <div class="status-line">
+                    <div class="status-dot warn" id="sip-status-dot"></div>
+                    <span class="status-label">SIP регистрация:</span>
+                    <span class="status-value" id="sip-status-text">Not registered</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN 3 COLUMNS -->
+    <main class="main">
+        <!-- RIGHT: Логи / RTP / Timeline / Scenarios / Advanced -->
+        <div class="column">
+            <div class="card" style="flex: 1; display: flex; flex-direction: column;">
+                <div class="tabs">
+                    <!-- TAB HEADERS -->
+                    <div class="tabs-header">
+                        <input class="tab-input" type="radio" id="tab-sip" name="tabs">
+                        <label class="tab-label" for="tab-sip">SIP Messages</label>
+
+                        <input class="tab-input" type="radio" id="tab-rtp" name="tabs">
+                        <label class="tab-label" for="tab-rtp">RTP / Media</label>
+
+                        <input class="tab-input" type="radio" id="tab-timeline" name="tabs">
+                        <label class="tab-label" for="tab-timeline">Timeline</label>
+
+                        <input class="tab-input" type="radio" id="tab-advanced" name="tabs" checked>
+                        <label class="tab-label" for="tab-advanced">Advanced</label>
+                    </div>
+
+                    <!-- TAB PANELS -->
+                    <div class="tabs-body">
+                        <!-- SIP LOG -->
+                        <div class="tab-panel" id="tab-panel-sip">
+                            <div class="tab-panel-inner">
+                                <div class="log-filters">
+                                    <div class="log-actions">
+                                        <button type="button" id="btn-log-pause">Pause</button>
+                                        <button type="button" id="btn-log-clear">Clear</button>
+                                        <button type="button" id="btn-log-export">Export</button>
+                                    </div>
+                                </div>
+
+                                <div class="log-table-container">
+                                    <table id="sip-log-table">
+                                        <thead>
+                                        <tr>
+                                            <th>Time</th>
+                                            <th>Dir</th>
+                                            <th>Type</th>
+                                            <th>Message</th>
+                                        </tr>
+                                        </thead>
+                                        <tbody>
+                                        <!-- Пример фиксированных строк для шаблона -->
+                                        <tr>
+                                            <td>12:00:01.123</td>
+                                            <td class="direction-out">Out</td>
+                                            <td>Request</td>
+                                            <td>REGISTER sip:ic.doma.ai SIP/2.0</td>
+                                        </tr>
+                                        <tr>
+                                            <td>12:00:01.456</td>
+                                            <td class="direction-in">In</td>
+                                            <td>Response</td>
+                                            <td>200 OK (REGISTER)</td>
+                                        </tr>
+                                        <tr>
+                                            <td>12:00:10.004</td>
+                                            <td class="direction-in">In</td>
+                                            <td>Request</td>
+                                            <td>INVITE sip:ekbkuitest54@ic.doma.ai SIP/2.0</td>
+                                        </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- RTP / MEDIA STATS -->
+                        <div class="tab-panel" id="tab-panel-rtp">
+                            <div class="tab-panel-inner">
+
+                                <div class="stats-grid stats-video">
+                                    <div class="stat-item stat-item-full">
+                                        <table class="metric-table" id="video-stats-table">
+                                            <thead>
+                                            <tr>
+                                                <th>Metric</th>
+                                                <th>IN</th>
+                                                <th>OUT</th>
+                                                <th>rIN</th>
+                                                <th>rOUT</th>
+                                            </tr>
+                                            </thead>
+                                            <tbody>
+                                            <tr>
+                                                <td>Bitrate (kbps)</td>
+                                                <td id="video-kbps-in">—</td>
+                                                <td id="video-kbps-out">—</td>
+                                                <td id="video-kbps-rin">—</td>
+                                                <td id="video-kbps-rout">—</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Packets</td>
+                                                <td id="video-pkts-in">—</td>
+                                                <td id="video-pkts-out">—</td>
+                                                <td id="video-pkts-rin">—</td>
+                                                <td id="video-pkts-rout">—</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Lost packets</td>
+                                                <td id="video-lost-in">—</td>
+                                                <td id="video-lost-out">—</td>
+                                                <td id="video-lost-rin">—</td>
+                                                <td id="video-lost-rout">—</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Loss %</td>
+                                                <td id="video-loss-in">—</td>
+                                                <td id="video-loss-out">—</td>
+                                                <td id="video-loss-rin">—</td>
+                                                <td id="video-loss-rout">—</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Jitter (ms)</td>
+                                                <td id="video-jitter-in">—</td>
+                                                <td id="video-jitter-out">—</td>
+                                                <td id="video-jitter-rin">—</td>
+                                                <td id="video-jitter-rout">—</td>
+                                            </tr>
+                                            <tr>
+                                                <td>RTT (ms)</td>
+                                                <td id="video-rtt-in">—</td>
+                                                <td id="video-rtt-out">—</td>
+                                                <td id="video-rtt-rin">—</td>
+                                                <td id="video-rtt-rout">—</td>
+                                            </tr>
+                                            <tr>
+                                                <td>RTT max (ms)</td>
+                                                <td id="video-rttmax-in">—</td>
+                                                <td id="video-rttmax-out">—</td>
+                                                <td id="video-rttmax-rin">—</td>
+                                                <td id="video-rttmax-rout">—</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Resolution</td>
+                                                <td id="video-res-in">—</td>
+                                                <td id="video-res-out">—</td>
+                                                <td id="video-res-rin">—</td>
+                                                <td id="video-res-rout">—</td>
+                                            </tr>
+                                            <tr>
+                                                <td>FPS</td>
+                                                <td id="video-fps-in">—</td>
+                                                <td id="video-fps-out">—</td>
+                                                <td id="video-fps-rin">—</td>
+                                                <td id="video-fps-rout">—</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Codec</td>
+                                                <td id="video-codec-in">—</td>
+                                                <td id="video-codec-out">—</td>
+                                                <td id="video-codec-rin">—</td>
+                                                <td id="video-codec-rout">—</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Frames (dec/sent)</td>
+                                                <td id="video-frames-in">—</td>
+                                                <td id="video-frames-out">—</td>
+                                                <td id="video-frames-rin">—</td>
+                                                <td id="video-frames-rout">—</td>
+                                            </tr>
+                                            <tr>
+                                                <td>NACK / PLI / FIR</td>
+                                                <td id="video-repair-in">—</td>
+                                                <td id="video-repair-out">—</td>
+                                                <td id="video-repair-rin">—</td>
+                                                <td id="video-repair-rout">—</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Freezes / Pauses</td>
+                                                <td id="video-freeze-in">—</td>
+                                                <td id="video-freeze-out">—</td>
+                                                <td id="video-freeze-rin">—</td>
+                                                <td id="video-freeze-rout">—</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Key frames</td>
+                                                <td id="video-keyframes-in">—</td>
+                                                <td id="video-keyframes-out">—</td>
+                                                <td id="video-keyframes-rin">—</td>
+                                                <td id="video-keyframes-rout">—</td>
+                                            </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+
+                                <div class="stats-grid stats-audio">
+                                    <div class="stat-item stat-item-full">
+                                        <table class="metric-table" id="audio-stats-table">
+                                            <thead>
+                                            <tr>
+                                                <th>Metric</th>
+                                                <th>IN</th>
+                                                <th>OUT</th>
+                                                <th>rIN</th>
+                                                <th>rOUT</th>
+                                            </tr>
+                                            </thead>
+                                            <tbody>
+                                            <tr>
+                                                <td>Bitrate (kbps)</td>
+                                                <td id="audio-kbps-in">—</td>
+                                                <td id="audio-kbps-out">—</td>
+                                                <td id="audio-kbps-rin">—</td>
+                                                <td id="audio-kbps-rout">—</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Packets</td>
+                                                <td id="audio-pkts-in">—</td>
+                                                <td id="audio-pkts-out">—</td>
+                                                <td id="audio-pkts-rin">—</td>
+                                                <td id="audio-pkts-rout">—</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Lost packets</td>
+                                                <td id="audio-lost-in">—</td>
+                                                <td id="audio-lost-out">—</td>
+                                                <td id="audio-lost-rin">—</td>
+                                                <td id="audio-lost-rout">—</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Loss %</td>
+                                                <td id="audio-loss-in">—</td>
+                                                <td id="audio-loss-out">—</td>
+                                                <td id="audio-loss-rin">—</td>
+                                                <td id="audio-loss-rout">—</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Jitter (ms)</td>
+                                                <td id="audio-jitter-in">—</td>
+                                                <td id="audio-jitter-out">—</td>
+                                                <td id="audio-jitter-rin">—</td>
+                                                <td id="audio-jitter-rout">—</td>
+                                            </tr>
+                                            <tr>
+                                                <td>RTT (ms)</td>
+                                                <td id="audio-rtt-in">—</td>
+                                                <td id="audio-rtt-out">—</td>
+                                                <td id="audio-rtt-rin">—</td>
+                                                <td id="audio-rtt-rout">—</td>
+                                            </tr>
+                                            <tr>
+                                                <td>RTT max (ms)</td>
+                                                <td id="audio-rttmax-in">—</td>
+                                                <td id="audio-rttmax-out">—</td>
+                                                <td id="audio-rttmax-rin">—</td>
+                                                <td id="audio-rttmax-rout">—</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Codec</td>
+                                                <td id="audio-codec-in">—</td>
+                                                <td id="audio-codec-out">—</td>
+                                                <td id="audio-codec-rin">—</td>
+                                                <td id="audio-codec-rout">—</td>
+                                            </tr>
+                                            <!-- Если захочешь — можно добавить MOS -->
+                                            <tr>
+                                                <td>MOS (est)</td>
+                                                <td id="audio-mos-in">—</td>
+                                                <td id="audio-mos-out">—</td>
+                                                <td id="audio-mos-rin">—</td>
+                                                <td id="audio-mos-rout">—</td>
+                                            </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- TIMELINE -->
+                        <div class="tab-panel" id="tab-panel-timeline">
+                            <div class="tab-panel-inner">
+                                <div class="section-title">Timeline событий</div>
+                                <div class="timeline" id="timeline">
+                                    <div class="timeline-item">
+                                        <div class="timeline-time">12:00:01</div>
+                                        <div class="timeline-text">Connected WebSocket</div>
+                                    </div>
+                                    <div class="timeline-item">
+                                        <div class="timeline-time">12:00:01</div>
+                                        <div class="timeline-text">REGISTER sent</div>
+                                    </div>
+                                    <div class="timeline-item">
+                                        <div class="timeline-time">12:00:01</div>
+                                        <div class="timeline-text">REGISTER 200 OK</div>
+                                    </div>
+                                    <div class="timeline-item">
+                                        <div class="timeline-time">12:00:10</div>
+                                        <div class="timeline-text">Incoming INVITE from sip:devtest-p1@ic.doma.ai</div>
+                                    </div>
+                                    <div class="timeline-item">
+                                        <div class="timeline-time">12:00:12</div>
+                                        <div class="timeline-text">Answer with video</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ADVANCED -->
+                        <div class="tab-panel" id="tab-panel-advanced">
+                            <div class="tab-panel-inner">
+                                <!-- Подключение к WSS / SIP -->
+                                <div class="card">
+                                    <div class="field-row-full">
+                                        <div class="field">
+                                            <label for="ws-url">websocketUrl</label>
+                                            <input id="ws-url" type="url" placeholder="wss://example.com/" value="">
+                                        </div>
+                                    </div>
+
+                                    <div class="field-row">
+                                        <div class="field">
+                                            <label for="sip-username">username</label>
+                                            <input id="sip-username" type="text" placeholder="ekbkuitest54" value="ekbkuitest54">
+                                        </div>
+                                        <div class="field">
+                                            <label for="sip-domain">domain</label>
+                                            <input id="sip-domain" type="text" placeholder="example.com" value="">
+                                        </div>
+                                    </div>
+
+                                    <div class="field-row">
+                                        <div class="field">
+                                            <label for="sip-password">password</label>
+                                            <input id="sip-password" type="password" placeholder="••••••••" value="123456">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="adv-grid">
+                                    <!-- STUN / TURN -->
+                                    <div>
+                                        <div class="field">
+                                            <label for="stun-server">stunServer</label>
+                                            <input id="stun-server" type="text"
+                                                   placeholder="stun:stun.l.google.com:19302">
+                                        </div>
+                                    </div>
+
+                                    <!-- SIP Advanced -->
+                                    <div>
+                                        <div class="field">
+                                            <label for="sip-outbound-proxy">outboundProxy</label>
+                                            <input id="sip-outbound-proxy" type="text"
+                                                   placeholder="sip:proxy.ic.doma.ai">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="adv-grid">
+                                    <div class="field">
+                                        <label for="turn-server">turnServer</label>
+                                        <input id="turn-server" type="text"
+                                               placeholder="turn:turn.example.com:3478">
+                                    </div>
+                                    <div class="field-row">
+                                        <div class="field">
+                                            <label for="turn-user">turnUser</label>
+                                            <input id="turn-user" type="text">
+                                        </div>
+                                        <div class="field">
+                                            <label for="turn-pass">turnPass</label>
+                                            <input id="turn-pass" type="password">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="adv-grid">
+                                    <div class="field checkbox">
+                                        <input id="auto-register" type="checkbox" checked>
+                                        <label for="auto-register">Auto-register after WS connect</label>
+                                    </div>
+                                    <div>
+                                        <div class="field checkbox">
+                                            <input id="auto-retry-register" type="checkbox">
+                                            <label for="auto-retry-register">Auto-retry REGISTER on failure</label>
+                                        </div>
+                                        <div class="field">
+                                            <label for="register-retries">Max attempts</label>
+                                            <input id="register-retries" type="number" min="1" value="3">
+                                        </div>
+                                        <div class="field">
+                                            <label for="register-retry-delay">Delay, sec</label>
+                                            <input id="register-retry-delay" type="number" min="1" value="5">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div> <!-- /tabs-body -->
+                </div> <!-- /tabs -->
+            </div> <!-- /card -->
+        </div> <!-- /column -->
+
+        <!-- LEFT: Текущий вызов + DTMF -->
+        <div class="column">
+            <div class="card" id="call-card">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">Текущий вызов</div>
+                        <div class="card-subtitle">Состояние линии</div>
+                    </div>
+                    <span class="pill pill-warn" id="call-direction">No call</span>
+                </div>
+
+                <div class="call-status">
+                    <strong id="call-status-text">Нет активного вызова</strong>
+                </div>
+
+                <div class="call-meta">
+                    <div><span class="stat-label">Направление:</span> <span id="call-meta-direction">—</span></div>
+                    <div><span class="stat-label">Remote party:</span> <span id="call-meta-remote">—</span></div>
+                    <div><span class="stat-label">Call-ID:</span> <span id="call-meta-id">—</span></div>
+                    <div><span class="stat-label">Tags (from/to):</span> <span id="call-meta-tags">—</span></div>
+                    <div><span class="stat-label">Via:</span> <span id="call-meta-via">—</span></div>
+                </div>
+
+                <div class="field">
+                    <label for="call-to">Call To</label>
+                    <input id="call-to" type="text" placeholder="sip:devtest-p1@ic.doma.ai"
+                           value="sip:devtest-p1@ic.doma.ai">
+                </div>
+
+                <div class="btn-row">
+                    <button type="button" class="primary" id="btn-ws-connect">Connect WS</button>
+                    <button type="button" id="btn-ws-disconnect">Disconnect WS</button>
+                    <button type="button" class="primary" id="btn-sip-register">Register</button>
+                    <button type="button" id="btn-sip-unregister">Unregister</button>
+                </div>
+
+                <div class="btn-row">
+                    <button type="button" class="primary" id="btn-call-audio">Call (Audio)</button>
+                    <button type="button" id="btn-call-video">Call (Video)</button>
+                </div>
+                <div class="btn-row">
+                    <button type="button" class="primary" id="btn-answer-audio">Answer (Audio)</button>
+                    <button type="button" id="btn-answer-video">Answer (Video)</button>
+                </div>
+                <div class="btn-row">
+                    <button type="button" class="danger" id="btn-reject">Reject</button>
+                    <button type="button" class="danger" id="btn-hangup">Hang up</button>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-label">SIP состояние</div>
+                        <div class="stat-value" id="call-sip-state">Idle</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Причина завершения</div>
+                        <div class="stat-value" id="call-end-reason">—</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DTMF -->
+            <div class="card">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">DTMF</div>
+                    </div>
+                </div>
+
+                <div class="dtmf-grid" id="dtmf-buttons">
+                    <button type="button">1</button>
+                    <button type="button">2</button>
+                    <button type="button">3</button>
+                    <button type="button">4</button>
+                    <button type="button">5</button>
+                    <button type="button">6</button>
+                    <button type="button">7</button>
+                    <button type="button">8</button>
+                    <button type="button">9</button>
+                    <button type="button">*</button>
+                    <button type="button">0</button>
+                    <button type="button">#</button>
+                </div>
+
+                <div class="field" style="margin-top: 6px;">
+                    <label>Принятые DTMF</label>
+                    <div class="badge" id="dtmf-received-log">
+                        <span class="badge-label">IN</span>
+                        <span class="badge-value">—</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CENTER: Audio / Video -->
+        <div class="column">
+            <!-- Video -->
+            <div class="card">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">Видео</div>
+                        <div class="card-subtitle">Входящий / исходящий поток</div>
+                    </div>
+                    <span class="pill" id="video-status-pill">Idle</span>
+                </div>
+
+                <div class="video-layout">
+                    <div class="video-box" id="remote-video-box">
+                        <!-- Здесь потом можно вставить <video id="remote-video"></video> -->
+                        <div class="video-placeholder">Remote video stream</div>
+                        <div class="video-label" id="remote-video-label">
+                            Remote: — / —
+                        </div>
+                        <div class="video-mini">
+                            <!-- Здесь потом можно вставить <video id="local-video" muted></video> -->
+                            <div class="video-mini-inner">Local preview</div>
+                        </div>
+                    </div>
+
+                    <div class="video-side" style="flex-direction: column;">
+                        <div>
+                            <div class="section-title">Управление</div>
+                            <div class="video-controls">
+                                <button type="button" id="btn-video-stop">Stop video</button>
+                                <button type="button" id="btn-mic-mute">Mute mic</button>
+                                <button type="button" id="btn-spk-mute">Mute speaker</button>
+                                <button type="button" id="btn-play-tone">Play test tone</button>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+<script src="./jssip-3.10.0.min.js"></script>
+<script src="./jssip-ui.js"></script>
+<script src="./jssip.js"></script>
+</body>
+</html>
