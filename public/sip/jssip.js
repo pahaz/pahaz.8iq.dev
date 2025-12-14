@@ -186,7 +186,7 @@
       try {
         ua.start();
       } catch (err) {
-        console.error('[JsSIP] ua.start() error', err);
+        console.warn('[SIP] ua.start() error', err);
         this.ui.appendTimelineEvent('Ошибка запуска UA: ' + err.message);
       }
     }
@@ -213,6 +213,7 @@
       }
 
       this.ui.appendTimelineEvent('WS disconnected (manual)');
+      this._registerRetries = 0;
     }
 
     register() {
@@ -230,7 +231,7 @@
       try {
         ua.register()
       } catch (err) {
-        console.error('[JsSIP] register() error', err);
+        console.warn('[SIP] register() error', err);
         this.ui.appendTimelineEvent('Ошибка REGISTER: ' + err.message);
       }
     }
@@ -241,7 +242,7 @@
       try {
         this.ua.unregister({ all: true });
       } catch (err) {
-        console.error('[JsSIP] unregister() error', err);
+        console.warn('[SIP] unregister() error', err);
         this.ui.appendTimelineEvent('Ошибка UNREGISTER: ' + err.message);
       }
     }
@@ -291,7 +292,7 @@
         // newRTCSession с originator='local' придёт сюда же
         ua.call(uri, options);
       } catch (err) {
-        console.error('[JsSIP] call() error', err);
+        console.warn('[SIP] call() error', err);
         this.ui.appendTimelineEvent('Ошибка вызова: ' + err.message);
       }
     }
@@ -329,7 +330,7 @@
       try {
         session.answer({ mediaConstraints, pcConfig });
       } catch (err) {
-        console.error('[JsSIP] answer() error', err);
+        console.warn('[SIP] answer() error', err);
         this.ui.appendTimelineEvent('Ошибка ответа на вызов: ' + err.message);
       }
     }
@@ -341,7 +342,7 @@
       try {
         session.terminate({ status_code: 486, reason_phrase: 'Busy Here' });
       } catch (err) {
-        console.error('[JsSIP] reject() error', err);
+        console.warn('[SIP] reject() error', err);
         this.ui.appendTimelineEvent('Ошибка отклонения вызова: ' + err.message);
       }
     }
@@ -353,7 +354,7 @@
       try {
         session.terminate();
       } catch (err) {
-        console.error('[JsSIP] terminate() error', err);
+        console.warn('[SIP] terminate() error', err);
         this.ui.appendTimelineEvent('Ошибка завершения вызова: ' + err.message);
       }
     }
@@ -365,7 +366,7 @@
       try {
         session.sendDTMF(tone);
       } catch (err) {
-        console.error('[JsSIP] sendDTMF() error', err);
+        console.warn('[SIP] sendDTMF() error', err);
         this.ui.appendTimelineEvent('Ошибка DTMF: ' + err.message);
       }
     }
@@ -471,7 +472,6 @@
         return;
       }
 
-      console.log(session?._request)
       const { callId, tags, via } = context(session?._request)
 
       this.session = session;
@@ -518,10 +518,12 @@
 
     _attachSessionEvents(session) {
       session.on('progress', (e) => {
+        console.warn('[SIP] Call progress', e);
         this.ui.appendTimelineEvent('Call progress');
       });
 
       session.on('accepted', (e) => {
+        console.warn('[SIP] Call accepted', e);
         this.call.state = 'established';
         this.call.startTime = Date.now();
         // e.response if remote else request
@@ -531,11 +533,13 @@
       });
 
       session.on('confirmed', (e) => {
+        console.warn('[SIP] Call confirmed', e);
         // Вызов подтверждён (ACK получен), можно считать вызов окончательно установленным
         this.ui.appendTimelineEvent('Call confirmed');
       });
 
       session.on('failed', (e) => {
+        console.warn('[SIP] Call failed', e);
         const cause =
           e.cause ||
           (e.message && e.message.reason_phrase) ||
@@ -543,12 +547,13 @@
         this.call.state = 'idle';
         this.call.endReason = cause;
         this.session = null;
-
-        this.ui.setCallTerminated({ reason: cause });
+        const { callId, tags, via } = context(e.message);
+        this.ui.setCallTerminated({ reason: cause, callId, tags, via });
         this.ui.appendTimelineEvent('Call failed: ' + cause);
       });
 
       session.on('ended', (e) => {
+        console.warn('[SIP] Call ended', e);
         const cause =
           e.cause ||
           (e.message && e.message.reason_phrase) ||
@@ -556,7 +561,6 @@
         this.call.state = 'idle';
         this.call.endReason = cause;
         this.session = null;
-
         this.ui.setCallTerminated({ reason: cause });
         this.ui.appendTimelineEvent('Call ended: ' + cause);
       });

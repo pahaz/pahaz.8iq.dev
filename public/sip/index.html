@@ -34,15 +34,13 @@
         </div>
     </header>
 
-    <!-- MAIN 3 COLUMNS -->
     <main class="main">
-        <!-- RIGHT: Логи / RTP / Timeline / Scenarios / Advanced -->
-        <div class="column">
-            <div class="card" style="flex: 1; display: flex; flex-direction: column;">
+        <div class="column column--logs">
+            <div class="card card--fill">
                 <div class="tabs">
                     <!-- TAB HEADERS -->
                     <div class="tabs-header">
-                        <input class="tab-input" type="radio" id="tab-sip" name="tabs">
+                        <input class="tab-input" type="radio" id="tab-sip" name="tabs" checked>
                         <label class="tab-label" for="tab-sip">SIP Messages</label>
 
                         <input class="tab-input" type="radio" id="tab-rtp" name="tabs">
@@ -51,7 +49,7 @@
                         <input class="tab-input" type="radio" id="tab-timeline" name="tabs">
                         <label class="tab-label" for="tab-timeline">Timeline</label>
 
-                        <input class="tab-input" type="radio" id="tab-advanced" name="tabs" checked>
+                        <input class="tab-input" type="radio" id="tab-advanced" name="tabs">
                         <label class="tab-label" for="tab-advanced">Advanced</label>
                     </div>
 
@@ -64,7 +62,7 @@
                                     <div class="log-actions">
                                         <button type="button" id="btn-log-pause">Pause</button>
                                         <button type="button" id="btn-log-clear">Clear</button>
-                                        <button type="button" id="btn-log-export">Export</button>
+                                        <button type="button" id="btn-log-export">Export All</button>
                                     </div>
                                 </div>
 
@@ -294,13 +292,13 @@
                                                 <td id="audio-codec-rout">—</td>
                                             </tr>
                                             <!-- Если захочешь — можно добавить MOS -->
-                                            <tr>
-                                                <td>MOS (est)</td>
-                                                <td id="audio-mos-in">—</td>
-                                                <td id="audio-mos-out">—</td>
-                                                <td id="audio-mos-rin">—</td>
-                                                <td id="audio-mos-rout">—</td>
-                                            </tr>
+<!--                                            <tr>-->
+<!--                                                <td>MOS (est)</td>-->
+<!--                                                <td id="audio-mos-in">—</td>-->
+<!--                                                <td id="audio-mos-out">—</td>-->
+<!--                                                <td id="audio-mos-rin">—</td>-->
+<!--                                                <td id="audio-mos-rout">—</td>-->
+<!--                                            </tr>-->
                                             </tbody>
                                         </table>
                                     </div>
@@ -363,7 +361,7 @@
                                     <div class="field-row">
                                         <div class="field">
                                             <label for="sip-password">password</label>
-                                            <input id="sip-password" type="password" placeholder="••••••••" value="123456">
+                                            <input id="sip-password" type="password" placeholder="••••••••" value="">
                                         </div>
                                     </div>
                                 </div>
@@ -429,10 +427,10 @@
                     </div> <!-- /tabs-body -->
                 </div> <!-- /tabs -->
             </div> <!-- /card -->
-        </div> <!-- /column -->
+        </div>
 
-        <!-- LEFT: Текущий вызов + DTMF -->
-        <div class="column">
+        <div class="column column--controls">
+            <!-- CURRENT CALL VIEW -->
             <div class="card" id="call-card">
                 <div class="card-header">
                     <div>
@@ -452,6 +450,7 @@
                     <div><span class="stat-label">Call-ID:</span> <span id="call-meta-id">—</span></div>
                     <div><span class="stat-label">Tags (from/to):</span> <span id="call-meta-tags">—</span></div>
                     <div><span class="stat-label">Via:</span> <span id="call-meta-via">—</span></div>
+                    <div><span class="stat-label">End:</span> <span id="call-end-reason">—</span></div>
                 </div>
 
                 <div class="field">
@@ -478,17 +477,6 @@
                 <div class="btn-row">
                     <button type="button" class="danger" id="btn-reject">Reject</button>
                     <button type="button" class="danger" id="btn-hangup">Hang up</button>
-                </div>
-
-                <div class="stats-grid">
-                    <div class="stat-item">
-                        <div class="stat-label">SIP состояние</div>
-                        <div class="stat-value" id="call-sip-state">Idle</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-label">Причина завершения</div>
-                        <div class="stat-value" id="call-end-reason">—</div>
-                    </div>
                 </div>
             </div>
 
@@ -525,8 +513,7 @@
             </div>
         </div>
 
-        <!-- CENTER: Audio / Video -->
-        <div class="column">
+        <div class="column column--media">
             <!-- Video -->
             <div class="card">
                 <div class="card-header">
