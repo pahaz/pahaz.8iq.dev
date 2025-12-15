@@ -24,10 +24,15 @@
   // JsSIP.debug.enable('JsSIP:*');
 
   function context(reqOrRes) {
+    const otherCallId = reqOrRes?.getHeader ? reqOrRes.getHeader('X-Other-Call-ID') : undefined;
     const callId = reqOrRes?.call_id || undefined;
+    let id = callId || '-'
+    if (otherCallId) {
+      id += ` / ${otherCallId}`
+    }
     const tags = (reqOrRes?.from_tag || reqOrRes?.to_tag) ? `${reqOrRes?.from_tag || '-'}/${reqOrRes?.to_tag || '-'}` : undefined;
     const via = reqOrRes?.via ? `${reqOrRes?.via?.protocol}/${reqOrRes?.via?.transport} ${reqOrRes?.via?.host}${reqOrRes?.via?.port ? ':' + reqOrRes?.via?.port : '' } branch=${reqOrRes?.via?.branch}` : undefined;
-    return { tags, via, callId };
+    return { tags, via, callId, otherCallId, id };
   }
 
   class SipJsClient {
@@ -55,6 +60,7 @@
         sipDomain,
         sipPassword,
         outboundProxy,
+        userAgent,
       } = formConfig;
 
       if (!websocketUrl || !sipUsername || !sipDomain) {
@@ -88,6 +94,10 @@
       if (outboundProxy && /^sip:/i.test(outboundProxy)) {
         configuration.registrar_server = outboundProxy;
         configuration.use_preloaded_route = true;
+      }
+
+      if (userAgent) {
+        configuration.user_agent = userAgent;
       }
 
       return configuration;
@@ -472,10 +482,10 @@
         return;
       }
 
-      const { callId, tags, via } = context(session?._request)
+      const ctx = context(session?._request)
 
       this.session = session;
-      this.call.callId = callId;
+      this.call.callId = ctx.callId;
       this.call.remoteIdentity = session.remote_identity;
       this.call.startTime = null;
       this.call.endReason = null;
@@ -491,7 +501,7 @@
         ui.setCallIncoming({
           remoteUri,
           remoteDisplayName,
-          callId, tags, via,
+          ...ctx,
         });
         ui.appendTimelineEvent('Входящий вызов от ' + (remoteDisplayName || remoteUri));
         this._incomingCallCount = (this._incomingCallCount || 0) + 1;
@@ -504,7 +514,7 @@
         ui.setCallOutgoing({
           remoteUri,
           remoteDisplayName,
-          callId, tags, via,
+          ...ctx,
         });
         ui.appendTimelineEvent('Исходящая сессия на ' + (remoteDisplayName || remoteUri));
         this._outgoingCallCount = (this._outgoingCallCount || 0) + 1;
@@ -527,8 +537,8 @@
         this.call.state = 'established';
         this.call.startTime = Date.now();
         // e.response if remote else request
-        const { callId, tags, via } = context(e.response || this.session?._request);
-        this.ui.setCallEstablished({ direction: this.currentDirection, callId, tags, via });
+        const ctx = context(e.response || this.session?._request);
+        this.ui.setCallEstablished({ direction: this.currentDirection, ...ctx });
         this.ui.appendTimelineEvent('Call accepted');
       });
 
@@ -547,8 +557,8 @@
         this.call.state = 'idle';
         this.call.endReason = cause;
         this.session = null;
-        const { callId, tags, via } = context(e.message);
-        this.ui.setCallTerminated({ reason: cause, callId, tags, via });
+        const ctx = context(e.message);
+        this.ui.setCallTerminated({ reason: cause, ...ctx });
         this.ui.appendTimelineEvent('Call failed: ' + cause);
       });
 

@@ -156,7 +156,8 @@
       turnServer: '',
       turnUser: '',
       turnPass: '',
-      outboundProxy: ''
+      outboundProxy: '',
+      userAgent: '',
     },
 
     sipLog: [],
@@ -231,6 +232,7 @@
     turnUser: q('turn-user'),
     turnPass: q('turn-pass'),
     sipOutboundProxy: q('sip-outbound-proxy'),
+    sipUserAgent: q('sip-user-agent'),
   };
 
   const ui = {
@@ -430,7 +432,7 @@
 
       el.callMetaDirection.textContent = 'Incoming';
       el.callMetaRemote.textContent = info.remoteDisplayName || info.remoteUri || '—';
-      el.callMetaId.textContent = info.callId || '—';
+      el.callMetaId.textContent = info.id || '—';
       el.callMetaTags.textContent = info.tags || '—';
       el.callMetaVia.textContent = info.via || '—';
       el.callEndReason.textContent = '—';
@@ -454,7 +456,7 @@
 
       el.callMetaDirection.textContent = 'Outgoing';
       el.callMetaRemote.textContent = info.remoteDisplayName || info.remoteUri || '—';
-      el.callMetaId.textContent = info.callId || '—';
+      el.callMetaId.textContent = info.id || '—';
       el.callMetaTags.textContent = info.tags || '—';
       el.callMetaVia.textContent = info.via || '—';
       el.callEndReason.textContent = '—';
@@ -476,7 +478,7 @@
       el.callDirection.classList.remove('pill-error', 'pill-warn');
       el.callDirection.classList.add('pill-success');
 
-      if (el.callMetaId && info.callId) el.callMetaId.textContent = info.callId || '—';
+      if (el.callMetaId && info.id) el.callMetaId.textContent = info.id || '—';
       if (el.callMetaTags && info.tags) el.callMetaTags.textContent = info.tags || '—';
       if (el.callMetaVia && info.via) el.callMetaVia.textContent = info.via || '—';
 
@@ -490,7 +492,7 @@
 
     setCallTerminated(info) {
       const reason = (info && info.reason) || 'Call ended';
-      if (el.callMetaId && info.callId) el.callMetaId.textContent = info.callId || '—';
+      if (el.callMetaId && info.id) el.callMetaId.textContent = info.id || '—';
       if (el.callMetaTags && info.tags) el.callMetaTags.textContent = info.tags || '—';
       if (el.callMetaVia && info.via) el.callMetaVia.textContent = info.via || '—';
       if (el.callEndReason) el.callEndReason.textContent = reason;
@@ -532,6 +534,7 @@
       const turnUser = (el.turnUser && el.turnUser.value.trim()) || cfg.turnUser || '';
       const turnPass = (el.turnPass && el.turnPass.value) || cfg.turnPass || '';
       const outboundProxy = (el.sipOutboundProxy && el.sipOutboundProxy.value.trim()) || cfg.outboundProxy || '';
+      const userAgent = (el.sipUserAgent && el.sipUserAgent.value.trim()) || cfg.userAgent || '';
 
       const sipUri = (username && domain) ? `sip:${username}@${domain}` : '';
 
@@ -551,6 +554,7 @@
       cfg.turnUser = turnUser;
       cfg.turnPass = turnPass;
       cfg.outboundProxy = outboundProxy;
+      cfg.userAgent = userAgent;
 
       if (el.summaryAccount && username && domain) {
         el.summaryAccount.textContent = `${username}@${domain}`;
@@ -575,6 +579,7 @@
         turnUser,
         turnPass,
         outboundProxy,
+        userAgent,
       };
     },
 
@@ -1713,6 +1718,7 @@
     el.turnPass.addEventListener('input', () => (state.config.turnPass = el.turnPass.value));
 
     el.sipOutboundProxy.addEventListener('input', () => (state.config.outboundProxy = el.sipOutboundProxy.value.trim()));
+    el.sipUserAgent.addEventListener('input', () => (state.config.userAgent = el.sipUserAgent.value.trim()));
   }
 
   function applyConfigFromQuery() {
@@ -1749,6 +1755,7 @@
     cfg.domain = getStr('domain', el.sipDomain ? el.sipDomain.value : '');
     cfg.callTo = getStr('callTo', el.callTo ? el.callTo.value : '');
     cfg.outboundProxy = getStr('outboundProxy', el.sipOutboundProxy ? el.sipOutboundProxy.value : '');
+    cfg.userAgent = getStr('userAgent', el.sipUserAgent ? el.sipUserAgent.value : '');
     cfg.stunServer = getStr('stunServer', el.stunServer ? el.stunServer.value : '');
     cfg.turnServer = getStr('turnServer', el.turnServer ? el.turnServer.value : '');
     cfg.turnUser = getStr('turnUser', el.turnUser ? el.turnUser.value : '');
@@ -1768,6 +1775,7 @@
     if (el.callTo && cfg.callTo) el.callTo.value = cfg.callTo;
 
     if (el.sipOutboundProxy && cfg.outboundProxy) el.sipOutboundProxy.value = cfg.outboundProxy;
+    if (el.sipUserAgent && cfg.userAgent) el.sipUserAgent.value = cfg.userAgent;
     if (el.stunServer && cfg.stunServer) el.stunServer.value = cfg.stunServer;
     if (el.turnServer && cfg.turnServer) el.turnServer.value = cfg.turnServer;
     if (el.turnUser && cfg.turnUser) el.turnUser.value = cfg.turnUser;
