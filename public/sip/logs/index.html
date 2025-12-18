@@ -8,3 +8,173 @@
     <script src="./chart.min.js"></script>
     <link rel="stylesheet" href="./logs-ui.css">
 </head>
+<body>
+
+<header>
+    <h1>Intercom Analytics</h1>
+    <nav class="nav-tabs">
+        <button class="nav-btn active">1. Загрузка</button>
+        <button class="nav-btn">2. Сводка</button>
+        <button class="nav-btn">3. Детали</button>
+    </nav>
+</header>
+
+<main>
+    <!-- SHARED FILTERS -->
+    <div id="shared-filters" class="filters-bar" style="display: none;">
+        <div class="filter-group">
+            <label>Период с:</label>
+            <input type="date" id="filterDateStart">
+        </div>
+        <div class="filter-group">
+            <label>Период по:</label>
+            <input type="date" id="filterDateEnd">
+        </div>
+        <div class="filter-group">
+            <label>Статус:</label>
+            <select id="filterStatus">
+                <option value="all">Все</option>
+                <option value="answered">Принят</option>
+                <option value="opened">Открыто</option>
+                <option value="missed">Пропущен</option>
+                <option value="fail">Ошибка</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>Квартира:</label>
+            <input type="text" id="filterApt" placeholder="Номер...">
+        </div>
+        <div class="filter-group">
+            <label>Панель:</label>
+            <input type="text" id="filterPanel" placeholder="Название...">
+        </div>
+        <div class="filter-group">
+            <label>Call ID:</label>
+            <input type="text" id="filterId" placeholder="ID...">
+        </div>
+        <button class="btn-primary" id="btnApplyFilters" style="width: auto; margin-top: auto;">Применить</button>
+    </div>
+
+    <!-- MODE 1: UPLOAD -->
+    <section id="view-upload" class="view-section active">
+        <div class="upload-container">
+            <h2>Загрузка логов</h2>
+            <p style="color: var(--text-sub); margin-bottom: 1rem;">Загрузите CSV или JSON файл с данными звонков</p>
+
+            <div class="drop-zone" id="dropZone">
+                Перетащите файл сюда или кликните
+            </div>
+
+            <button class="btn-primary" id="btnUpload">Загрузить логи</button>
+
+            <div class="progress-wrapper" id="progressWrapper">
+                <div class="status-text" id="statusText">Загрузка...</div>
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill" id="progressBar"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- MODE 2: DASHBOARD -->
+    <section id="view-dashboard" class="view-section">
+        <!-- Funnel -->
+        <div class="funnel-container">
+            <div class="funnel-step">
+                <div class="fs-label">Всего звонков</div>
+                <div class="fs-value" id="val-total">0</div>
+            </div>
+            <div class="funnel-step status-answered-border">
+                <div class="fs-label">Отвечено</div>
+                <div class="fs-value" id="val-answered">0</div>
+                <div class="fs-percent" id="perc-answered">0%</div>
+            </div>
+            <div class="funnel-step status-opened-border">
+                <div class="fs-label">Дверей открыто</div>
+                <div class="fs-value" id="val-opened">0</div>
+                <div class="fs-percent" id="perc-opened">0%</div>
+            </div>
+            <div class="funnel-step status-missed-border">
+                <div class="fs-label">Пропущено</div>
+                <div class="fs-value" id="val-missed">0</div>
+                <div class="fs-percent" id="perc-missed">0%</div>
+            </div>
+            <div class="funnel-step status-fail-border">
+                <div class="fs-label">Ошибки (Fail)</div>
+                <div class="fs-value" id="val-fail">0</div>
+                <div class="fs-percent" id="perc-fail">0%</div>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="charts-grid">
+            <div class="chart-card full-width">
+                <div class="card-header">
+                    <div class="card-title">Динамика звонков по дням</div>
+                </div>
+                <div style="height: 400px;">
+                    <canvas id="chartHistory"></canvas>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- MODE 3: DETAILS -->
+    <section id="view-details" class="view-section">
+        <div class="details-layout">
+            <!-- Left: List -->
+            <div class="calls-list-panel">
+                <div class="calls-table-container" id="callsTableBody">
+                    <!-- Rows injected via JS -->
+                    <div class="empty-state">Данные не загружены</div>
+                </div>
+            </div>
+
+            <!-- Right: Detail -->
+            <div class="call-detail-panel" id="detailPanel">
+                <div class="empty-state" id="detailPlaceholder">Выберите звонок из списка слева</div>
+
+                <div id="detailContent" style="display: none;">
+                    <div class="cd-header">
+                        <div class="cd-title">Звонок <span id="d-id" style="font-size: 0.9rem; font-family: monospace;">#ID</span><span id="d-status-badge" class="cr-status">STATUS</span></div>
+
+
+                        <div class="meta-grid" id="d-meta-grid">
+                            <!-- Динамически заполняется в JS -->
+                        </div>
+                    </div>
+
+                    <h3>Таймлайн событий</h3>
+                    <div class="timeline-horizontal" id="d-timeline">
+                        <!-- Events injected via JS -->
+                    </div>
+
+                    <h3 style="margin-top: 2rem; margin-bottom: 1rem;">Технические логи</h3>
+
+                    <details id="details-panel-logs">
+                        <summary>Данные панели (Call Panel)</summary>
+                        <div class="content">
+                            <pre class="log-block" id="d-log-panel">{}</pre>
+                        </div>
+                    </details>
+
+                    <details id="details-client-logs">
+                        <summary>Данные клиента (Call Client)</summary>
+                        <div class="content">
+                            <pre class="log-block" id="d-log-client">{}</pre>
+                        </div>
+                    </details>
+
+                    <div id="d-extra-calls">
+                        <!-- Раскрывающийся список для дополнительных ног -->
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </section>
+</main>
+<script src="./logs-ui.js"></script>
+<script src="./logs-parser.js"></script>
+</body>
+</html>
