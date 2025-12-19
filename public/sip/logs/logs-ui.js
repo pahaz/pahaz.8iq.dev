@@ -56,6 +56,7 @@
         canvasHistory: q('chartHistory'),
         canvasStatus: q('chartStatus'),
         canvasTopPanels: q('chartTopPanels'),
+        canvasPanelAnalysis: q('chartPanelAnalysis'),
 
         // Details List
         callsTableBody: q('callsTableBody'),
@@ -170,6 +171,11 @@
         updateCharts(data) {
             if (typeof Chart === 'undefined') return;
 
+            this.renderHistoryChart(data);
+            this.renderPanelAnalysisChart(data);
+        },
+
+        renderHistoryChart(data) {
             // Группировка по дням
             const days = {};
             data.forEach(d => {
@@ -222,6 +228,124 @@
                         },
                         plugins: {
                             legend: { position: 'bottom' }
+                        }
+                    }
+                });
+            }
+        },
+
+        renderPanelAnalysisChart(data) {
+            if (!el.canvasPanelAnalysis) return;
+
+            // Группировка данных по панелям
+            const panels = {};
+            data.forEach(d => {
+                const p = d.panel_id || 'Unknown';
+                const apt = d.apartment_id || 'N/A';
+                if (!panels[p]) {
+                    panels[p] = {
+                        opened: 0, answered: 0, missed: 0, fail: 0,
+                        apts: {} // { aptId: count }
+                    };
+                }
+                const s = d.call_status;
+                if (panels[p].hasOwnProperty(s)) panels[p][s]++;
+
+                panels[p].apts[apt] = (panels[p].apts[apt] || 0) + 1;
+            });
+
+            // const panelLabels = Object.keys(panels).sort((a, b) => {
+            //     const sum = (p) => panels[p].opened + panels[p].answered + panels[p].missed + panels[p].fail;
+            //     return sum(b) - sum(a);
+            // });
+            const panelLabels = Object.keys(panels).sort((a, b) => a.localeCompare(b));
+
+            const chartHeight = Math.max(400, panelLabels.length * 35 + 100);
+            el.canvasPanelAnalysis.parentElement.style.height = `${chartHeight}px`;
+
+            const logify = (val) => val > 0 ? Math.log10(val + 1) : 0;
+
+            // Подготовка датасетов для статусов (слева)
+            const datasets = [
+                { label: 'Открыто', key: 'opened', color: '#059669' },
+                { label: 'Принято', key: 'answered', color: '#10b981' },
+                { label: 'Пропущено', key: 'missed', color: '#ef4444' },
+                { label: 'Ошибка', key: 'fail', color: '#94a3b8' }
+            ].map(conf => ({
+                label: conf.label,
+                data: panelLabels.map(l => -logify(panels[l][conf.key])),
+                realValues: panelLabels.map(l => panels[l][conf.key]),
+                backgroundColor: conf.color,
+                stack: 'main'
+            }));
+
+            // Подготовка датасетов для квартир (справа, градации серого)
+            // Находим максимальное кол-во квартир на одной панели для создания слоев
+            const maxAptCount = Math.max(...panelLabels.map(l => Object.keys(panels[l].apts).length));
+
+            for (let i = 0; i < maxAptCount; i++) {
+                // Генерируем оттенок серого (чем дальше квартира в списке, тем светлее)
+                const grayVal = Math.min(200, 50 + (i * 15));
+                const color = `rgb(${grayVal}, ${grayVal}, ${grayVal})`;
+
+                datasets.push({
+                    label: i === 0 ? 'Квартиры (распред.)' : `Квартира №${i+1}`,
+                    data: panelLabels.map(l => {
+                        const sortedApts = Object.entries(panels[l].apts).sort((a, b) => b[1] - a[1]);
+                        return sortedApts[i] ? logify(sortedApts[i][1]) : 0;
+                    }),
+                    realValues: panelLabels.map(l => {
+                        const sortedApts = Object.entries(panels[l].apts).sort((a, b) => b[1] - a[1]);
+                        return sortedApts[i] ? `${sortedApts[i][0]}: ${sortedApts[i][1]}` : null;
+                    }),
+                    backgroundColor: color,
+                    stack: 'main',
+                    borderWidth: 0.5,
+                    borderColor: '#fff',
+                    hiddenInLegend: i > 0 // Скроем лишние легенды для квартир
+                });
+            }
+
+            if (state.charts.panelAnalysis) {
+                state.charts.panelAnalysis.data.labels = panelLabels;
+                state.charts.panelAnalysis.data.datasets = datasets;
+                state.charts.panelAnalysis.update();
+            } else {
+                state.charts.panelAnalysis = new Chart(el.canvasPanelAnalysis, {
+                    type: 'bar',
+                    data: { labels: panelLabels, datasets },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: {
+                                stacked: true,
+                                grid: { display: false },
+                                ticks: { display: false },
+                                title: { display: true, text: '← Статусы | Квартиры (группировка по кол-ву звонков) →' }
+                            },
+                            y: { stacked: true, beginAtZero: true }
+                        },
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: (context) => {
+                                        const rv = context.dataset.realValues[context.dataIndex];
+                                        if (!rv) return null;
+                                        return `${context.dataset.label}: ${rv}`;
+                                    }
+                                }
+                            },
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    filter: (item, chartData) => {
+                                        const ds = chartData.datasets[item.datasetIndex];
+                                        return ds && !ds.hiddenInLegend;
+                                    }
+                                }
+                            }
                         }
                     }
                 });

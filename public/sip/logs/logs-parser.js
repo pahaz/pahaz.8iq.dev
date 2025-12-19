@@ -12,7 +12,7 @@
          * Проверка: Файл должен содержать уникальные для этого лога поля.
          */
         check: (content) => {
-            const firstLine = content.slice(0, 10000).split('\n')[0];
+            const firstLine = content.slice(0, 30000).split('\n')[0];
             return firstLine.includes('_source.variables.sip_call_id') &&
                 firstLine.includes('_source.variables.sip_h_X-Other-Call-ID');
         },
@@ -163,7 +163,8 @@
                     addEvent(call, 'start', call.start_call_time, 'Panel', 'Звонок ☎️');
                     addEvent(call, 'answer', call.answer_by_panel_time, 'Panel', '📞🗣☎️️панель');
                     addEvent(call, 'bridge', call.bridge_panel_and_client_time, 'Panel', '🤝бридж');
-                    addEvent(call, 'end', call.end_call_time, 'Panel', '🔚🔚панель')
+                    const endInfo = buildEndInfo(metaCall)
+                    addEvent(call, 'end', call.end_call_time, 'Panel', `🔚🔚панель${endInfo}`);
                 }
             }
 
@@ -203,19 +204,7 @@
                     index++;
                     addEvent(call, 'start', parseDate(client['variables.start_uepoch']), 'Client', `📲#${index}`);
                     addEvent(call, 'answer', parseDate(client['variables.answer_uepoch']), 'Client', `📞🤙🗣️#${index}`);
-                    let endInfo = ''
-                    if (client['variables.sip_hangup_disposition']) {
-                        endInfo += '/' + client['variables.sip_hangup_disposition']
-                    }
-                    if (client['variables.hangup_cause_q850']) {
-                        endInfo += '/' + client['variables.hangup_cause_q850']
-                    }
-                    if (client['variables.sip_invite_failure_status']) {
-                        endInfo += '/' + client['variables.sip_invite_failure_status']
-                    }
-                    if (client['variables.sip_invite_failure_phrase']) {
-                        endInfo += '/' + client['variables.sip_invite_failure_phrase']
-                    }
+                    const endInfo = buildEndInfo(client)
                     addEvent(call, 'end', parseDate(client['variables.end_uepoch']), 'Client', `🔚#${index}${endInfo}`)
                 }
                 
@@ -254,6 +243,23 @@
             panel_details: 'Unknown',
             apartment_id: 'Unknown',
         };
+    }
+
+    function buildEndInfo (client) {
+        let endInfo = ''
+        if (client['variables.sip_hangup_disposition']) {
+            endInfo += '/' + client['variables.sip_hangup_disposition']
+        }
+        if (client['variables.hangup_cause_q850']) {
+            endInfo += '/' + client['variables.hangup_cause_q850']
+        }
+        if (client['variables.sip_invite_failure_status']) {
+            endInfo += '/' + client['variables.sip_invite_failure_status']
+        }
+        if (client['variables.sip_invite_failure_phrase']) {
+            endInfo += '/' + client['variables.sip_invite_failure_phrase']
+        }
+        return endInfo
     }
 
     function addEvent(call, event_type, timestamp, source, details) {
