@@ -608,17 +608,34 @@
             const start = el.filterDateStart.value;
             const end = el.filterDateEnd.value;
             const status = el.filterStatus.value;
-            const apt = el.filterApt.value.toLowerCase();
-            const panel = el.filterPanel.value.toLowerCase();
-            const callId = el.filterId.value.toLowerCase();
+            const apt = el.filterApt.value.trim();
+            const panel = el.filterPanel.value.trim();
+            const callId = el.filterId.value.toLowerCase().trim();
+
+            const matchesSearch = (value, filter) => {
+                if (!filter) return true;
+                if (!value) return false;
+
+                const isRegex = /[\^\$\*\?\(\)\|]/.test(filter);
+                if (isRegex) {
+                    try {
+                        const regex = new RegExp(filter, 'i');
+                        return regex.test(value);
+                    } catch (e) {
+                        // Если регулярка невалидна, откатываемся к обычному поиску
+                        return value.toLowerCase().includes(filter.toLowerCase());
+                    }
+                }
+                return value.toLowerCase().includes(filter.toLowerCase());
+            };
 
             state.filteredData = state.allCalls.filter(item => {
                 const itemDate = item.start_call_time ? item.start_call_time.toISOString().split('T')[0] : '0000-00-00';
 
                 const matchesDate = (!start || itemDate >= start) && (!end || itemDate <= end);
                 const matchesStatus = (status === 'all' || item.call_status === status);
-                const matchesApt = (!apt || (item.apartment_id && item.apartment_id.toLowerCase().includes(apt)));
-                const matchesPanel = (!panel || (item.panel_id && item.panel_id.toLowerCase().includes(panel)));
+                const matchesApt = matchesSearch(item.apartment_id, apt);
+                const matchesPanel = matchesSearch(item.panel_id, panel);
                 const matchesId = (!callId || (item.id && item.id.toLowerCase().includes(callId)));
 
                 return matchesDate && matchesStatus && matchesApt && matchesPanel && matchesId;
