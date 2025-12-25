@@ -83,33 +83,6 @@
                 const elapsedMatch = message.match(/elapsed=(\d+)/);
                 const elapsed = elapsedMatch ? parseInt(elapsedMatch[1], 10) : null;
 
-                // Определение типа события согласно логике sendPush
-                let type = 'unknown';
-                let icon = '🔔';
-
-                if (message.includes('request to push sending start')) {
-                    type = 'push_call_send_start';
-                    icon = '🛫';
-                } else if (message.includes('request to push sending end')) {
-                    type = 'push_call_send_end';
-                    icon = '📩';
-                } else if (message.includes('request to push cancel start')) {
-                    type = 'push_cancel_send_start';
-                    icon = '🛑';
-                } else if (message.includes('request to push cancel end')) {
-                    type = 'push_cancel_send_end';
-                    icon = '🏁';
-                } else if (message.includes('push sent')) {
-                    type = 'push_call_sent';
-                    icon = '✅';
-                } else if (message.includes('push canceled')) {
-                    type = 'push_cancel_sent';
-                    icon = '🔕';
-                } else if (message.includes('error')) {
-                    type = 'push_error';
-                    icon = '❌';
-                }
-
                 // Парсинг JSON ответа (если есть)
                 let response = null;
                 const respMatch = message.match(/response=\\"(.*)\\" /);
@@ -122,15 +95,49 @@
                     }
                 }
 
-                const details = message.split(',')[0]?.replace("request to push", '')
+                const success = (response) ? response?.data?.some(x => x.success) : false
+
+                // Определение типа события согласно логике sendPush
+                let type = 'unknown';
+                let details = message.split(',')[0]?.replace("request to push", '')
+                let skip = false
                 const cancel = attrs.cancel === 'true'
+
+                if (message.includes('request to push sending start')) {
+                    type = 'push_call_send_start';
+                    details = '🛫📞хук'
+                } else if (message.includes('request to push sending end')) {
+                    type = 'push_call_send_end';
+                    details = '🏁';
+                    skip = true
+                } else if (message.includes('request to push cancel start')) {
+                    type = 'push_cancel_send_start';
+                    details = '🛫🛑хук';
+                } else if (message.includes('request to push cancel end')) {
+                    type = 'push_cancel_send_end';
+                    details = '🏁';
+                    skip = true
+                } else if (message.includes('push sent')) {
+                    type = 'push_call_sent';
+                    details = '🛬📞хук' + ((success) ? '👌' : '🤷');
+                } else if (message.includes('push canceled')) {
+                    type = 'push_cancel_sent';
+                    details = '🛬🛑хук';
+                } else if (message.includes('error')) {
+                    type = 'push_error';
+                    details = '❌' + details;
+                }
+
+                if (skip === true) {
+                    continue;
+                }
 
                 // Добавляем в общий список событий для UI
                 call.events.push({
                     event_id: `${callId}_${type}_${timestamp.getTime()}`,
                     event_type: type,
                     source: 'Webhook',
-                    details: `${icon} ${details}${elapsed ? ` (${elapsed}ms)` : ''}`,
+                    details,
                     timestamp,
                     kind: 'push',
                     meta: {
@@ -139,7 +146,7 @@
                         cancel,
                         elapsed,
                         response,
-                        success: (response) ? response?.data?.some(x => x.success) : false,
+                        success,
                     },
                 });
             }

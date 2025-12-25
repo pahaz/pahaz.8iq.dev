@@ -146,7 +146,7 @@
                             call.call_status = 'opened';
                         }
                         if (call.speaking_time_sec <= 0) {
-                            call.call_status = 'fail';
+                            call.call_status = 'missed';
                         }
                     } else {
                         call.call_status = 'missed';
@@ -164,17 +164,17 @@
                     addEvent(call, 'answer', call.answer_by_panel_time, 'Panel', '📞🗣☎️️панель');
                     addEvent(call, 'bridge', call.bridge_panel_and_client_time, 'Panel', '🤝бридж');
                     const endInfo = buildEndInfo(metaCall)
-                    addEvent(call, 'end', call.end_call_time, 'Panel', `🔚🔚панель${endInfo}`);
+                    addEvent(call, 'end', call.end_call_time, 'Panel', `🔚🔚панель${endInfo}`, {
+                        sip_hangup_disposition: metaCall['variables.sip_hangup_disposition'],
+                        hangup_cause_q850: metaCall['variables.hangup_cause_q850'],
+                        sip_invite_failure_status: metaCall['variables.sip_invite_failure_status'],
+                        sip_invite_failure_phrase: metaCall['variables.sip_invite_failure_phrase'],
+                    });
                 }
             }
 
             // 4. Финальная постобработка
             return Array.from(callsMap.values()).map(call => {
-                // Если статус не определен, смотрим на наличие ошибок
-                if (call.call_status === 'initiated' && call.end_call_time) {
-                    call.call_status = 'missed';
-                }
-                
                 const clients = call.calls.filter(x => x.id !== call.id).toSorted((a, b) => {
                     const timeA = a['variables.start_uepoch']
                     const timeB = b['variables.start_uepoch']
@@ -205,7 +205,12 @@
                     addEvent(call, 'start', parseDate(client['variables.start_uepoch']), 'Client', `📲#${index}`);
                     addEvent(call, 'answer', parseDate(client['variables.answer_uepoch']), 'Client', `📞🤙🗣️#${index}`);
                     const endInfo = buildEndInfo(client)
-                    addEvent(call, 'end', parseDate(client['variables.end_uepoch']), 'Client', `🔚#${index}${endInfo}`)
+                    addEvent(call, 'end', parseDate(client['variables.end_uepoch']), 'Client', `🔚#${index}${endInfo}`, {
+                        sip_hangup_disposition: client['variables.sip_hangup_disposition'],
+                        hangup_cause_q850: client['variables.hangup_cause_q850'],
+                        sip_invite_failure_status: client['variables.sip_invite_failure_status'],
+                        sip_invite_failure_phrase: client['variables.sip_invite_failure_phrase'],
+                    })
                 }
                 
                 call.events.sort((a, b) => a.timestamp - b.timestamp);
@@ -234,7 +239,7 @@
     function createEmptyCall(id) {
         return {
             id: id,
-            call_status: 'initiated',
+            call_status: 'fail',
             events: [],
             calls: [],
             callPanel: {},
@@ -262,7 +267,7 @@
         return endInfo
     }
 
-    function addEvent(call, event_type, timestamp, source, details) {
+    function addEvent(call, event_type, timestamp, source, details, meta = undefined) {
         if (!timestamp) {
             // console.warn(`Invalid event time: ${timeStr}`, call, event_type, timeStr, source, details);
             return;
@@ -278,6 +283,7 @@
                 details,
                 timestamp,
                 kind: 'cdr',
+                meta,
             })
         }
     }

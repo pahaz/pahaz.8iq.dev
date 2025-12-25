@@ -406,6 +406,7 @@
 
                 // Определяем наличие пуш-уведомлений
                 const hasSuccessPushCallNotifications = call.events.filter(x => x.event_type === 'push_call_sent' && x?.meta?.success).length > 0
+                const hasSuccessBridge = call.events.filter(x => x.event_type === 'bridge').length > 0
 
                 const row = document.createElement('div');
                 row.className = `call-row ${state.activeCallId === call.id ? 'selected' : ''}`;
@@ -413,7 +414,7 @@
 
                 row.innerHTML = `
                             <div class="cr-top">
-                                <span class="cr-time">${timeStr}${hasSuccessPushCallNotifications ? "📱" : ""}</span>
+                                <span class="cr-time">${timeStr} ${hasSuccessPushCallNotifications ? "👌":""}${hasSuccessBridge ? "🤝":""}</span>
                                 <span class="cr-status ${statusClassMap[call.call_status] || ''}">
                                     ${statusLabelMap[call.call_status] || call.call_status}
                                 </span>
@@ -452,6 +453,7 @@
                 { label: 'Квартира', value: call.apartment_id || '-' },
                 { label: 'IP панели', value: cp['ip'] || '-' },
                 { label: 'Причина завершения', value: cp['variables.hangup_cause'] || '-' },
+                { label: 'Завершение SIP', value: cp['variables.sip_hangup_disposition'] || '-' },
 
                 { type: 'title', label: 'Метрики Audio' },
                 { label: 'MOS', value: cp['variables.rtp_audio_in_mos'] || '-' },
@@ -471,6 +473,7 @@
 
             // Timeline (Horizontal)
             el.dTimeline.innerHTML = '';
+            let prevTime = null;
             (call.events || []).forEach(evt => {
                 const div = document.createElement('div');
                 div.className = 'tl-item';
@@ -478,11 +481,23 @@
                 div.title = 'Нажмите, чтобы увидеть детали события';
                 div.onclick = () => this.showModal(evt);
 
+                const currTime = new Date(evt.timestamp).getTime();
+                let diffHtml = '';
+
+                if (prevTime !== null) {
+                    const diff = currTime - prevTime;
+                    diffHtml = `<span class="tl-time-dt">+${diff.toLocaleString('en-US')}ms</span>`;
+                }
+                prevTime = currTime;
+
                 div.innerHTML = `
-                            <div class="tl-time">${new Date(evt.timestamp).toLocaleTimeString()}</div>
-                            <div class="tl-content">${evt.details || evt.event_type}</div>
-                            <div class="tl-details" style="font-size: 0.7rem">${evt.source || 'sys'}</div>
-                        `;
+                                <div class="tl-time">
+                                    ${new Date(evt.timestamp).toLocaleTimeString()}
+                                    ${diffHtml}
+                                </div>
+                                <div class="tl-content">${evt.details || evt.event_type}</div>
+                                <div class="tl-details" style="font-size: 0.7rem">${evt.source || 'sys'}</div>
+                            `;
                 el.dTimeline.appendChild(div);
             });
 
@@ -677,6 +692,11 @@
 
             // Сортируем все звонки по времени начала (от новых к старым)
             state.allCalls.sort((a, b) => new Date(b.start_call_time) - new Date(a.start_call_time));
+
+            // Нормализация данных
+            state.allCalls.forEach(c => {
+                if (!['answered', 'opened', 'missed'].includes(c.call_status)) c.call_status = 'fail';
+            })
 
             console.log(`Merge complete. New: ${newCount}, Updated: ${updatedCount}, Total: ${state.allCalls.length}`);
         },

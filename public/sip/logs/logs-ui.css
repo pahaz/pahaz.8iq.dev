@@ -481,6 +481,13 @@ input, select {
     margin-top: 0.25rem;
 }
 
+.tl-time-dt {
+    display: inline;
+    font-size: 0.75em;
+    opacity: 0.6;
+    margin-top: 2px;
+}
+
 .logs-section {
     margin-top: 2rem;
 }
