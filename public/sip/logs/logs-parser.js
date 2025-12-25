@@ -277,6 +277,7 @@
                 source,
                 details,
                 timestamp,
+                kind: 'cdr',
             })
         }
     }

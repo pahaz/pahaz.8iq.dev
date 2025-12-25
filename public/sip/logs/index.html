@@ -41,6 +41,16 @@
             </select>
         </div>
         <div class="filter-group">
+            <label>Хук:</label>
+            <select id="filterPush">
+                <option value="all">Все</option>
+                <option value="has_push">С хуком</option>
+                <option value="no_push">Без хука</option>
+                <option value="success_push">Успешный хук</option>
+                <option value="unsuccess_push">НЕУспешный хук</option>
+            </select>
+        </div>
+        <div class="filter-group">
             <label>Квартира:</label>
             <input type="text" id="filterApt" placeholder="Номер...">
         </div>
@@ -103,6 +113,23 @@
                 <div class="fs-label">Ошибки (Fail)</div>
                 <div class="fs-value" id="val-fail">0</div>
                 <div class="fs-percent" id="perc-fail">0%</div>
+            </div>
+        </div>
+        <div class="funnel-container">
+            <div class="funnel-step">
+                <div class="fs-label">Вебхуков отправлено</div>
+                <div class="fs-value" id="val-push-sent">0</div>
+                <div class="fs-percent" id="perc-push-sent">0%</div>
+            </div>
+            <div class="funnel-step status-opened-border">
+                <div class="fs-label">Вебхуков успешно</div>
+                <div class="fs-value" id="val-push-success">0</div>
+                <div class="fs-percent" id="perc-push-success">0%</div>
+            </div>
+            <div class="funnel-step status-fail-border">
+                <div class="fs-label">Вебхуков неуспешно</div>
+                <div class="fs-value" id="val-push-fail">0</div>
+                <div class="fs-percent" id="perc-push-fail">0%</div>
             </div>
         </div>
 
@@ -177,13 +204,26 @@
                     <div id="d-extra-calls">
                         <!-- Раскрывающийся список для дополнительных ног -->
                     </div>
-
                 </div>
             </div>
         </div>
     </section>
+
+    <!-- MODAL -->
+    <div id="dataModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Детали данных</h3>
+                <span class="close-modal" id="closeModalBtn">&times;</span>
+            </div>
+            <div class="modal-body">
+                <pre id="modalDataContent"></pre>
+            </div>
+        </div>
+    </div>
 </main>
 <script src="./logs-ui.js"></script>
 <script src="./logs-parser.js"></script>
+<script src="./push-logs-parser.js"></script>
 </body>
 </html>

@@ -39,6 +39,7 @@
         filterApt: q('filterApt'),
         filterPanel: q('filterPanel'),
         filterId: q('filterId'),
+        filterPush: q("filterPush"),
         btnApplyFilters: q('btnApplyFilters'),
 
         // Dashboard Metrics
@@ -52,7 +53,15 @@
         valFail: q('val-fail'),
         percFail: q('perc-fail'),
 
-        // Charts
+        // Push Metrics
+        valPushSent: q("val-push-sent"),
+        percPushSent: q("perc-push-sent"),
+        valPushSuccess: q("val-push-success"),
+        percPushSuccess: q("perc-push-success"),
+        valPushFail: q("val-push-fail"),
+        percPushFail: q("perc-push-fail"),
+
+      // Charts
         canvasHistory: q('chartHistory'),
         canvasStatus: q('chartStatus'),
         canvasTopPanels: q('chartTopPanels'),
@@ -74,6 +83,10 @@
         dTimeline: q('d-timeline'),
         dLogPanel: q('d-log-panel'),
         dLogClient: q('d-log-client'),
+        // Modal
+        dataModal: q('dataModal'),
+        modalDataContent: q('modalDataContent'),
+        closeModalBtn: q('closeModalBtn'),
     };
 
     // --- 2. STATE ---
@@ -149,9 +162,9 @@
             // Определяем статусы согласно обновленной логике парсера
             const stats = {
                 answered: data.filter(d => d.call_status === 'answered' || d.call_status === 'opened').length,
-                opened: data.filter(d => d.has_dtmf || d.call_status === 'opened').length,
+                opened: data.filter(d => d.call_status === 'opened').length,
                 missed: data.filter(d => d.call_status === 'missed').length,
-                fail: data.filter(d => d.call_status === 'fail').length
+                fail: data.filter(d => !['answered', 'opened', 'missed'].includes(d.call_status)).length
             };
 
             const updateMetric = (elVal, elPerc, val) => {
@@ -164,6 +177,29 @@
             updateMetric(el.valOpened, el.percOpened, stats.opened);
             updateMetric(el.valMissed, el.percMissed, stats.missed);
             updateMetric(el.valFail, el.percFail, stats.fail);
+
+            // Подсчет статистики по пуш-уведомлениям
+            const pushStats = this.calculatePushStats(data);
+            if (el.valPushSent) el.valPushSent.innerText = pushStats.totalSent;
+            if (el.percPushSent) {
+            el.percPushSent.innerText = total > 0
+                ? Math.round((pushStats.totalSent / total) * 100) + "%"
+                : "0%";
+            }
+            if (el.valPushSuccess)
+            el.valPushSuccess.innerText = pushStats.totalSentSuccess;
+            if (el.percPushSuccess) {
+                el.percPushSuccess.innerText = total > 0
+                    ? Math.round((pushStats.totalSentSuccess / total) * 100) + "%"
+                    : "0%";
+            }
+
+            if (el.valPushFail) el.valPushFail.innerText = pushStats.totalSentFail;
+            if (el.percPushFail) {
+                el.percPushFail.innerText = total > 0
+                    ? Math.round((pushStats.totalSentFail / total) * 100) + "%"
+                    : "0%";
+            }
 
             this.updateCharts(data);
         },
@@ -368,18 +404,21 @@
                 const statusClassMap = { 'answered': 'status-answered', 'opened': 'status-opened', 'missed': 'status-missed', 'fail': 'status-fail' };
                 const statusLabelMap = { 'answered': 'Принят', 'opened': 'Открыто', 'missed': 'Пропущен', 'fail': 'Ошибка' };
 
+                // Определяем наличие пуш-уведомлений
+                const hasSuccessPushCallNotifications = call.events.filter(x => x.event_type === 'push_call_sent' && x?.meta?.success).length > 0
+
                 const row = document.createElement('div');
                 row.className = `call-row ${state.activeCallId === call.id ? 'selected' : ''}`;
                 row.onclick = () => this.selectCall(call);
 
                 row.innerHTML = `
                             <div class="cr-top">
-                                <span class="cr-time">${timeStr}</span>
+                                <span class="cr-time">${timeStr}${hasSuccessPushCallNotifications ? "📱" : ""}</span>
                                 <span class="cr-status ${statusClassMap[call.call_status] || ''}">
                                     ${statusLabelMap[call.call_status] || call.call_status}
                                 </span>
                             </div>
-                            <div class="cr-info">${call.panel_id || 'Unknown'} • ${call.apartment_id || '-'}</div>
+                            <div class="cr-info">${call.panel_id || "-"} • ${call.apartment_id || "-"}</div>
                             <div class="cr-id">${call.id}</div>
                         `;
                 el.callsTableBody.appendChild(row);
@@ -431,13 +470,21 @@
             ).join('');
 
             // Timeline (Horizontal)
-            el.dTimeline.innerHTML = (call.events || []).map(evt => `
-                    <div class="tl-item">
-                        <div class="tl-time">${new Date(evt.timestamp).toLocaleTimeString()}</div>
-                        <div class="tl-content">${evt.details || evt.event_type}</div>
-                        <div class="tl-details" style="font-size: 0.7rem">${evt.source || 'sys'}</div>
-                    </div>
-                `).join('');
+            el.dTimeline.innerHTML = '';
+            (call.events || []).forEach(evt => {
+                const div = document.createElement('div');
+                div.className = 'tl-item';
+                div.style.cursor = 'pointer';
+                div.title = 'Нажмите, чтобы увидеть детали события';
+                div.onclick = () => this.showModal(evt);
+
+                div.innerHTML = `
+                            <div class="tl-time">${new Date(evt.timestamp).toLocaleTimeString()}</div>
+                            <div class="tl-content">${evt.details || evt.event_type}</div>
+                            <div class="tl-details" style="font-size: 0.7rem">${evt.source || 'sys'}</div>
+                        `;
+                el.dTimeline.appendChild(div);
+            });
 
             // Обработка дополнительных "ног" (calls)
             const extraCont = q('d-extra-calls');
@@ -497,10 +544,40 @@
                 if (e.dataTransfer.files.length) this.processFile(e.dataTransfer.files[0]);
             };
 
-            // Фильтры
             // Ищем кнопку "Применить" внутри фильтров, если нет ID
             const applyBtn = document.querySelector('.filters-bar button');
             if(applyBtn) applyBtn.onclick = () => this.applyFilters();
+
+            // Modal
+            if (el.closeModalBtn) el.closeModalBtn.onclick = () => this.closeModal();
+            window.addEventListener('click', (event) => {
+                if (event.target == el.dataModal) {
+                    this.closeModal();
+                }
+            });
+        },
+
+        // --- POPUP / MODAL ---
+        showModal(data) {
+            if (!el.dataModal || !el.modalDataContent) return;
+
+            let content = '';
+            if (typeof data === 'object') {
+                try {
+                    content = JSON.stringify(data, null, 2);
+                } catch (e) {
+                    content = String(data);
+                }
+            } else {
+                content = String(data);
+            }
+
+            el.modalDataContent.textContent = content;
+            el.dataModal.classList.add('active');
+        },
+
+        closeModal() {
+            if (el.dataModal) el.dataModal.classList.remove('active');
         },
 
         // --- ЛОГИКА ОБРАБОТКИ ФАЙЛОВ ---
@@ -588,7 +665,7 @@
                         });
 
                         // 3. Сортировка событий по времени
-                        existing.events.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+                        existing.events.sort((a, b) => a.timestamp - b.timestamp);
                     }
 
                 } else {
@@ -611,6 +688,7 @@
             const apt = el.filterApt.value.trim();
             const panel = el.filterPanel.value.trim();
             const callId = el.filterId.value.toLowerCase().trim();
+            const pushFilter = el.filterPush.value;
 
             const matchesSearch = (value, filter) => {
                 if (!filter) return true;
@@ -638,7 +716,35 @@
                 const matchesPanel = matchesSearch(item.panel_id, panel);
                 const matchesId = (!callId || (item.id && item.id.toLowerCase().includes(callId)));
 
-                return matchesDate && matchesStatus && matchesApt && matchesPanel && matchesId;
+                // Фильтрация по пуш-уведомлениям
+                let matchesPush = true
+                if (pushFilter !== 'all') {
+                    const pushes = item.events.filter(x => x.event_type === 'push_call_sent')
+                    const hasPushNotifications = pushes.length > 0
+                    switch (pushFilter) {
+                        case 'has_push':
+                            matchesPush = hasPushNotifications
+                            break
+                        case 'no_push':
+                            matchesPush = !hasPushNotifications
+                            break
+                        case 'success_push':
+                            matchesPush = hasPushNotifications && pushes.some(x => x?.meta.success)
+                            break
+                        case 'unsuccess_push':
+                            matchesPush = hasPushNotifications && !pushes.some(x => x?.meta.success)
+                            break
+                    }
+                }
+
+                return (
+                    matchesDate &&
+                    matchesStatus &&
+                    matchesApt &&
+                    matchesPanel &&
+                    matchesId &&
+                    matchesPush
+                )
             });
 
             const isDashboard = document.getElementById('view-dashboard').classList.contains('active');
@@ -655,7 +761,34 @@
             } else {
                 console.error("Invalid file handler format");
             }
-        }
+        },
+
+        // --- РАСЧЕТ СТАТИСТИКИ ПО ПУШ-УВЕДОМЛЕНИЯМ ---
+        calculatePushStats (data) {
+            let totalSent = 0 // sentPush + cancel=false
+            let totalSentSuccess = 0 // sentPush + cancel=false + в ответе есть данные о том что пуш был отправлен
+            let totalSentFail = 0;
+
+            data.forEach(call => {
+                const pushes = call.events.filter(x => x.event_type === 'push_call_sent')
+                const hasPushNotifications = pushes.length > 0
+                const hasSuccessPushNotifications = pushes.filter(x => x?.meta?.success).length > 0
+                if (hasPushNotifications) {
+                    totalSent++;
+                    if (hasSuccessPushNotifications) {
+                        totalSentSuccess++;
+                    } else {
+                        totalSentFail++;
+                    }
+                }
+            })
+
+            return {
+                totalSent,
+                totalSentSuccess,
+                totalSentFail,
+            }
+        },
     };
 
     // Экспорт в глобальную область
