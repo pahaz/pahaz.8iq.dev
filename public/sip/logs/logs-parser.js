@@ -26,24 +26,7 @@
             const col = (name) => headers.indexOf(name);
 
             const IDX = {
-                callId: col('_source.variables.sip_call_id'),
-                otherCallId: col('_source.variables.sip_h_X-Other-Call-ID'),
-                uid: col('_source.variables.uuid'),
-                direction: col('_source.variables.direction'),
-                userAgent: col('_source.variables.sip_user_agent'),
                 fullVia: col('_source.variables.sip_full_via'),
-
-                // Временные метки
-                start: col('_source.variables.start_uepoch'),
-                progressMedia: col('_source.variables.progress_media_uepoch'),
-                answer: col('_source.variables.answer_uepoch'),
-                end: col('_source.variables.end_uepoch'),
-                bridge: col('_source.variables.bridge_uepoch'),
-
-                // Участники
-                fromUser: col('_source.variables.sip_from_user'),
-                toUser: col('_source.variables.sip_to_user'),
-                ip: col('_source.variables.sip_network_ip'),
 
                 // Статусы и причины завершения
                 hangupCause: col('_source.variables.hangup_cause'),
@@ -72,10 +55,6 @@
                 videoPktOut: col('_source.variables.rtp_video_out_media_packet_count'),
                 videoDtmfIn: col('_source.variables.rtp_video_in_dtmf_packet_count'),
                 videoDtmfOut: col('_source.variables.rtp_video_out_dtmf_packet_count'),
-
-                // Длительность
-                billSec: col('_source.variables.billsec'),
-                duration: col('_source.variables.duration'),
             };
 
             // Карта для агрегации звонков по ID домофонной сессии
@@ -89,10 +68,10 @@
                     continue;
                 }
 
-                const direction = row[IDX.direction].trim();
-                const sipCallId = row[IDX.callId].trim();
-                const otherCallId = row[IDX.otherCallId].trim();
-                const uid = sipCallId || row[IDX.uid].trim();
+                const direction = row[col('_source.variables.direction')].trim();
+                const sipCallId = row[col('_source.variables.sip_call_id')].trim();
+                const otherCallId = row[col('_source.variables.sip_h_X-Other-Call-ID')].trim();
+                const uid = row[col('_source.variables.uuid')].trim();
 
                 // Определяем основной ID звонка (всегда ID inbound ноги)
                 let masterId = null;
@@ -105,7 +84,7 @@
                 }
 
                 if (!masterId) {
-                    console.warn(`Row ${i} has invalid direction (${direction}) or missing call IDs (${IDX.callId}, ${IDX.otherCallId})`, row);
+                    console.warn(`Row ${i} has invalid direction (variables.direction) or missing call IDs (variables.sip_call_id, variables.sip_h_X-Other-Call-ID)`, row);
                     continue;
                 }
 
@@ -121,19 +100,19 @@
                 // 3. Заполнение данных в зависимости от направления
                 if (direction === 'inbound') {
                     // --- ДАННЫЕ ПАНЕЛИ (Intercom) ---
-                    call.panel_id = row[IDX.fromUser]; // Обычно имя юзера SIP панели
-                    call.panel_details = row[IDX.userAgent];
-                    call.apartment_id = row[IDX.toUser]; // Обычно outbound идет на user=квартира
+                    call.panel_id = metaCall['variables.sip_from_user']; // Обычно имя юзера SIP панели
+                    call.panel_details = metaCall['variables.sip_user_agent'];
+                    call.apartment_id = metaCall['variables.sip_to_user']; // Обычно outbound идет на user=квартира
 
-                    call.start_call_time = parseDate(row[IDX.start]);
-                    call.end_call_time = parseDate(row[IDX.end]);
-                    call.start_panel_media_time = parseDate(row[IDX.progressMedia]);
-                    call.answer_by_panel_time = parseDate(row[IDX.answer]);
-                    call.bridge_panel_and_client_time = parseDate(row[IDX.bridge]);
+                    call.start_call_time = parseDate(metaCall['variables.start_uepoch']);
+                    call.end_call_time = parseDate(metaCall['variables.end_uepoch']);
+                    call.start_panel_media_time = parseDate(metaCall['variables.progress_media_uepoch']);
+                    call.answer_by_panel_time = parseDate(metaCall['variables.answer_uepoch']);
+                    call.bridge_panel_and_client_time = parseDate(metaCall['variables.bridge_uepoch']);
                     
-                    call.speaking_time_sec = parseInt(row[IDX.billSec].trim() || 0, 10);
-                    call.duration_sec = parseInt(row[IDX.duration].trim() || 0, 10);
-                    call.has_dtmf = parseInt(row[IDX.audioDtmfOut] || 0, 10) > 0;
+                    call.speaking_time_sec = parseInt(metaCall['variables.billsec'].trim() || 0, 10);
+                    call.duration_sec = parseInt(metaCall['variables.duration'].trim() || 0, 10);
+                    call.has_dtmf = parseInt(metaCall['variables.rtp_audio_out_dtmf_packet_count'] || '0', 10) > 0;
 
                     // answered - has answer and billsec > 0
                     // opened - rtp_audio_out_dtmf_packet_count > 0
@@ -153,16 +132,14 @@
                     }
 
                     call.callPanel = {
-                        ip: row[IDX.ip],
-                        user_agent: row[IDX.userAgent],
-                        audio_codec: row[IDX.audioCodec],
-                        video_codec: row[IDX.videoCodec],
                         ...metaCall,
                     };
 
                     addEvent(call, 'start', call.start_call_time, 'Panel', 'Звонок ☎️');
                     addEvent(call, 'answer', call.answer_by_panel_time, 'Panel', '📞🗣☎️️панель');
-                    addEvent(call, 'bridge', call.bridge_panel_and_client_time, 'Panel', '🤝бридж');
+                    addEvent(call, 'bridge', call.bridge_panel_and_client_time, 'Panel', '🤝бридж', {
+                        bridgeToCallId: metaCall['variables.bridge_uuid'],
+                    });
                     const endInfo = buildEndInfo(metaCall)
                     addEvent(call, 'end', call.end_call_time, 'Panel', `🔚🔚панель${endInfo}`, {
                         sip_hangup_disposition: metaCall['variables.sip_hangup_disposition'],
@@ -202,18 +179,24 @@
                 let index = 0
                 for (const client of clients) {
                     index++;
-                    addEvent(call, 'start', parseDate(client['variables.start_uepoch']), 'Client', `📲#${index}`);
-                    addEvent(call, 'answer', parseDate(client['variables.answer_uepoch']), 'Client', `📞🤙🗣️#${index}`);
+                    addEvent(call, 'start', parseDate(client['variables.start_uepoch']), 'Client', `📲#${index}`, {
+                        callId: client.id,
+                    });
+                    addEvent(call, 'answer', parseDate(client['variables.answer_uepoch']), 'Client', `📞🤙🗣️#${index}`, {
+                        callId: client.id,
+                    });
                     const endInfo = buildEndInfo(client)
                     addEvent(call, 'end', parseDate(client['variables.end_uepoch']), 'Client', `🔚#${index}${endInfo}`, {
                         sip_hangup_disposition: client['variables.sip_hangup_disposition'],
                         hangup_cause_q850: client['variables.hangup_cause_q850'],
                         sip_invite_failure_status: client['variables.sip_invite_failure_status'],
                         sip_invite_failure_phrase: client['variables.sip_invite_failure_phrase'],
+                        callId: client.id,
                     })
                 }
                 
                 call.events.sort((a, b) => a.timestamp - b.timestamp);
+                call.calls = clients.filter(x => x.id && ![call.callClient.id, call.callPanel.id].filter(Boolean).includes(x.id))
                 return call;
             });
         }
@@ -229,6 +212,7 @@
                 if (key.startsWith('_source.')) {
                     key = key.substring('_source.'.length)
                 }
+                if (key.startsWith('_') || key.startsWith('@')) continue;
                 meta[key] = value
             }
         }
@@ -279,10 +263,10 @@
             call.events.push({
                 event_id,
                 event_type,
+                event_kind: 'cdr',
                 source,
                 details,
                 timestamp,
-                kind: 'cdr',
                 meta,
             })
         }

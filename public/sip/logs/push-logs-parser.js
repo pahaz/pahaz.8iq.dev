@@ -136,10 +136,10 @@
                 call.events.push({
                     event_id: `${callId}_${type}_${timestamp.getTime()}`,
                     event_type: type,
+                    event_kind: 'push',
                     source: 'Webhook',
                     details,
                     timestamp,
-                    kind: 'push',
                     meta: {
                         from: panel,
                         to: client,

@@ -7,6 +7,7 @@
     // --- 1. DOM ELEMENTS (EL) ---
     // Кэшируем все элементы интерфейса
     const q = (id) => document.getElementById(id);
+    const LOCAL_UI_STATE = 'ui_state_data'
 
     const el = {
         // Nav
@@ -42,6 +43,9 @@
         filterPush: q("filterPush"),
         btnApplyFilters: q('btnApplyFilters'),
 
+        // Export
+        btnExport: q('btnExport'),
+
         // Dashboard Metrics
         valTotal: q('val-total'),
         valAnswered: q('val-answered'),
@@ -66,6 +70,7 @@
         canvasStatus: q('chartStatus'),
         canvasTopPanels: q('chartTopPanels'),
         canvasPanelAnalysis: q('chartPanelAnalysis'),
+        canvasDuration: q('chartDuration'),
 
         // Details List
         callsTableBody: q('callsTableBody'),
@@ -102,6 +107,13 @@
         // Структура: { check: (content) => bool, parse: (content) => CallObject[] }
         fileHandlers: [],
 
+        // История ввода фильтров
+        inputHistory: {
+            apt: [],
+            panel: [],
+            id: []
+        },
+
         // Инстансы графиков Chart.js
         charts: {},
 
@@ -111,9 +123,9 @@
     // --- 3. UI LOGIC ---
     const ui = {
         init() {
+            this.loadSettings(); // Загружаем и текущие значения, и историю
             this.bindEvents();
-            // Инициализация графиков пустыми данными
-            this.renderDashboard();
+            this.renderDashboard(); // Инициализация графиков пустыми данными
         },
 
         // --- Управление режимами ---
@@ -152,6 +164,31 @@
             setTimeout(() => {
                 if (!isError) el.progressWrapper.style.display = 'none';
             }, 2000);
+        },
+
+        exportData() {
+            if (!state.allCalls || state.allCalls.length === 0) {
+                alert('Нет данных для экспорта');
+                return;
+            }
+
+            try {
+                const jsonStr = toSortedJsonString(state.allCalls);
+                const blob = new Blob([jsonStr], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+
+                const a = document.createElement('a');
+                a.href = url;
+                const dateStr = new Date().toISOString().split('T')[0];
+                a.download = `intercom_logs_export_${dateStr}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            } catch (e) {
+                console.error('Export failed:', e);
+                alert('Ошибка при экспорте данных');
+            }
         },
 
         // --- Отрисовка Дашборда ---
@@ -208,6 +245,7 @@
             if (typeof Chart === 'undefined') return;
 
             this.renderHistoryChart(data);
+            this.renderDurationChart(data);
             this.renderPanelAnalysisChart(data);
         },
 
@@ -264,6 +302,112 @@
                         },
                         plugins: {
                             legend: { position: 'bottom' }
+                        }
+                    }
+                });
+            }
+        },
+
+        renderDurationChart(data) {
+            if (!el.canvasDuration) return;
+
+            // Определяем интервалы (бакеты) длительности
+            const buckets = [
+                { label: '0-2 с', max: 2 },
+                { label: '2-4 с', max: 4 },
+                { label: '5-6 с', max: 6 },
+                { label: '6-8 с', max: 8 },
+                { label: '8-10 с', max: 10 },
+                { label: '10-12 с', max: 12 },
+                { label: '12-14 с', max: 14 },
+                { label: '14-16 с', max: 16 },
+                { label: '16-18 с', max: 18 },
+                { label: '18-20 с', max: 20 },
+                { label: '20-22 с', max: 22 },
+                { label: '22-24 с', max: 24 },
+                { label: '26-28 с', max: 28 },
+                { label: '28-30 с', max: 30 },
+                { label: '30-32 с', max: 32 },
+                { label: '32-34 с', max: 34 },
+                { label: '34-36 с', max: 36 },
+                { label: '36-38 с', max: 38 },
+                { label: '38-40 с', max: 40 },
+                { label: '40-42 с', max: 42 },
+                { label: '42-44 с', max: 44 },
+                { label: '44-46 с', max: 46 },
+                { label: '46-48 с', max: 48 },
+                { label: '48-50 с', max: 50 },
+                { label: '50-52 с', max: 52 },
+                { label: '52-54 с', max: 54 },
+                { label: '54-56 с', max: 56 },
+                { label: '56-58 с', max: 58 },
+                { label: '58-60 с', max: 60 },
+                { label: '1-2 мин', max: 120 },
+                { label: '> 2 мин', max: Infinity },
+            ];
+
+            // Инициализация структуры для подсчета
+            const distribution = buckets.map(b => ({
+                label: b.label,
+                max: b.max,
+                stats: { answered: 0, opened: 0, missed: 0, fail: 0 }
+            }));
+
+            data.forEach(d => {
+                const duration = parseFloat(d.duration_sec) || 0;
+
+                // Находим подходящий интервал
+                const targetBucket = distribution.find(b => duration < b.max);
+
+                if (targetBucket) {
+                    const s = d.call_status;
+                    if (targetBucket.stats.hasOwnProperty(s)) {
+                        targetBucket.stats[s]++;
+                    } else {
+                        targetBucket.stats.fail++;
+                    }
+                }
+            });
+
+            const labels = distribution.map(d => d.label);
+
+            const createConfig = (label, key, color) => ({
+                label: label,
+                data: distribution.map(d => d.stats[key]),
+                backgroundColor: color,
+                stack: 'stackDuration'
+            });
+
+            const chartData = {
+                labels,
+                datasets: [
+                    createConfig('Дверь открыта', 'opened', '#059669'),
+                    createConfig('Отвечено', 'answered', '#10b981'),
+                    createConfig('Пропущено', 'missed', '#ef4444'),
+                    createConfig('Fail', 'fail', '#94a3b8')
+                ]
+            };
+
+            if (state.charts.duration) {
+                state.charts.duration.data = chartData;
+                state.charts.duration.update();
+            } else {
+                state.charts.duration = new Chart(el.canvasDuration, {
+                    type: 'bar',
+                    data: chartData,
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: { stacked: true },
+                            y: { stacked: true, beginAtZero: true }
+                        },
+                        plugins: {
+                            legend: { position: 'bottom' },
+                            title: {
+                                display: true,
+                                text: 'Распределение статусов по длительности'
+                            }
                         }
                     }
                 });
@@ -447,22 +591,22 @@
                 { label: 'Дата', value: call.start_call_time ? call.start_call_time.toLocaleDateString() : '-' },
                 { label: 'Длительность звонка', value: (call.duration_sec || 0) + ' сек' },
                 { label: 'Длительность разговора', value: (call.speaking_time_sec || 0) + ' сек' },
-                { label: 'DTMF пакеты (out)', value: cp['variables.rtp_audio_out_dtmf_packet_count'] || 0 },
                 { label: 'Модель', value: call.panel_details || '-' },
                 { label: 'Панель', value: call.panel_id || '-' },
                 { label: 'Квартира', value: call.apartment_id || '-' },
-                { label: 'IP панели', value: cp['ip'] || '-' },
+                { label: 'IP панели', value: cp['variables.sip_network_ip'] || '-' },
                 { label: 'Причина завершения', value: cp['variables.hangup_cause'] || '-' },
                 { label: 'Завершение SIP', value: cp['variables.sip_hangup_disposition'] || '-' },
 
                 { type: 'title', label: 'Метрики Audio' },
                 { label: 'MOS', value: cp['variables.rtp_audio_in_mos'] || '-' },
-                { label: 'Кодек', value: cp['audio_codec'] || '-' },
+                { label: 'Кодек', value: cp['variables.rtp_use_codec_name'] || '-' },
                 { label: 'Пакеты (In/Out)', value: `${cp['variables.rtp_audio_in_media_packet_count'] || 0} / ${cp['variables.rtp_audio_out_media_packet_count'] || 0}` },
+                { label: 'DTMF пакеты (out)', value: cp['variables.rtp_audio_out_dtmf_packet_count'] || 0 },
 
                 { type: 'title', label: 'Метрики Video' },
                 { label: 'MOS', value: cp['variables.rtp_video_in_mos'] || '-' },
-                { label: 'Кодек', value: cp['video_codec'] || '-' },
+                { label: 'Кодек', value: cp['variables.rtp_use_video_codec_name'] || '-' },
                 { label: 'Пакеты (In/Out)', value: `${cp['variables.rtp_video_in_media_packet_count'] || 0} / ${cp['variables.rtp_video_out_media_packet_count'] || 0}` },
             ];
 
@@ -504,7 +648,7 @@
             // Обработка дополнительных "ног" (calls)
             const extraCont = q('d-extra-calls');
             const calls = call.calls || [];
-            if (calls && calls.length > 1) {
+            if (calls && calls.length >= 1) {
                 const extraCalls = calls.filter((x) => x.id && x.id !== call.id && x.id !== call.callPanel?.id && x.id !== call.callClient?.id);
 
                 const escapeHtml = (text) => {
@@ -519,7 +663,7 @@
                             <summary>Плечо ID: ${c.id}</summary>
                             <div class="content">
                                     <div style="margin-bottom: 10px; padding: 8px; border: 1px solid #eee; border-radius: 4px;">
-                                        <pre class="log-block" id="d-log-client">${escapeHtml(JSON.stringify(c, null, 2))}</pre>
+                                        <pre class="log-block" id="d-log-client">${escapeHtml(toSortedJsonString(c))}</pre>
                                     </div>
                             </div>
                         </details>
@@ -531,8 +675,8 @@
             }
 
             // Logs
-            el.dLogPanel.textContent = JSON.stringify(call.callPanel || {}, null, 2);
-            el.dLogClient.textContent = JSON.stringify(call.callClient || {}, null, 2);
+            el.dLogPanel.textContent = toSortedJsonString(call.callPanel || {});
+            el.dLogClient.textContent = toSortedJsonString(call.callClient || {});
         },
 
         bindEvents() {
@@ -541,6 +685,11 @@
             el.navButtons.forEach((btn, index) => {
                 btn.onclick = () => this.switchMode(modes[index]);
             });
+
+            // Экспорт
+            if (el.btnExport) {
+                el.btnExport.onclick = () => this.exportData();
+            }
 
             // Клик по кнопке загрузки открывает скрытый input
             el.btnUpload.onclick = () => el.fileInput.click();
@@ -579,7 +728,7 @@
             let content = '';
             if (typeof data === 'object') {
                 try {
-                    content = JSON.stringify(data, null, 2);
+                    content = toSortedJsonString(data);
                 } catch (e) {
                     content = String(data);
                 }
@@ -678,9 +827,6 @@
                                 existing.events.push(newEvt);
                             }
                         });
-
-                        // 3. Сортировка событий по времени
-                        existing.events.sort((a, b) => a.timestamp - b.timestamp);
                     }
 
                 } else {
@@ -691,14 +837,181 @@
             });
 
             // Сортируем все звонки по времени начала (от новых к старым)
-            state.allCalls.sort((a, b) => new Date(b.start_call_time) - new Date(a.start_call_time));
+            // Звонки без start_call_time помещаются в конец списка
+            state.allCalls.sort((a, b) => {
+                const aTime = a.start_call_time
+                const bTime = b.start_call_time
+                // Если оба времени отсутствуют, сохраняем текущий порядок
+                if (!aTime && !bTime) return 0
+                // Если только у 'a' нет времени, помещаем 'a' в конец (после 'b')
+                if (!aTime) return 1
+                // Если только у 'b' нет времени, помещаем 'b' в конец (после 'a')
+                if (!bTime) return -1
+                // Оба времени присутствуют - сортируем от новых к старым
+                return new Date(bTime) - new Date(aTime)
+            })
 
             // Нормализация данных
             state.allCalls.forEach(c => {
+                // call_status = fail | answered | opened | missed
                 if (!['answered', 'opened', 'missed'].includes(c.call_status)) c.call_status = 'fail';
+
+                // Сортировка событий по времени
+                c.events.sort((a, b) => {
+                    const t = a.timestamp - b.timestamp;
+                    if (t !== 0) return t;
+
+                    // Пересортируем по событию recv - получение
+                    const aIsRecv = a?.meta?.sip_hangup_disposition?.startsWith('recv');
+                    const bIsRecv = b?.meta?.sip_hangup_disposition?.startsWith('recv');
+                    if (aIsRecv && !bIsRecv) return -1;
+                    if (!aIsRecv && bIsRecv) return 1;
+                    return 0;
+                });
             })
 
+            // --- НОРМАЛИЗАЦИЯ КЛЮЧЕЙ: Удаление полей с одинаковыми значениями ---
+            // 1. Сбор всех уникальных путей к значениям (кроме events и id)
+            const allPaths = new Set();
+            const gatherKeys = (obj, prefix = '') => {
+                if (!obj) return;
+                Object.keys(obj).forEach(key => {
+                    // Исключаем системные поля, которые нельзя удалять даже если они одинаковые
+                    if ([
+                        'events', 'id',
+                        'variables.hangup_cause',
+                        'variables.rtp_audio_in_media_packet_count',
+                        'variables.rtp_audio_in_mos',
+                        'variables.rtp_audio_out_dtmf_packet_count',
+                        'variables.rtp_audio_out_media_packet_count',
+                        'variables.rtp_use_codec_name',
+                        'variables.rtp_use_video_codec_name',
+                        'variables.rtp_video_in_media_packet_count',
+                        'variables.rtp_video_in_mos',
+                        'variables.rtp_video_out_media_packet_count',
+                        'variables.sip_hangup_disposition',
+                        'variables.sip_network_ip',
+                    ].includes(key)) return;
+
+                    const val = obj[key];
+                    const path = prefix ? `${prefix}|${key}` : key;
+
+                    // Для callPanel и callClient идем вглубь
+                    if (['callPanel', 'callClient'].includes(key) && val && typeof val === 'object') {
+                        gatherKeys(val, path);
+                    } else {
+                        allPaths.add(path);
+                    }
+                });
+            };
+            // Проходим по всем звонкам, чтобы найти все возможные ключи
+            state.allCalls.forEach(c => gatherKeys(c));
+
+            // 2. Поиск ключей, у которых нет разности значений (константы)
+            const keysToRemove = new Set();
+            allPaths.forEach(path => {
+                const values = new Set();
+                state.allCalls.forEach(call => {
+                    // Безопасное получение значения по вложенному пути (например 'callPanel.audio_codec')
+                    const val = path.split('|').reduce((acc, part) => acc && acc[part], call);
+                    // Приводим к строке для сравнения (null и undefined будут считаться как "значение отсутствует")
+                    values.add(String(val));
+                });
+
+                // Если размер Set <= 1, значит значение либо везде одинаковое, либо везде отсутствует
+                if (values.size <= 1) {
+                    keysToRemove.add(path);
+                } else if (values.size === 2 && values.has('undefined')) {
+                    keysToRemove.add(path);
+                }
+            });
+
+            // 3. Удаление "мусорных" ключей
+            if (keysToRemove.size > 0) {
+                console.log(`Cleaning up ${keysToRemove.size} static keys`, [...keysToRemove]);
+                state.allCalls.forEach(call => {
+                    keysToRemove.forEach(path => {
+                        const parts = path.split('|');
+                        const lastKey = parts.pop();
+                        // Получаем ссылку на объект-родитель
+                        const target = parts.reduce((acc, part) => acc && acc[part], call);
+                        
+                        if (target && target[lastKey] !== undefined) {
+                            delete target[lastKey];
+                        }
+                    });
+                });
+            }
+
             console.log(`Merge complete. New: ${newCount}, Updated: ${updatedCount}, Total: ${state.allCalls.length}`);
+        },
+
+        renderDatalists() {
+            const updateList = (id, items) => {
+                const listEl = document.getElementById(id);
+                if (!listEl) return;
+                listEl.innerHTML = items.map(val => `<option value="${val.replace(/"/g, '&quot;')}">`).join('');
+            };
+
+            updateList('list-apt', state.inputHistory.apt);
+            updateList('list-panel', state.inputHistory.panel);
+            updateList('list-id', state.inputHistory.id);
+        },
+
+        addToHistory(key, value) {
+            if (!value || !value.trim()) return;
+            const val = value.trim();
+
+            // Добавляем в начало, удаляем дубликаты
+            const list = state.inputHistory[key] || [];
+            const newList = [val, ...list.filter(item => item !== val)].slice(0, 15); // Храним последние 15
+
+            state.inputHistory[key] = newList;
+            this.renderDatalists();
+        },
+
+        loadSettings() {
+            try {
+                const saved = localStorage.getItem(LOCAL_UI_STATE);
+                if (saved) {
+                    const data = JSON.parse(saved);
+
+                    // Восстанавливаем последние значения полей
+                    if (data.values) {
+                        // if (data.values.dateStart) el.filterDateStart.value = data.values.dateStart;
+                        // if (data.values.dateEnd) el.filterDateEnd.value = data.values.dateEnd;
+                        // if (data.values.status) el.filterStatus.value = data.values.status;
+                        // if (data.values.push) el.filterPush.value = data.values.push;
+                        // if (data.values.apt) el.filterApt.value = data.values.apt;
+                        // if (data.values.panel) el.filterPanel.value = data.values.panel;
+                        // if (data.values.id) el.filterId.value = data.values.id;
+                    }
+
+                    // Восстанавливаем историю
+                    if (data.history) {
+                        state.inputHistory = data.history;
+                        this.renderDatalists();
+                    }
+                }
+            } catch (e) {
+                console.error('Ошибка при загрузке настроек', e);
+            }
+        },
+
+        saveSettings() {
+            const data = {
+                values: {
+                    dateStart: el.filterDateStart.value,
+                    dateEnd: el.filterDateEnd.value,
+                    status: el.filterStatus.value,
+                    push: el.filterPush.value,
+                    apt: el.filterApt.value,
+                    panel: el.filterPanel.value,
+                    id: el.filterId.value
+                },
+                history: state.inputHistory
+            };
+            localStorage.setItem(LOCAL_UI_STATE, JSON.stringify(data));
         },
 
         applyFilters() {
@@ -707,8 +1020,29 @@
             const status = el.filterStatus.value;
             const apt = el.filterApt.value.trim();
             const panel = el.filterPanel.value.trim();
-            const callId = el.filterId.value.toLowerCase().trim();
+            const callIdRaw = el.filterId.value.trim();
             const pushFilter = el.filterPush.value;
+
+            // Сохраняем успешные поисковые запросы в историю
+            this.addToHistory('apt', apt);
+            this.addToHistory('panel', panel);
+            this.addToHistory('id', callIdRaw);
+            this.saveSettings(); // Сохраняем обновленную историю в localStorage
+
+            // Проверяем, ввел ли пользователь JS-функцию (например: call => call.duration > 10)
+            let customIdFilter = null;
+            if (callIdRaw.includes('=>') || callIdRaw.trim().startsWith('function')) {
+                try {
+                    const func = new Function('return ' + callIdRaw)();
+                    if (typeof func === 'function') {
+                        customIdFilter = func;
+                    }
+                } catch (e) {
+                    // Если не удалось распарсить, используем как обычную строку поиска
+                    console.warn('Не удалось создать фильтр-функцию', e);
+                }
+            }
+            const callIdLower = callIdRaw.toLowerCase();
 
             const matchesSearch = (value, filter) => {
                 if (!filter) return true;
@@ -734,7 +1068,17 @@
                 const matchesStatus = (status === 'all' || item.call_status === status);
                 const matchesApt = matchesSearch(item.apartment_id, apt);
                 const matchesPanel = matchesSearch(item.panel_id, panel);
-                const matchesId = (!callId || (item.id && item.id.toLowerCase().includes(callId)));
+
+                let matchesId = true;
+                if (customIdFilter) {
+                    try {
+                        matchesId = customIdFilter(item);
+                    } catch (e) {
+                        matchesId = false; // Если функция упала с ошибкой, исключаем элемент
+                    }
+                } else {
+                    matchesId = (!callIdLower || (item.id && item.id.toLowerCase().includes(callIdLower)));
+                }
 
                 // Фильтрация по пуш-уведомлениям
                 let matchesPush = true
@@ -811,6 +1155,23 @@
         },
     };
 
+    function sortObjectKeys (obj) {
+        if (obj === null || typeof obj !== 'object') return obj
+        if (Array.isArray(obj)) return obj.map(sortObjectKeys)
+        if (obj instanceof Date) return obj
+
+        return Object.keys(obj)
+            .sort()
+            .reduce((acc, key) => {
+                acc[key] = sortObjectKeys(obj[key])
+                return acc
+            }, {})
+    }
+
+    function toSortedJsonString (obj) {
+        return JSON.stringify(sortObjectKeys(obj), null, 2)
+    }
+
     // Экспорт в глобальную область
     window.IntercomAnalytics = {
         init: () => ui.init(),
@@ -837,7 +1198,28 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         },
         parse: (content) => {
-            return JSON.parse(content);
+            const data = JSON.parse(content);
+
+            // Рекурсивная функция для восстановления дат в объекте звонка
+            const restoreDates = (item) => {
+                // 1. Основные поля времени звонка
+                Object.keys(item).forEach(field => {
+                    if (item[field] && field.endsWith('_time')) item[field] = new Date(item[field]);
+                });
+
+                // 2. Поля времени в событиях (events)
+                if (Array.isArray(item.events)) {
+                    item.events.forEach(evt => {
+                        if (evt.timestamp) evt.timestamp = new Date(evt.timestamp);
+                    });
+                }
+            };
+
+            if (Array.isArray(data)) {
+                data.forEach(item => restoreDates(item));
+            }
+
+            return data;
         }
     });
 
@@ -876,8 +1258,8 @@ function generateMockData(count = 20) {
             start_call_time: start.toISOString(),
             end_call_time: end.toISOString(),
             call_status: isAns ? 'answered' : 'missed',
-            sip_bridge_time: isAns ? start.toISOString() : null,
-            call_duration_sec: 45,
+            bridge_panel_and_client_time: isAns ? start.toISOString() : null,
+            duration_sec: 45,
             events: [
                 { event_id: `evt-${i}-1`, event_type: 'call_initiated', timestamp: start.toISOString(), details: 'Button' }
             ],

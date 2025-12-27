@@ -12,6 +12,7 @@
 
 <header>
     <h1>Intercom Analytics</h1>
+    <button id="btnExport" title="Экспорт в JSON">💾</button>
     <nav class="nav-tabs">
         <button class="nav-btn active">1. Загрузка</button>
         <button class="nav-btn">2. Сводка</button>
@@ -52,15 +53,18 @@
         </div>
         <div class="filter-group">
             <label>Квартира:</label>
-            <input type="text" id="filterApt" placeholder="Номер...">
+            <input type="text" id="filterApt" list="list-apt" placeholder="Номер...">
+            <datalist id="list-apt"></datalist>
         </div>
         <div class="filter-group">
             <label>Панель:</label>
-            <input type="text" id="filterPanel" placeholder="Название...">
+            <input type="text" id="filterPanel" list="list-panel" placeholder="Название...">
+            <datalist id="list-panel"></datalist>
         </div>
         <div class="filter-group">
             <label>Call ID:</label>
-            <input type="text" id="filterId" placeholder="ID...">
+            <input type="text" id="filterId" list="list-id" placeholder="ID...">
+            <datalist id="list-id"></datalist>
         </div>
         <button class="btn-primary" id="btnApplyFilters" style="width: auto; margin-top: auto;">Применить</button>
     </div>
@@ -141,6 +145,12 @@
                 </div>
                 <div style="height: 400px;">
                     <canvas id="chartHistory"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-card full-width">
+                <div class="chart-container">
+                    <canvas id="chartDuration"></canvas>
                 </div>
             </div>
 
