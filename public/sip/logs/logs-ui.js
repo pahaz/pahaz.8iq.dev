@@ -23,6 +23,7 @@
             if (!input) {
                 input = document.createElement('input');
                 input.type = 'file';
+                input.multiple = true;
                 input.id = 'hidden-file-input';
                 input.style.display = 'none';
                 document.body.appendChild(input);
@@ -65,7 +66,7 @@
         valPushFail: q("val-push-fail"),
         percPushFail: q("perc-push-fail"),
 
-      // Charts
+        // Charts
         canvasHistory: q('chartHistory'),
         canvasStatus: q('chartStatus'),
         canvasTopPanels: q('chartTopPanels'),
@@ -88,6 +89,7 @@
         dTimeline: q('d-timeline'),
         dLogPanel: q('d-log-panel'),
         dLogClient: q('d-log-client'),
+        timelineFilters: q('timeline-filters'),
         // Modal
         dataModal: q('dataModal'),
         modalDataContent: q('modalDataContent'),
@@ -106,6 +108,9 @@
         // Зарегистрированные обработчики файлов
         // Структура: { check: (content) => bool, parse: (content) => CallObject[] }
         fileHandlers: [],
+
+        // Скрытые источники событий для текущего просмотра
+        hiddenTimelineSources: new Set(),
 
         // История ввода фильтров
         inputHistory: {
@@ -615,35 +620,7 @@
                 : `<div class="meta-item"><label>${m.label}</label><span>${m.value}</span></div>`
             ).join('');
 
-            // Timeline (Horizontal)
-            el.dTimeline.innerHTML = '';
-            let prevTime = null;
-            (call.events || []).forEach(evt => {
-                const div = document.createElement('div');
-                div.className = 'tl-item';
-                div.style.cursor = 'pointer';
-                div.title = 'Нажмите, чтобы увидеть детали события';
-                div.onclick = () => this.showModal(evt);
-
-                const currTime = new Date(evt.timestamp).getTime();
-                let diffHtml = '';
-
-                if (prevTime !== null) {
-                    const diff = currTime - prevTime;
-                    diffHtml = `<span class="tl-time-dt">+${diff.toLocaleString('en-US')}ms</span>`;
-                }
-                prevTime = currTime;
-
-                div.innerHTML = `
-                                <div class="tl-time">
-                                    ${new Date(evt.timestamp).toLocaleTimeString()}
-                                    ${diffHtml}
-                                </div>
-                                <div class="tl-content">${evt.details || evt.event_type}</div>
-                                <div class="tl-details" style="font-size: 0.7rem">${evt.source || 'sys'}</div>
-                            `;
-                el.dTimeline.appendChild(div);
-            });
+            this.renderTimeline(call);
 
             // Обработка дополнительных "ног" (calls)
             const extraCont = q('d-extra-calls');
@@ -696,7 +673,7 @@
 
             // Обработка выбора файла
             el.fileInput.onchange = (e) => {
-                if (e.target.files.length) this.processFile(e.target.files[0]);
+                if (e.target.files.length) this.processFiles(e.target.files);
             };
 
             // Drag & Drop
@@ -705,7 +682,7 @@
             el.dropZone.ondrop = (e) => {
                 e.preventDefault();
                 el.dropZone.style.background = 'transparent';
-                if (e.dataTransfer.files.length) this.processFile(e.dataTransfer.files[0]);
+                if (e.dataTransfer.files.length) this.processFiles(e.dataTransfer.files);
             };
 
             // Ищем кнопку "Применить" внутри фильтров, если нет ID
@@ -746,44 +723,65 @@
 
         // --- ЛОГИКА ОБРАБОТКИ ФАЙЛОВ ---
 
-        async processFile(file) {
-            this.showProgress(10, 'Чтение файла...');
+        async processFiles(fileList) {
+            const files = Array.from(fileList);
+            const total = files.length;
+            if (total === 0) return;
 
-            try {
-                const text = await this.readFileAsText(file);
-                this.showProgress(40, 'Анализ формата...');
+            let successCount = 0;
+            let errorCount = 0;
 
-                // Поиск подходящего обработчика
-                const handler = state.fileHandlers.find(h => h.check(text));
+            this.showProgress(5, `В очереди файлов: ${total}...`);
 
-                if (!handler) {
-                    throw new Error("Неизвестный формат файла. Нет подходящего парсера.");
+            for (let i = 0; i < total; i++) {
+                const file = files[i];
+                const progress = Math.round(((i) / total) * 100);
+                this.showProgress(progress, `Обработка [${i + 1}/${total}]: ${file.name}`);
+
+                try {
+                    const text = await this.readFileAsText(file);
+
+                    // Поиск подходящего обработчика
+                    const handler = state.fileHandlers.find(h => h.check(text));
+
+                    if (!handler) {
+                        console.warn(`Skipping ${file.name}: Unknown format`);
+                        errorCount++;
+                        continue;
+                    }
+
+                    const newCalls = handler.parse(text);
+
+                    if (!Array.isArray(newCalls)) {
+                        console.warn(`Skipping ${file.name}: Parser error`);
+                        errorCount++;
+                        continue;
+                    }
+
+                    this.mergeData(newCalls);
+                    successCount++;
+
+                } catch (err) {
+                    console.error(`Error processing ${file.name}:`, err);
+                    errorCount++;
                 }
-
-                this.showProgress(60, 'Парсинг данных...');
-                const newCalls = handler.parse(text);
-
-                if (!Array.isArray(newCalls)) {
-                    throw new Error("Парсер вернул некорректные данные (ожидался массив).");
-                }
-
-                this.showProgress(80, 'Объединение данных...');
-                this.mergeData(newCalls);
-
-                this.showProgress(100, 'Готово!');
-                this.hideProgress('Загрузка завершена');
-
-                // Обновляем UI
-                this.applyFilters(); // Это обновит filteredData и графики
-                this.switchMode('dashboard');
-
-            } catch (err) {
-                console.error(err);
-                this.showProgress(100, 'Ошибка');
-                this.hideProgress(`Ошибка: ${err.message}`, true);
-            } finally {
-                el.fileInput.value = ''; // Сброс input
             }
+
+            this.showProgress(100, 'Готово!');
+
+            const resultMsg = errorCount > 0
+                ? `Загружено: ${successCount}, Ошибок: ${errorCount}`
+                : `Успешно загружено файлов: ${successCount}`;
+
+            this.hideProgress(resultMsg, successCount === 0 && errorCount > 0);
+
+            // Обновляем UI
+            if (successCount > 0) {
+                this.applyFilters();
+                this.switchMode('dashboard');
+            }
+
+            el.fileInput.value = ''; // Сброс input
         },
 
         readFileAsText(file) {
@@ -956,6 +954,76 @@
             updateList('list-apt', state.inputHistory.apt);
             updateList('list-panel', state.inputHistory.panel);
             updateList('list-id', state.inputHistory.id);
+        },
+
+        renderTimeline(call) {
+            // 1. Собираем уникальные источники (sources)
+            const sources = new Set();
+            (call.events || []).forEach(evt => {
+                sources.add(evt.source || 'Unknown');
+            });
+            const sortedSources = Array.from(sources).sort();
+
+            // 2. Рисуем фильтры
+            if (el.timelineFilters) {
+                el.timelineFilters.innerHTML = '';
+                sortedSources.forEach(src => {
+                    const isHidden = state.hiddenTimelineSources.has(src);
+                    const btn = document.createElement('div');
+                    btn.className = isHidden ? 'source-chip disabled' : 'source-chip active';
+                    btn.textContent = src;
+                    btn.onclick = (e) => {
+                        e.preventDefault();
+                        if (isHidden) {
+                            state.hiddenTimelineSources.delete(src);
+                        } else {
+                            state.hiddenTimelineSources.add(src);
+                        }
+                        this.renderTimeline(call); // Перерисовываем таймлайн
+                    };
+                    el.timelineFilters.appendChild(btn);
+                });
+            }
+
+            // 3. Рисуем события
+            el.dTimeline.innerHTML = '';
+            let prevTime = null;
+
+            (call.events || []).forEach(evt => {
+                const src = evt.source || 'Unknown';
+                // Пропускаем, если источник скрыт
+                if (state.hiddenTimelineSources.has(src)) return;
+
+                const div = document.createElement('div');
+                div.className = 'tl-item';
+                div.style.cursor = 'pointer';
+                div.title = 'Нажмите, чтобы увидеть детали события';
+                div.onclick = () => this.showModal(evt);
+
+                const currTime = evt.timestamp.getTime();
+                let diffHtml = '';
+
+                // Считаем дельту только относительно предыдущего ОТОБРАЖЕННОГО события
+                if (prevTime !== null) {
+                    const diff = currTime - prevTime;
+                    diffHtml = `<span class="tl-time-dt">+${diff.toLocaleString('en-US')}ms</span>`;
+                }
+                prevTime = currTime;
+
+                div.innerHTML = `
+                                    <div class="tl-time">
+                                        ${(evt.timestamp).toLocaleTimeString()}
+                                        ${diffHtml}
+                                    </div>
+                                    <div class="tl-content">${evt.details || evt.event_type}</div>
+                                    <div class="tl-details" style="font-size: 0.7rem">${src}</div>
+                                `;
+                el.dTimeline.appendChild(div);
+            });
+
+            if (el.dTimeline.children.length === 0) {
+                el.dTimeline.innerHTML = '<div style="color: #999; padding: 10px;">События скрыты фильтрами</div>';
+            }
         },
 
         addToHistory(key, value) {

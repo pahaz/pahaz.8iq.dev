@@ -25,38 +25,6 @@
             const headers = rows[0].map((x) => x.trim()||'_');
             const col = (name) => headers.indexOf(name);
 
-            const IDX = {
-                fullVia: col('_source.variables.sip_full_via'),
-
-                // Статусы и причины завершения
-                hangupCause: col('_source.variables.hangup_cause'),
-                hangupCauseQ850: col('_source.variables.hangup_cause_q850'),
-                sipHangupDisp: col('_source.variables.sip_hangup_disposition'),
-                inviteFailPhrase: col('_source.variables.sip_invite_failure_phrase'),
-                inviteFailStatus: col('_source.variables.sip_invite_failure_status'),
-                protoSpecificHangup: col('_source.variables.proto_specific_hangup_cause'),
-                lastBridgeProtoSpecificHangup: col('_source.variables.last_bridge_proto_specific_hangup_cause'),
-
-                // Инструментарий
-                dtmf: col('_source.variables.digits_dialed'),
-
-                // Метрики (Audio)
-                audioMos: col('_source.variables.rtp_audio_in_mos'),
-                audioCodec: col('_source.variables.rtp_use_codec_name'),
-                audioPktIn: col('_source.variables.rtp_audio_in_media_packet_count'),
-                audioPktOut: col('_source.variables.rtp_audio_out_media_packet_count'),
-                audioDtmfIn: col('_source.variables.rtp_audio_in_dtmf_packet_count'),
-                audioDtmfOut: col('_source.variables.rtp_audio_out_dtmf_packet_count'), // send to intercome dtmf
-
-                // Метрики (Video)
-                videoMos: col('_source.variables.rtp_video_in_mos'),
-                videoCodec: col('_source.variables.rtp_use_video_codec_name'),
-                videoPktIn: col('_source.variables.rtp_video_in_media_packet_count'),
-                videoPktOut: col('_source.variables.rtp_video_out_media_packet_count'),
-                videoDtmfIn: col('_source.variables.rtp_video_in_dtmf_packet_count'),
-                videoDtmfOut: col('_source.variables.rtp_video_out_dtmf_packet_count'),
-            };
-
             // Карта для агрегации звонков по ID домофонной сессии
             const callsMap = new Map();
 
@@ -87,6 +55,10 @@
                     console.warn(`Row ${i} has invalid direction (variables.direction) or missing call IDs (variables.sip_call_id, variables.sip_h_X-Other-Call-ID)`, row);
                     continue;
                 }
+                if (!uid) {
+                    console.warn(`Row ${i} has invalid UUID (variables.uuid)`, row);
+                    continue;
+                }
 
                 // Инициализация объекта звонка, если еще нет
                 if (!callsMap.has(masterId)) {
@@ -95,7 +67,13 @@
 
                 const call = callsMap.get(masterId);
                 const metaCall = createMetaCallFromRow(uid, headers, row)
-                call.calls.push(metaCall)
+                if (direction === 'outbound') {
+                    call.calls.push(metaCall);
+                } else {
+                    call.callPanel = {
+                        ...metaCall,
+                    };
+                }
 
                 // 3. Заполнение данных в зависимости от направления
                 if (direction === 'inbound') {
@@ -131,22 +109,24 @@
                         call.call_status = 'missed';
                     }
 
-                    call.callPanel = {
-                        ...metaCall,
-                    };
-
-                    addEvent(call, 'start', call.start_call_time, 'Panel', 'Звонок ☎️');
-                    addEvent(call, 'answer', call.answer_by_panel_time, 'Panel', '📞🗣☎️️панель');
+                    addEvent(call, 'start', call.start_call_time, 'Panel', 'Звонок ☎️', {
+                        uuid: metaCall['variables.uuid'],
+                    });
+                    addEvent(call, 'answer', call.answer_by_panel_time, 'Panel', '📞🗣☎️️панель', {
+                        uuid: metaCall['variables.uuid'],
+                    });
                     addEvent(call, 'bridge', call.bridge_panel_and_client_time, 'Panel', '🤝бридж', {
-                        bridgeToCallId: metaCall['variables.bridge_uuid'],
+                        bridge_uuid: metaCall['variables.bridge_uuid'],
+                        uuid: metaCall['variables.uuid'],
                     });
-                    const endInfo = buildEndInfo(metaCall)
-                    addEvent(call, 'end', call.end_call_time, 'Panel', `🔚🔚панель${endInfo}`, {
-                        sip_hangup_disposition: metaCall['variables.sip_hangup_disposition'],
-                        hangup_cause_q850: metaCall['variables.hangup_cause_q850'],
-                        sip_invite_failure_status: metaCall['variables.sip_invite_failure_status'],
-                        sip_invite_failure_phrase: metaCall['variables.sip_invite_failure_phrase'],
-                    });
+                    addEvent(
+                        call,
+                        'end',
+                        call.end_call_time,
+                        'Panel',
+                        `🔚🔚панель${buildEndEventString(metaCall)}`,
+                        buildEndEventMeta(metaCall),
+                    );
                 }
             }
 
@@ -180,19 +160,19 @@
                 for (const client of clients) {
                     index++;
                     addEvent(call, 'start', parseDate(client['variables.start_uepoch']), 'Client', `📲#${index}`, {
-                        callId: client.id,
+                        uuid: client['variables.uuid'],
                     });
                     addEvent(call, 'answer', parseDate(client['variables.answer_uepoch']), 'Client', `📞🤙🗣️#${index}`, {
-                        callId: client.id,
+                        uuid: client['variables.uuid'],
                     });
-                    const endInfo = buildEndInfo(client)
-                    addEvent(call, 'end', parseDate(client['variables.end_uepoch']), 'Client', `🔚#${index}${endInfo}`, {
-                        sip_hangup_disposition: client['variables.sip_hangup_disposition'],
-                        hangup_cause_q850: client['variables.hangup_cause_q850'],
-                        sip_invite_failure_status: client['variables.sip_invite_failure_status'],
-                        sip_invite_failure_phrase: client['variables.sip_invite_failure_phrase'],
-                        callId: client.id,
-                    })
+                    addEvent(
+                        call,
+                        'end',
+                        parseDate(client['variables.end_uepoch']),
+                        'Client',
+                        `🔚#${index}${buildEndEventString(client)}`,
+                        buildEndEventMeta(client),
+                    )
                 }
                 
                 call.events.sort((a, b) => a.timestamp - b.timestamp);
@@ -234,7 +214,40 @@
         };
     }
 
-    function buildEndInfo (client) {
+    function buildEndEventMeta (client) {
+        return {
+            sip_user_agent: client['variables.sip_user_agent'],
+            sip_full_via: client['variables.sip_full_via'],
+            sip_network_ip: client['variables.sip_network_ip'],
+            sip_hangup_disposition: client['variables.sip_hangup_disposition'],
+            hangup_cause_q850: client['variables.hangup_cause_q850'],
+            hangup_cause: client['variables.hangup_cause'],
+            sip_invite_failure_status: client['variables.sip_invite_failure_status'],
+            sip_invite_failure_phrase: client['variables.sip_invite_failure_phrase'],
+            proto_specific_hangup_cause: client['variables.proto_specific_hangup_cause'],
+            last_bridge_proto_specific_hangup_cause: client['variables.last_bridge_proto_specific_hangup_cause'],
+            digits_dialed: client['variables.digits_dialed'],
+            speaking_time_sec: parseInt(client['variables.billsec'].trim() || 0, 10),
+            duration_sec: parseInt(client['variables.duration'].trim() || 0, 10),
+            uuid: client['variables.uuid'],
+            // Метрики (Audio)
+            rtp_audio_in_mos: client['variables.rtp_audio_in_mos'],
+            rtp_use_codec_name: client['variables.rtp_use_codec_name'],
+            rtp_audio_in_media_packet_count: client['variables.rtp_audio_in_media_packet_count'],
+            rtp_audio_out_media_packet_count: client['variables.rtp_audio_out_media_packet_count'],
+            rtp_audio_in_dtmf_packet_count: client['variables.rtp_audio_in_dtmf_packet_count'],
+            rtp_audio_out_dtmf_packet_count: client['variables.rtp_audio_out_dtmf_packet_count'],
+            // Метрики (Video)
+            rtp_video_in_mos: client['variables.rtp_video_in_mos'],
+            rtp_use_video_codec_name: client['variables.rtp_use_video_codec_name'],
+            rtp_video_in_media_packet_count: client['variables.rtp_video_in_media_packet_count'],
+            rtp_video_out_media_packet_count: client['variables.rtp_video_out_media_packet_count'],
+            rtp_video_in_dtmf_packet_count: client['variables.rtp_video_in_dtmf_packet_count'],
+            rtp_video_out_dtmf_packet_count: client['variables.rtp_video_out_dtmf_packet_count'],
+        }
+    }
+
+    function buildEndEventString (client) {
         let endInfo = ''
         if (client['variables.sip_hangup_disposition']) {
             endInfo += '/' + client['variables.sip_hangup_disposition']

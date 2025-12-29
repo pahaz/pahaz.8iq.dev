@@ -182,7 +182,7 @@
 
                 <div id="detailContent" style="display: none;">
                     <div class="cd-header">
-                        <div class="cd-title">Звонок <span id="d-id" style="font-size: 0.9rem; font-family: monospace;">#ID</span><span id="d-status-badge" class="cr-status">STATUS</span></div>
+                        <div class="cd-title">Звонок <span id="d-id" style="font-size: 0.9rem; font-family: monospace;">#ID</span>&nbsp;<span id="d-status-badge" class="cr-status">STATUS</span></div>
 
 
                         <div class="meta-grid" id="d-meta-grid">
@@ -190,7 +190,10 @@
                         </div>
                     </div>
 
-                    <h3>Таймлайн событий</h3>
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 1rem; margin-bottom: 0.5rem;">
+                        <h3 style="margin: 0;">Таймлайн событий</h3>
+                        <div id="timeline-filters" style="display: flex; gap: 5px; flex-wrap: wrap;"></div>
+                    </div>
                     <div class="timeline-horizontal" id="d-timeline">
                         <!-- Events injected via JS -->
                     </div>
@@ -235,5 +238,6 @@
 <script src="./logs-ui.js"></script>
 <script src="./logs-parser.js"></script>
 <script src="./push-logs-parser.js"></script>
+<script src="./push-worker-parser.js"></script>
 </body>
 </html>

@@ -618,14 +618,13 @@ details .content {
 }
 
 .modal-body pre {
+    overflow-y: scroll;
     background: #1e293b;
     color: #cbd5e1;
     padding: 1rem;
     border-radius: 0.5rem;
     font-family: monospace;
     font-size: 0.85rem;
-    white-space: pre-wrap;
-    word-wrap: break-word;
     margin: 0;
 }
 
@@ -641,4 +640,30 @@ details .content {
     color: inherit;
     border-radius: 4px;
     font-size: 1.2rem;
+}
+
+.source-chip {
+    padding: 2px 8px;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+    background: #fff;
+    cursor: pointer;
+    font-size: 0.75rem;
+    transition: all 0.2s;
+    user-select: none;
+    font-weight: 500;
+}
+.source-chip:hover {
+    background-color: #f9fafb;
+}
+.source-chip.active {
+    background: #dbeafe; /* blue-100 */
+    border-color: #3b82f6; /* blue-500 */
+    color: #1e40af; /* blue-800 */
+}
+.source-chip.disabled {
+    background: #f3f4f6;
+    color: #9ca3af;
+    border-color: #e5e7eb;
+    text-decoration: line-through;
 }
