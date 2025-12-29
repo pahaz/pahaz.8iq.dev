@@ -555,7 +555,10 @@
 
                 // Определяем наличие пуш-уведомлений
                 const hasSuccessPushCallNotifications = call.events.filter(x => x.event_type === 'push_call_sent' && x?.meta?.success).length > 0
-                const hasSuccessBridge = call.events.filter(x => x.event_type === 'bridge').length > 0
+                const hasSuccessCondoPushCallNotifications = call.events.filter(x => x.event_type === 'push_sent_worker' && x?.meta?.type === 'VOIP_INCOMING_CALL_MESSAGE' && x?.meta?.success).length > 0
+                const hasSuccessBridge = call.events.filter(x => x.event_type === 'bridge' && x.source === 'Panel').length > 0
+                const hasAnyAnswer = call.events.filter(x => x.event_type === 'answer' && x.source === 'Client').length > 0
+                const hasAnyClient = call.events.filter(x => x.event_type === 'start' && x.source === 'Client').length > 0
 
                 const row = document.createElement('div');
                 row.className = `call-row ${state.activeCallId === call.id ? 'selected' : ''}`;
@@ -563,7 +566,7 @@
 
                 row.innerHTML = `
                             <div class="cr-top">
-                                <span class="cr-time">${timeStr} ${hasSuccessPushCallNotifications ? "👌":""}${hasSuccessBridge ? "🤝":""}</span>
+                                <span class="cr-time">${timeStr} ${hasSuccessPushCallNotifications ? '👌' : ''}${hasSuccessCondoPushCallNotifications ? '👌' : ''}${hasSuccessBridge ? '🤝' : (hasAnyAnswer ? '📞' : (hasAnyClient ? '📲' : ''))}</span>
                                 <span class="cr-status ${statusClassMap[call.call_status] || ''}">
                                     ${statusLabelMap[call.call_status] || call.call_status}
                                 </span>
@@ -591,28 +594,38 @@
             // Заполнение сетки метаданных
             const grid = q('d-meta-grid');
             const cp = call.callPanel || {};
+            const cc = call.callClient || {};
 
             const meta = [
                 { label: 'Дата', value: call.start_call_time ? call.start_call_time.toLocaleDateString() : '-' },
-                { label: 'Длительность звонка', value: (call.duration_sec || 0) + ' сек' },
-                { label: 'Длительность разговора', value: (call.speaking_time_sec || 0) + ' сек' },
-                { label: 'Модель', value: call.panel_details || '-' },
                 { label: 'Панель', value: call.panel_id || '-' },
                 { label: 'Квартира', value: call.apartment_id || '-' },
+                { label: 'Звонок / Разговор', value: (call.duration_sec || 0) + ' сек' + ' / ' + (call.speaking_time_sec || 0) + ' сек' },
+
+                { type: 'title', label: 'Панель' },
+                { label: 'Звонок / Разговор', value: (cp['variables.duration'] || 0) + ' сек' + ' / ' + (cp['variables.billsec'] || 0) + ' сек' },
+                { label: 'Модель', value: cp['variables.sip_user_agent'] || '-' },
                 { label: 'IP панели', value: cp['variables.sip_network_ip'] || '-' },
-                { label: 'Причина завершения', value: cp['variables.hangup_cause'] || '-' },
-                { label: 'Завершение SIP', value: cp['variables.sip_hangup_disposition'] || '-' },
+                { label: 'Звонок завершился', value: cp['variables.hangup_cause'] || '-' },
+                { label: 'SIP завершился', value: cp['variables.sip_hangup_disposition'] || '-' },
 
-                { type: 'title', label: 'Метрики Audio' },
-                { label: 'MOS', value: cp['variables.rtp_audio_in_mos'] || '-' },
-                { label: 'Кодек', value: cp['variables.rtp_use_codec_name'] || '-' },
-                { label: 'Пакеты (In/Out)', value: `${cp['variables.rtp_audio_in_media_packet_count'] || 0} / ${cp['variables.rtp_audio_out_media_packet_count'] || 0}` },
-                { label: 'DTMF пакеты (out)', value: cp['variables.rtp_audio_out_dtmf_packet_count'] || 0 },
+                { type: 'title', label: 'Клиент' },
+                { label: 'Звонок / Разговор', value: (cc['variables.duration'] || 0) + ' сек' + ' / ' + (cc['variables.billsec'] || 0) + ' сек' },
+                { label: 'Модель', value: cc['variables.sip_user_agent'] || '-' },
+                { label: 'IP панели', value: cc['variables.sip_network_ip'] || '-' },
+                { label: 'Звонок завершился', value: cc['variables.hangup_cause'] || '-' },
+                { label: 'SIP завершился', value: cc['variables.sip_hangup_disposition'] || '-' },
 
-                { type: 'title', label: 'Метрики Video' },
-                { label: 'MOS', value: cp['variables.rtp_video_in_mos'] || '-' },
-                { label: 'Кодек', value: cp['variables.rtp_use_video_codec_name'] || '-' },
-                { label: 'Пакеты (In/Out)', value: `${cp['variables.rtp_video_in_media_packet_count'] || 0} / ${cp['variables.rtp_video_out_media_packet_count'] || 0}` },
+                { type: 'title', label: 'Audio (Панель | Клиент)' },
+                { label: 'MOS', value: (cp['variables.rtp_audio_in_mos'] || '-') + '<br/>' + (cc['variables.rtp_audio_in_mos'] || '-') },
+                { label: 'Кодек', value: (cp['variables.rtp_use_codec_name'] || '-') + '<br/>' + (cc['variables.rtp_use_codec_name'] || '-') },
+                { label: 'Пакеты (In/Out)', value: (`${cp['variables.rtp_audio_in_media_packet_count'] || 0} / ${cp['variables.rtp_audio_out_media_packet_count'] || 0}`) + '<br/>' + (`${cc['variables.rtp_audio_in_media_packet_count'] || 0} / ${cc['variables.rtp_audio_out_media_packet_count'] || 0}`) },
+                { label: 'DTMF (In/Out)', value: (`${cp['variables.rtp_audio_in_dtmf_packet_count'] || 0} / ${cp['variables.rtp_audio_out_dtmf_packet_count'] || 0}`) + '<br/>' + `${cc['variables.rtp_audio_in_dtmf_packet_count'] || 0} / ${cc['variables.rtp_audio_out_dtmf_packet_count'] || 0}` },
+
+                { type: 'title', label: 'Video (Панель | Клиент)' },
+                { label: 'MOS', value: (cp['variables.rtp_video_in_mos'] || '-') + '<br/>' + (cc['variables.rtp_video_in_mos'] || '-') },
+                { label: 'Кодек', value: (cp['variables.rtp_use_video_codec_name'] || '-') + '<br/>' + (cc['variables.rtp_use_video_codec_name'] || '-') },
+                { label: 'Пакеты (In/Out)', value: `${cp['variables.rtp_video_in_media_packet_count'] || 0} / ${cp['variables.rtp_video_out_media_packet_count'] || 0}` + '<br/>' + `${cc['variables.rtp_video_in_media_packet_count'] || 0} / ${cc['variables.rtp_video_out_media_packet_count'] || 0}` },
             ];
 
             grid.innerHTML = meta.map(m => m.type === 'title'
