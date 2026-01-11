@@ -1,3 +1,6 @@
+# IDE junks
+.idea/
+
 # build output
 dist/
 .output/
