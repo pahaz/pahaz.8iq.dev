@@ -78,7 +78,6 @@ Documentation can be read in two formats\_ _markdown_ & _blog post_.
 
 ## 👨🏻‍💻 Running Locally
 
-
 ```bash
 # pnpm
 pnpm create astro@latest --template satnaing/astro-paper

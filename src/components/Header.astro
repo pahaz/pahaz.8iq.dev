@@ -11,7 +11,8 @@ import { SITE, LOGO_IMAGE } from "@/config";
 const { pathname } = Astro.url;
 
 // Remove trailing slash from current pathname if exists
-const currentPath = pathname.endsWith("/") && pathname !== "/" ? pathname.slice(0, -1) : pathname;
+const currentPath =
+  pathname.endsWith("/") && pathname !== "/" ? pathname.slice(0, -1) : pathname;
 
 const isActive = (path: string) => {
   const currentPathArray = currentPath.split("/").filter(p => p.trim());
@@ -47,7 +48,13 @@ const isActive = (path: string) => {
     >
       {
         LOGO_IMAGE.enable ? (
-          <img src={LOGO_IMAGE.src} alt="logo" height={LOGO_IMAGE.height} class="rounded-full inline-block align-text-top" style={'height: ' + LOGO_IMAGE.height + 'px'} />
+          <img
+            src={LOGO_IMAGE.src}
+            alt="logo"
+            height={LOGO_IMAGE.height}
+            class="inline-block rounded-full align-text-top"
+            style={"height: " + LOGO_IMAGE.height + "px"}
+          />
         ) : null
       }
       <span>{SITE.title}</span>

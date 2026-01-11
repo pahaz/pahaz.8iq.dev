@@ -162,10 +162,10 @@ html[data-theme="dark"] {
 
 ```css
 html[data-theme="dark"] {
-    --background: #000123;
-    --accent: #617bff;
-    --foreground: #eaedf3;
-    --muted: #0c0e4f;
-    --border: #303f8a;
+  --background: #000123;
+  --accent: #617bff;
+  --foreground: #eaedf3;
+  --muted: #0c0e4f;
+  --border: #303f8a;
 }
 ```

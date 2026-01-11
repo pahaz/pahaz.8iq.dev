@@ -1,10 +1,10 @@
 # Ignore everything
 /*
+/public
+/.github
 
 # Except these files & folders
 !/src
-!/public
-!/.github
 !tsconfig.json
 !astro.config.ts
 !.prettierrc.mjs
