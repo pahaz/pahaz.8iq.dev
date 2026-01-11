@@ -1,9 +1,10 @@
-# IDE junks
-.idea/
-
 # build output
 dist/
-.output/
+
+# generated types
+.astro/
+.vite/
+.jampack/
 
 # dependencies
 node_modules/
@@ -22,17 +23,10 @@ pnpm-debug.log*
 # macOS-specific files
 .DS_Store
 
-# ignore .astro directory
-.astro
+# jetbrains setting folder
+.idea/
+.vscode/
 
-# ignore Jampack cache files
-.jampack/
+# pagefind
 
-# yarn
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/sdks
-!.yarn/versions
-.pnp.*
+public/pagefind
