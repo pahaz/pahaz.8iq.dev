@@ -1,13 +1,15 @@
 # Ignore everything
 /*
+/public
+/.github
 
 # Except these files & folders
 !/src
-!/public
-!/.github
 !tsconfig.json
 !astro.config.ts
+!.prettierrc.mjs
 !package.json
 !.prettierrc
+!eslint.config.js
 !.eslintrc.js
 !README.md

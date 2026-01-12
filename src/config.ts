@@ -1,52 +1,29 @@
-import type { Site, SocialObjects } from "./types";
-
-export const CODES = {};
-
-export const SITE: Site = {
-  website: "https://pahaz.8iq.dev/",
+export const SITE = {
+  website: "https://pahaz.8iq.dev/", // replace this with your deployed domain
   author: "Pahaz White",
+  profile: "https://pahaz.8iq.dev/",
   desc: "Pahaz technical blog",
   title: "PahazBlog",
   ogImage: "astropaper-og.jpg",
   lightAndDarkMode: true,
-  postPerPage: 3,
+  postPerIndex: 4,
+  postPerPage: 4,
   scheduledPostMargin: 15 * 60 * 1000, // 15 minutes
-};
-
-export const LOCALE = {
+  showArchives: true,
+  showBackButton: true, // show back button in post detail
+  editPost: {
+    enabled: true,
+    text: "Edit page",
+    url: "https://github.com/pahaz/pahaz.8iq.dev/edit/main/",
+  },
+  dynamicOgImage: true,
+  dir: "ltr", // "rtl" | "auto"
   lang: "en", // html lang code. Set this empty and default will be "en"
-  langTag: ["en-EN"], // BCP 47 Language Tags. Set this empty [] to use the environment default
+  timezone: "Asia/Bangkok", // Default global timezone (IANA format) https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 } as const;
 
 export const LOGO_IMAGE = {
   enable: true,
   src: "/favicon.svg",
   height: 30,
-};
-
-export const SOCIALS: SocialObjects = [
-  {
-    name: "Github",
-    href: "https://github.com/pahaz",
-    linkTitle: ` ${SITE.title} on Github`,
-    active: true,
-  },
-  {
-    name: "Facebook",
-    href: "https://fb.com/pahazx",
-    linkTitle: `${SITE.title} on Facebook`,
-    active: true,
-  },
-  {
-    name: "Mail",
-    href: "mailto:pahaz@8iq.dev",
-    linkTitle: `Send an email to ${SITE.title}`,
-    active: true,
-  },
-  {
-    name: "Telegram",
-    href: "https://t.me/pahaz",
-    linkTitle: `${SITE.title} on Telegram`,
-    active: true,
-  },
-];
+} as const;

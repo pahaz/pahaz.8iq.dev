@@ -1,25 +1,21 @@
 ---
-import { SITE } from "@config";
-import Breadcrumbs from "@components/Breadcrumbs.astro";
-import Footer from "@components/Footer.astro";
-import Header from "@components/Header.astro";
+import type { MarkdownLayoutProps } from "astro";
+import Header from "@/components/Header.astro";
+import Footer from "@/components/Footer.astro";
+import Breadcrumb from "@/components/Breadcrumb.astro";
 import Layout from "./Layout.astro";
+import { SITE } from "@/config";
 
-export interface Props {
-  frontmatter: {
-    title: string;
-    description?: string;
-  };
-}
+type Props = MarkdownLayoutProps<{ title: string }>;
 
 const { frontmatter } = Astro.props;
 ---
 
 <Layout title={`${frontmatter.title} | ${SITE.title}`}>
-  <Header activeNav="about" />
-  <Breadcrumbs />
-  <main id="main-content">
-    <section id="about" class="prose mb-28 max-w-3xl prose-img:border-0">
+  <Header />
+  <Breadcrumb />
+  <main id="main-content" class="app-layout">
+    <section id="about" class="app-prose mb-28 max-w-app prose-img:border-0">
       <h1 class="text-2xl tracking-wider sm:text-3xl">{frontmatter.title}</h1>
       <slot />
     </section>

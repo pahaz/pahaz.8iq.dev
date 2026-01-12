@@ -1,0 +1,39 @@
+name: CI
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    types:
+      - opened
+      - edited
+      - synchronize
+      - reopened
+  workflow_call:
+
+jobs:
+  build:
+    name: Code standards & build
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+
+    strategy:
+      matrix:
+        node-version: [20]
+
+    steps:
+      - name: "☁️ Checkout repository"
+        uses: actions/checkout@v4
+
+      - name: Install, build, and upload your site
+        uses: withastro/action@v2
+
+      - name: "🔎 Lint code"
+        run: npm run lint
+
+      - name: "📝 Checking code format"
+        run: npm run format:check
+
+      - name: "🚀 Build the project"
+        run: npm run build
