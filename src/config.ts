@@ -2,7 +2,7 @@ export const SITE = {
   website: "https://pahaz.8iq.dev/", // replace this with your deployed domain
   author: "Pahaz White",
   profile: "https://pahaz.8iq.dev/",
-  desc: "Pahaz technical blog",
+  desc: "Pahaz CTO technical blog",
   title: "PahazBlog",
   ogImage: "astropaper-og.jpg",
   lightAndDarkMode: true,
