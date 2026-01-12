@@ -2,9 +2,9 @@
 author: Pahaz White
 pubDatetime: 2024-03-02T10:02:21.243Z
 modDatetime: 2026-01-11T10:09:48.123Z
-title: Who touched my Mac? Catching the cleaning staff or evil maid detection
+title: Who touched my Mac? Evil maid detection
 slug: macbook-evil-maid-detection
-featured: true
+featured: false
 draft: false
 tags:
   - security
