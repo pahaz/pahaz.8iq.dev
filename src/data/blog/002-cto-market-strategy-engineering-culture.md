@@ -4,6 +4,7 @@ pubDatetime: 2026-01-02T10:03:21.243Z
 modDatetime: 2026-01-11T10:09:48.123Z
 title: "CTO: market, strategy and engineering culture"
 slug: cto-market-strategy-engineering-culture
+image: "@/assets/images/002-cto-thinking.jpg"
 featured: true
 draft: false
 tags:

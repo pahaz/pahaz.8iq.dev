@@ -4,6 +4,7 @@ pubDatetime: 2024-03-02T10:02:21.243Z
 modDatetime: 2026-01-11T10:09:48.123Z
 title: Who touched my Mac? Evil maid detection
 slug: macbook-evil-maid-detection
+image: "@/assets/images/001-intro.png"
 featured: false
 draft: false
 tags:
