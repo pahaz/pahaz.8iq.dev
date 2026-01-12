@@ -1,4 +1,5 @@
 ---
+import { getImage } from "astro:assets";
 import { render, type CollectionEntry } from "astro:content";
 import Layout from "@/layouts/Layout.astro";
 import Header from "@/components/Header.astro";
@@ -26,13 +27,13 @@ const {
   title,
   author,
   description,
-  ogImage: initOgImage,
   canonicalURL,
   pubDatetime,
   modDatetime,
   timezone,
   tags,
   hideEditPost,
+  image,
 } = post.data;
 
 const { Content } = await render(post);
@@ -40,15 +41,19 @@ const { Content } = await render(post);
 let ogImageUrl: string | undefined;
 
 // Determine OG image source
-if (typeof initOgImage === "string") {
-  ogImageUrl = initOgImage; // Remote OG image (absolute URL)
-} else if (initOgImage?.src) {
-  ogImageUrl = initOgImage.src; // Local asset
-}
+if (image) {
+  const img = await getImage({
+    src: image,
+    width: 1200,
+    height: 630,
+    fit: "cover",
+    format: "jpg",
+    quality: 75,
+  });
 
-// Use dynamic OG image if enabled and no remote|local ogImage
-if (!ogImageUrl && SITE.dynamicOgImage) {
-  ogImageUrl = `${getPath(post.id, post.filePath)}/index.png`;
+  ogImageUrl = img.src;
+} else if (SITE.dynamicOgImage) {
+  ogImageUrl = `${getPath(post.id, post.filePath)}.png`;
 }
 
 // Resolve OG image URL (or fallback to SITE.ogImage / default `og.png`)
@@ -57,7 +62,7 @@ const ogImage = ogImageUrl
   : undefined;
 
 const layoutProps = {
-  title: `${title} | ${SITE.title}`,
+  title,
   author,
   description,
   pubDatetime,
