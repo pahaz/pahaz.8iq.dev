@@ -1,5 +1,5 @@
 ---
-import { Font } from "astro:assets";
+import { Font, getImage } from "astro:assets";
 import { ClientRouter } from "astro:transitions";
 import { PUBLIC_GOOGLE_SITE_VERIFICATION } from "astro:env/client";
 import { SITE } from "@/config";
@@ -22,14 +22,24 @@ const {
   author = SITE.author,
   profile = SITE.profile,
   description = SITE.desc,
-  ogImage = SITE.ogImage ? `/${SITE.ogImage}` : "/og.png",
   canonicalURL = new URL(Astro.url.pathname, Astro.url),
   pubDatetime,
   modDatetime,
   scrollSmooth = false,
 } = Astro.props;
 
-const socialImageURL = new URL(ogImage, Astro.url);
+let socialImageURL = new URL("/og.png", Astro.url);
+if (SITE.ogImage) {
+  const img = await getImage({
+    src: SITE.ogImage,
+    width: 1200,
+    height: 630,
+    fit: "cover",
+    format: "jpg",
+    quality: 85,
+  });
+  socialImageURL = new URL(img.src, Astro.url);
+}
 
 const structuredData = {
   "@context": "https://schema.org",

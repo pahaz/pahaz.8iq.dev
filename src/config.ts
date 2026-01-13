@@ -1,10 +1,12 @@
+import ogImage from "./assets/images/screen.jpg";
+
 export const SITE = {
   website: "https://pahaz.8iq.dev/", // replace this with your deployed domain
   author: "Pahaz White",
   profile: "https://pahaz.8iq.dev/",
   desc: "Pahaz CTO technical blog",
   title: "PahazBlog",
-  ogImage: "astropaper-og.jpg",
+  ogImage,
   lightAndDarkMode: true,
   postPerIndex: 4,
   postPerPage: 4,
