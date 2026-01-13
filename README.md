@@ -1,6 +1,6 @@
 # PahazBlog 📄
 
-![PahazBlog](public/astropaper-og.jpg)
+![PahazBlog](./src/assets/images/screen.jpg)
 [![Figma](https://img.shields.io/badge/Figma-F24E1E?style=for-the-badge&logo=figma&logoColor=white)](https://www.figma.com/community/file/1356898632249991861)
 ![Typescript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
 ![GitHub](https://img.shields.io/github/license/pahaz/pahaz.8iq.dev?color=%232F3741&style=for-the-badge)
@@ -11,7 +11,7 @@ Minimal, responsive, accessible and SEO-friendly blog.
 
 <p align="center">
   <a href="https://pagespeed.web.dev/report?url=https%3A%2F%2Fpahaz.8iq.dev%2F&form_factor=desktop">
-    <img width="710" alt="AstroPaper Lighthouse Score" src="./PahazBlog-lighthouse-score.svg">
+    <img width="710" alt="AstroPaper Lighthouse Score" src="./src/assets/images/PahazBlog-lighthouse-score.svg">
   <a>
 </p>
 
@@ -24,8 +24,6 @@ Inside of AstroPaper, you'll see the following folders and files:
 ├── public/
 │   ├── assets/
 |   ├── pagefind/ # auto-generated when build
-│   └── favicon.svg
-│   └── astropaper-og.jpg
 │   └── favicon.svg
 │   └── toggle-theme.js
 ├── src/
