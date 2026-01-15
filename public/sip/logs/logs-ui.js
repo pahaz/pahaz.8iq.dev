@@ -49,30 +49,51 @@
 
         // Dashboard Metrics
         valTotal: q('val-total'),
+        valTotalAll: q('val-total-all'),
         valAnswered: q('val-answered'),
+        valAnsweredAll: q('val-answered-all'),
         percAnswered: q('perc-answered'),
+        percAnsweredAll: q('perc-answered-all'),
         valOpened: q('val-opened'),
+        valOpenedAll: q('val-opened-all'),
         percOpened: q('perc-opened'),
+        percOpenedAll: q('perc-opened-all'),
         valMissed: q('val-missed'),
+        valMissedAll: q('val-missed-all'),
         percMissed: q('perc-missed'),
+        percMissedAll: q('perc-missed-all'),
         valFail: q('val-fail'),
+        valFailAll: q('val-fail-all'),
         percFail: q('perc-fail'),
+        percFailAll: q('perc-fail-all'),
 
         // Push Metrics
         valPushSent: q("val-push-sent"),
+        valPushSentAll: q("val-push-sent-all"),
         percPushSent: q("perc-push-sent"),
+        percPushSentAll: q("perc-push-sent-all"),
         valPushSuccess: q("val-push-success"),
+        valPushSuccessAll: q("val-push-success-all"),
         percPushSuccess: q("perc-push-success"),
+        percPushSuccessAll: q("perc-push-success-all"),
         valPushFail: q("val-push-fail"),
+        valPushFailAll: q("val-push-fail-all"),
         percPushFail: q("perc-push-fail"),
+        percPushFailAll: q("perc-push-fail-all"),
 
         // Doma Push Metrics
         valPushDomaSent: q("val-push-doma-sent"),
+        valPushDomaSentAll: q("val-push-doma-sent-all"),
         percPushDomaSent: q("perc-push-doma-sent"),
+        percPushDomaSentAll: q("perc-push-doma-sent-all"),
         valPushDomaSuccess: q("val-push-doma-success"),
+        valPushDomaSuccessAll: q("val-push-doma-success-all"),
         percPushDomaSuccess: q("perc-push-doma-success"),
+        percPushDomaSuccessAll: q("perc-push-doma-success-all"),
         valPushDomaFail: q("val-push-doma-fail"),
+        valPushDomaFailAll: q("val-push-doma-fail-all"),
         percPushDomaFail: q("perc-push-doma-fail"),
+        percPushDomaFailAll: q("perc-push-doma-fail-all"),
 
         // Charts
         canvasHistory: q('chartHistory'),
@@ -208,71 +229,51 @@
         renderDashboard() {
             const data = state.filteredData;
             const total = data.length;
+            const allData = state.allCalls;
+            const totalAll = allData.length;
 
             // Определяем статусы согласно обновленной логике парсера
-            const stats = {
-                answered: data.filter(d => d.call_status === 'answered').length,
-                opened: data.filter(d => d.call_status === 'opened').length,
-                missed: data.filter(d => d.call_status === 'missed').length,
-                fail: data.filter(d => !['answered', 'opened', 'missed'].includes(d.call_status)).length
-            };
+            const getStats = (dList) => ({
+                answered: dList.filter(d => d.call_status === 'answered').length,
+                opened: dList.filter(d => d.call_status === 'opened').length,
+                missed: dList.filter(d => d.call_status === 'missed').length,
+                fail: dList.filter(d => !['answered', 'opened', 'missed'].includes(d.call_status)).length
+            });
 
-            const updateMetric = (elVal, elPerc, val) => {
+            const stats = getStats(data);
+            const statsAll = getStats(allData);
+
+            const updateMetric = (elVal, elValAll, elPerc, elPercAll, val, valAll, totalVal, totalAllVal) => {
                 if (elVal) elVal.innerText = val;
-                if (elPerc) elPerc.innerText = total > 0 ? Math.round((val / total) * 100) + '%' : '0%';
+                if (elValAll) elValAll.innerText = `(${valAll})`;
+                if (elPerc) elPerc.innerText = totalVal > 0 ? Math.round((val / totalVal) * 100) + '%' : '0%';
+                if (elPercAll) elPercAll.innerText = totalAllVal > 0 ? `(${Math.round((val / totalAllVal) * 100)}% / ${Math.round((valAll / totalAllVal) * 100)}%)` : '(0%)';
+                console.log(val, valAll, totalVal, totalAllVal, elVal, elValAll, elPerc, elPercAll);
             };
 
             if (el.valTotal) el.valTotal.innerText = total;
-            updateMetric(el.valAnswered, el.percAnswered, stats.answered);
-            updateMetric(el.valOpened, el.percOpened, stats.opened);
-            updateMetric(el.valMissed, el.percMissed, stats.missed);
-            updateMetric(el.valFail, el.percFail, stats.fail);
+            if (el.valTotalAll) el.valTotalAll.innerText = `(${totalAll})`;
+
+            updateMetric(el.valAnswered, el.valAnsweredAll, el.percAnswered, el.percAnsweredAll, stats.answered, statsAll.answered, total, totalAll);
+            updateMetric(el.valOpened, el.valOpenedAll, el.percOpened, el.percOpenedAll, stats.opened, statsAll.opened, total, totalAll);
+            updateMetric(el.valMissed, el.valMissedAll, el.percMissed, el.percMissedAll, stats.missed, statsAll.missed, total, totalAll);
+            updateMetric(el.valFail, el.valFailAll, el.percFail, el.percFailAll, stats.fail, statsAll.fail, total, totalAll);
 
             // Подсчет статистики по пуш-уведомлениям
             const pushStats = this.calculatePushStats(data);
-            if (el.valPushSent) el.valPushSent.innerText = pushStats.totalSent;
-            if (el.percPushSent) {
-            el.percPushSent.innerText = total > 0
-                ? Math.round((pushStats.totalSent / total) * 100) + "%"
-                : "0%";
-            }
-            if (el.valPushSuccess)
-            el.valPushSuccess.innerText = pushStats.totalSentSuccess;
-            if (el.percPushSuccess) {
-                el.percPushSuccess.innerText = total > 0
-                    ? Math.round((pushStats.totalSentSuccess / total) * 100) + "%"
-                    : "0%";
-            }
+            const pushStatsAll = this.calculatePushStats(allData);
 
-            if (el.valPushFail) el.valPushFail.innerText = pushStats.totalSentFail;
-            if (el.percPushFail) {
-                el.percPushFail.innerText = total > 0
-                    ? Math.round((pushStats.totalSentFail / total) * 100) + "%"
-                    : "0%";
-            }
+            updateMetric(el.valPushSent, el.valPushSentAll, el.percPushSent, el.percPushSentAll, pushStats.totalSent, pushStatsAll.totalSent, total, totalAll);
+            updateMetric(el.valPushSuccess, el.valPushSuccessAll, el.percPushSuccess, el.percPushSuccessAll, pushStats.totalSentSuccess, pushStatsAll.totalSentSuccess, total, totalAll);
+            updateMetric(el.valPushFail, el.valPushFailAll, el.percPushFail, el.percPushFailAll, pushStats.totalSentFail, pushStatsAll.totalSentFail, total, totalAll);
 
             // Подсчет статистики по пуш-уведомлениям Doma
             const pushStatsDoma = this.calculatePushStatsDoma(data);
-            if (el.valPushDomaSent) el.valPushDomaSent.innerText = pushStatsDoma.totalSent;
-            if (el.percPushDomaSent) {
-                el.percPushDomaSent.innerText = total > 0
-                    ? Math.round((pushStatsDoma.totalSent / total) * 100) + "%"
-                    : "0%";
-            }
-            if (el.valPushDomaSuccess)
-                el.valPushDomaSuccess.innerText = pushStatsDoma.totalSentSuccess;
-            if (el.percPushDomaSuccess) {
-                el.percPushDomaSuccess.innerText = total > 0
-                    ? Math.round((pushStatsDoma.totalSentSuccess / total) * 100) + "%"
-                    : "0%";
-            }
+            const pushStatsDomaAll = this.calculatePushStatsDoma(allData);
 
-            if (el.valPushDomaFail) el.valPushDomaFail.innerText = pushStatsDoma.totalSentFail;
-            if (el.percPushDomaFail) {
-                el.percPushDomaFail.innerText = total > 0
-                    ? Math.round((pushStatsDoma.totalSentFail / total) * 100) + "%"
-                    : "0%";
-            }
+            updateMetric(el.valPushDomaSent, el.valPushDomaSentAll, el.percPushDomaSent, el.percPushDomaSentAll, pushStatsDoma.totalSent, pushStatsDomaAll.totalSent, total, totalAll);
+            updateMetric(el.valPushDomaSuccess, el.valPushDomaSuccessAll, el.percPushDomaSuccess, el.percPushDomaSuccessAll, pushStatsDoma.totalSentSuccess, pushStatsDomaAll.totalSentSuccess, total, totalAll);
+            updateMetric(el.valPushDomaFail, el.valPushDomaFailAll, el.percPushDomaFail, el.percPushDomaFailAll, pushStatsDoma.totalSentFail, pushStatsDomaAll.totalSentFail, total, totalAll);
 
             this.updateCharts(data);
         },

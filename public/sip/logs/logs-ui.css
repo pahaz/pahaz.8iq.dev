@@ -233,6 +233,14 @@ input, select {
     margin-top: 0.25rem;
 }
 
+.fs-unfiltered {
+    font-size: 0.75rem;
+    color: var(--secondary);
+    font-weight: 400;
+    margin-left: 0.25rem;
+    opacity: 0.8;
+}
+
 .status-answered-border .fs-percent { color: var(--success); }
 .status-opened-border .fs-percent { color: var(--opened); }
 .status-missed-border .fs-percent { color: var(--danger); }
