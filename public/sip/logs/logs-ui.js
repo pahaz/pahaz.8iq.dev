@@ -50,6 +50,8 @@
         // Dashboard Metrics
         valTotal: q('val-total'),
         valTotalAll: q('val-total-all'),
+        percTotal: q('perc-total'),
+        percTotalAll: q('perc-total-all'),
         valAnswered: q('val-answered'),
         valAnsweredAll: q('val-answered-all'),
         percAnswered: q('perc-answered'),
@@ -254,6 +256,7 @@
             if (el.valTotal) el.valTotal.innerText = total;
             if (el.valTotalAll) el.valTotalAll.innerText = `(${totalAll})`;
 
+            updateMetric(el.valTotal, el.valTotalAll, el.percTotal, el.percTotalAll, total, totalAll, total, totalAll);
             updateMetric(el.valAnswered, el.valAnsweredAll, el.percAnswered, el.percAnsweredAll, stats.answered, statsAll.answered, total, totalAll);
             updateMetric(el.valOpened, el.valOpenedAll, el.percOpened, el.percOpenedAll, stats.opened, statsAll.opened, total, totalAll);
             updateMetric(el.valMissed, el.valMissedAll, el.percMissed, el.percMissedAll, stats.missed, statsAll.missed, total, totalAll);
@@ -769,6 +772,16 @@
             // Ищем кнопку "Применить" внутри фильтров, если нет ID
             const applyBtn = document.querySelector('.filters-bar button');
             if(applyBtn) applyBtn.onclick = () => this.applyFilters();
+
+            // Обработка Enter в фильтрах
+            const filterInputs = document.querySelectorAll('.filters-bar input, .filters-bar select');
+            filterInputs.forEach(input => {
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        this.applyFilters();
+                    }
+                });
+            });
 
             // Modal
             if (el.closeModalBtn) el.closeModalBtn.onclick = () => this.closeModal();
