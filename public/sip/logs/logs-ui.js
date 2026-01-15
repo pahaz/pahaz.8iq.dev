@@ -453,119 +453,155 @@
         renderPanelAnalysisChart(data) {
             if (!el.canvasPanelAnalysis) return;
 
-            // Группировка данных по панелям
-            const panels = {};
-            data.forEach(d => {
-                const p = d.panel_id || 'Unknown';
-                const apt = d.apartment_id || 'N/A';
-                if (!panels[p]) {
-                    panels[p] = {
-                        opened: 0, answered: 0, missed: 0, fail: 0,
-                        apts: {} // { aptId: count }
-                    };
-                }
-                const s = d.call_status;
-                if (panels[p].hasOwnProperty(s)) panels[p][s]++;
+          // Группировка данных по панелям
+          const panels = {};
+          data.forEach(d => {
+            const p = d.panel_id || 'Unknown';
+            const apt = d.apartment_id || 'N/A';
+            if (!panels[p]) {
+              panels[p] = {
+                apts: {} // { aptId: { success: 0, fail: 0, total: 0 } }
+              };
+            }
 
-                panels[p].apts[apt] = (panels[p].apts[apt] || 0) + 1;
+            if (!panels[p].apts[apt]) {
+              panels[p].apts[apt] = { success: 0, fail: 0, total: 0 };
+            }
+
+            const s = d.call_status;
+            // Считаем успешными: answered и opened
+            const isSuccess = ['answered', 'opened'].includes(s);
+
+            panels[p].apts[apt].total++;
+            if (isSuccess) {
+              panels[p].apts[apt].success++;
+            } else {
+              panels[p].apts[apt].fail++;
+            }
+          });
+
+          // Подсчет общих сумм для отображения в лейблах
+          Object.values(panels).forEach(p => {
+            p.totalSuccess = 0;
+            p.totalFail = 0;
+            Object.values(p.apts).forEach(stats => {
+              p.totalSuccess += stats.success;
+              p.totalFail += stats.fail;
+            });
+          });
+
+          // Сортировка панелей и генерация лейблов
+          // Используем panelKeys для доступа к данным, а panelLabels для отображения
+          const panelKeys = Object.keys(panels).sort((a, b) => a.localeCompare(b));
+          const panelLabels = panelKeys.map(k => {
+            const p = panels[k];
+            return `${k} (❌${p.totalFail} | ✅${p.totalSuccess})`;
+          });
+
+          const chartHeight = Math.max(400, panelKeys.length * 35 + 100);
+          el.canvasPanelAnalysis.parentElement.style.height = `${chartHeight}px`;
+
+          const logify = (val) => val > 0 ? Math.log10(val + 1) : 0;
+
+          // Подготовка датасетов
+          const datasets = [];
+          // Находим максимальное кол-во квартир на одной панели для создания слоев
+          const maxAptCount = Math.max(...panelKeys.map(l => Object.keys(panels[l].apts).length));
+
+          for (let i = 0; i < maxAptCount; i++) {
+            // Генерация цветов: Зеленый для успеха, Красный для неудач
+            const step = Math.min(10, 50 / (maxAptCount || 1));
+
+            // Зеленый (HSL 142)
+            const gLight = Math.min(90, 35 + (i * step));
+            const greenColor = `hsl(142, 70%, ${gLight}%)`;
+
+            // Красный (HSL 0)
+            const rLight = Math.min(90, 45 + (i * step));
+            const redColor = `hsl(0, 80%, ${rLight}%)`;
+
+            // --- ПРАВАЯ ЧАСТЬ: Успешные звонки (Positive - Green) ---
+            datasets.push({
+              label: `Топ-${i + 1} (Успех)`,
+              data: panelKeys.map(l => {
+                const sortedApts = Object.entries(panels[l].apts).sort((a, b) => b[1].total - a[1].total);
+                const aptData = sortedApts[i];
+                return aptData ? logify(aptData[1].success) : 0;
+              }),
+              realValues: panelKeys.map(l => {
+                const sortedApts = Object.entries(panels[l].apts).sort((a, b) => b[1].total - a[1].total);
+                const aptData = sortedApts[i];
+                return aptData ? `${aptData[0]}: ${aptData[1].success}` : null;
+              }),
+              backgroundColor: greenColor,
+              stack: 'main',
+              hiddenInLegend: i > 5
             });
 
-            // const panelLabels = Object.keys(panels).sort((a, b) => {
-            //     const sum = (p) => panels[p].opened + panels[p].answered + panels[p].missed + panels[p].fail;
-            //     return sum(b) - sum(a);
-            // });
-            const panelLabels = Object.keys(panels).sort((a, b) => a.localeCompare(b));
+            // --- ЛЕВАЯ ЧАСТЬ: Неуспешные звонки (Negative - Red) ---
+            datasets.push({
+              label: `Топ-${i + 1} (Fail)`,
+              data: panelKeys.map(l => {
+                const sortedApts = Object.entries(panels[l].apts).sort((a, b) => b[1].total - a[1].total);
+                const aptData = sortedApts[i];
+                return aptData ? -logify(aptData[1].fail) : 0;
+              }),
+              realValues: panelKeys.map(l => {
+                const sortedApts = Object.entries(panels[l].apts).sort((a, b) => b[1].total - a[1].total);
+                const aptData = sortedApts[i];
+                return aptData ? `${aptData[0]}: ${aptData[1].fail}` : null;
+              }),
+              backgroundColor: redColor,
+              stack: 'main',
+              hiddenInLegend: true
+            });
+          }
 
-            const chartHeight = Math.max(400, panelLabels.length * 35 + 100);
-            el.canvasPanelAnalysis.parentElement.style.height = `${chartHeight}px`;
-
-            const logify = (val) => val > 0 ? Math.log10(val + 1) : 0;
-
-            // Подготовка датасетов для статусов (слева)
-            const datasets = [
-                { label: 'Открыто', key: 'opened', color: '#059669' },
-                { label: 'Принято', key: 'answered', color: '#10b981' },
-                { label: 'Пропущено', key: 'missed', color: '#ef4444' },
-                { label: 'Ошибка', key: 'fail', color: '#94a3b8' }
-            ].map(conf => ({
-                label: conf.label,
-                data: panelLabels.map(l => -logify(panels[l][conf.key])),
-                realValues: panelLabels.map(l => panels[l][conf.key]),
-                backgroundColor: conf.color,
-                stack: 'main'
-            }));
-
-            // Подготовка датасетов для квартир (справа, градации серого)
-            // Находим максимальное кол-во квартир на одной панели для создания слоев
-            const maxAptCount = Math.max(...panelLabels.map(l => Object.keys(panels[l].apts).length));
-
-            for (let i = 0; i < maxAptCount; i++) {
-                // Генерируем оттенок серого (чем дальше квартира в списке, тем светлее)
-                const grayVal = Math.min(200, 50 + (i * 15));
-                const color = `rgb(${grayVal}, ${grayVal}, ${grayVal})`;
-
-                datasets.push({
-                    label: i === 0 ? 'Квартиры (распред.)' : `Квартира №${i+1}`,
-                    data: panelLabels.map(l => {
-                        const sortedApts = Object.entries(panels[l].apts).sort((a, b) => b[1] - a[1]);
-                        return sortedApts[i] ? logify(sortedApts[i][1]) : 0;
-                    }),
-                    realValues: panelLabels.map(l => {
-                        const sortedApts = Object.entries(panels[l].apts).sort((a, b) => b[1] - a[1]);
-                        return sortedApts[i] ? `${sortedApts[i][0]}: ${sortedApts[i][1]}` : null;
-                    }),
-                    backgroundColor: color,
-                    stack: 'main',
-                    borderWidth: 0.5,
-                    borderColor: '#fff',
-                    hiddenInLegend: i > 0 // Скроем лишние легенды для квартир
-                });
-            }
-
-            if (state.charts.panelAnalysis) {
-                state.charts.panelAnalysis.data.labels = panelLabels;
-                state.charts.panelAnalysis.data.datasets = datasets;
-                state.charts.panelAnalysis.update();
-            } else {
-                state.charts.panelAnalysis = new Chart(el.canvasPanelAnalysis, {
-                    type: 'bar',
-                    data: { labels: panelLabels, datasets },
-                    options: {
-                        indexAxis: 'y',
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: {
-                            x: {
-                                stacked: true,
-                                grid: { display: false },
-                                ticks: { display: false },
-                                title: { display: true, text: '← Статусы | Квартиры (группировка по кол-ву звонков) →' }
-                            },
-                            y: { stacked: true, beginAtZero: true }
-                        },
-                        plugins: {
-                            tooltip: {
-                                callbacks: {
-                                    label: (context) => {
-                                        const rv = context.dataset.realValues[context.dataIndex];
-                                        if (!rv) return null;
-                                        return `${context.dataset.label}: ${rv}`;
-                                    }
-                                }
-                            },
-                            legend: {
-                                position: 'bottom',
-                                labels: {
-                                    filter: (item, chartData) => {
-                                        const ds = chartData.datasets[item.datasetIndex];
-                                        return ds && !ds.hiddenInLegend;
-                                    }
-                                }
-                            }
-                        }
+          if (state.charts.panelAnalysis) {
+            state.charts.panelAnalysis.data.labels = panelLabels;
+            state.charts.panelAnalysis.data.datasets = datasets;
+            state.charts.panelAnalysis.update();
+          } else {
+            state.charts.panelAnalysis = new Chart(el.canvasPanelAnalysis, {
+              type: 'bar',
+              data: { labels: panelLabels, datasets },
+              options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                  x: {
+                    stacked: true,
+                    grid: { display: false },
+                    ticks: { display: false },
+                    title: { display: true, text: '← Неуспешные (Fail/Missed) | Успешные (Open/Ans) по квартирам →' }
+                  },
+                  y: { stacked: true, beginAtZero: true }
+                },
+                plugins: {
+                  tooltip: {
+                    callbacks: {
+                      label: (context) => {
+                        const rv = context.dataset.realValues[context.dataIndex];
+                        if (!rv) return null;
+                        const isSuccess = context.dataset.data[context.dataIndex] > 0;
+                        return `${isSuccess ? '✅' : '❌'} ${rv}`;
+                      }
                     }
-                });
-            }
+                  },
+                  legend: {
+                    position: 'bottom',
+                    labels: {
+                      filter: (item, chartData) => {
+                        const ds = chartData.datasets[item.datasetIndex];
+                        return ds && !ds.hiddenInLegend;
+                      }
+                    }
+                  }
+                }
+              }
+            });
+          }
         },
 
         renderDetailsList() {
