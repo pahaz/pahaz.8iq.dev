@@ -250,7 +250,6 @@
                 if (elValAll) elValAll.innerText = `(${valAll})`;
                 if (elPerc) elPerc.innerText = totalVal > 0 ? Math.round((val / totalVal) * 100) + '%' : '0%';
                 if (elPercAll) elPercAll.innerText = totalAllVal > 0 ? `(${Math.round((val / totalAllVal) * 100)}% / ${Math.round((valAll / totalAllVal) * 100)}%)` : '(0%)';
-                console.log(val, valAll, totalVal, totalAllVal, elVal, elValAll, elPerc, elPercAll);
             };
 
             if (el.valTotal) el.valTotal.innerText = total;
@@ -833,7 +832,10 @@
                 this.showProgress(progress, `Обработка [${i + 1}/${total}]: ${file.name}`);
 
                 try {
-                    const text = await this.readFileAsText(file);
+                    let text = await this.readFileAsText(file);
+                    if (text.startsWith('"') && text.endsWith('"')) {
+                        text = JSON.parse(text)
+                    }
 
                     // Поиск подходящего обработчика
                     const handler = state.fileHandlers.find(h => h.check(text));
