@@ -66,6 +66,14 @@
         valPushFail: q("val-push-fail"),
         percPushFail: q("perc-push-fail"),
 
+        // Doma Push Metrics
+        valPushDomaSent: q("val-push-doma-sent"),
+        percPushDomaSent: q("perc-push-doma-sent"),
+        valPushDomaSuccess: q("val-push-doma-success"),
+        percPushDomaSuccess: q("perc-push-doma-success"),
+        valPushDomaFail: q("val-push-doma-fail"),
+        percPushDomaFail: q("perc-push-doma-fail"),
+
         // Charts
         canvasHistory: q('chartHistory'),
         canvasStatus: q('chartStatus'),
@@ -203,7 +211,7 @@
 
             // Определяем статусы согласно обновленной логике парсера
             const stats = {
-                answered: data.filter(d => d.call_status === 'answered' || d.call_status === 'opened').length,
+                answered: data.filter(d => d.call_status === 'answered').length,
                 opened: data.filter(d => d.call_status === 'opened').length,
                 missed: data.filter(d => d.call_status === 'missed').length,
                 fail: data.filter(d => !['answered', 'opened', 'missed'].includes(d.call_status)).length
@@ -240,6 +248,29 @@
             if (el.percPushFail) {
                 el.percPushFail.innerText = total > 0
                     ? Math.round((pushStats.totalSentFail / total) * 100) + "%"
+                    : "0%";
+            }
+
+            // Подсчет статистики по пуш-уведомлениям Doma
+            const pushStatsDoma = this.calculatePushStatsDoma(data);
+            if (el.valPushDomaSent) el.valPushDomaSent.innerText = pushStatsDoma.totalSent;
+            if (el.percPushDomaSent) {
+                el.percPushDomaSent.innerText = total > 0
+                    ? Math.round((pushStatsDoma.totalSent / total) * 100) + "%"
+                    : "0%";
+            }
+            if (el.valPushDomaSuccess)
+                el.valPushDomaSuccess.innerText = pushStatsDoma.totalSentSuccess;
+            if (el.percPushDomaSuccess) {
+                el.percPushDomaSuccess.innerText = total > 0
+                    ? Math.round((pushStatsDoma.totalSentSuccess / total) * 100) + "%"
+                    : "0%";
+            }
+
+            if (el.valPushDomaFail) el.valPushDomaFail.innerText = pushStatsDoma.totalSentFail;
+            if (el.percPushDomaFail) {
+                el.percPushDomaFail.innerText = total > 0
+                    ? Math.round((pushStatsDoma.totalSentFail / total) * 100) + "%"
                     : "0%";
             }
 
@@ -1233,6 +1264,33 @@
                 totalSentSuccess,
                 totalSentFail,
             }
+        },
+
+        // --- РАСЧЕТ СТАТИСТИКИ ПО ПУШ-УВЕДОМЛЕНИЯМ В ДОМА ---
+        calculatePushStatsDoma (data) {
+          let totalSent = 0 // sentPush + cancel=false
+          let totalSentSuccess = 0 // sentPush + cancel=false + в ответе есть данные о том что пуш был отправлен
+          let totalSentFail = 0;
+
+          data.forEach(call => {
+            const pushes = call.events.filter(x => x.event_type === 'push_sent_worker' && x?.meta?.type === 'VOIP_INCOMING_CALL_MESSAGE')
+            const hasPushNotifications = pushes.length > 0
+            const hasSuccessPushNotifications = pushes.filter(x => x?.meta?.success).length > 0
+            if (hasPushNotifications) {
+              totalSent++;
+              if (hasSuccessPushNotifications) {
+                totalSentSuccess++;
+              } else {
+                totalSentFail++;
+              }
+            }
+          })
+
+          return {
+            totalSent,
+            totalSentSuccess,
+            totalSentFail,
+          }
         },
     };
 
