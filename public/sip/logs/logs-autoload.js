@@ -4,6 +4,16 @@
     let lastEarliestMsFrom = null;
     let lastLatestMsTo = null;
     
+    function formatDateTime(ms) {
+        if (!ms) return '';
+        const d = new Date(ms);
+        const day = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const hours = String(d.getHours()).padStart(2, '0');
+        const minutes = String(d.getMinutes()).padStart(2, '0');
+        return `${day}.${month} ${hours}:${minutes}`;
+    }
+
     function calculateReportTimes(timeFrom, timeTo) {
         let msTo, msFrom;
         if (timeFrom !== null && timeTo !== null) {
@@ -252,7 +262,7 @@
                     }
                 }
 
-                if (collectedFiles.length > 0) {
+                if (collectedFiles.length === reports.length) {
                     const fileInput = document.getElementById('hidden-file-input');
                     if (fileInput) {
                         const dataTransfer = new DataTransfer();
@@ -260,7 +270,9 @@
                         fileInput.files = dataTransfer.files;
                         fileInput.dispatchEvent(new Event('change', { bubbles: true }));
                     }
+                }
 
+                if (collectedFiles.length === reports.length) {
                     if (lastEarliestMsFrom === null || msFrom < lastEarliestMsFrom) {
                         lastEarliestMsFrom = msFrom;
                     }
@@ -268,12 +280,15 @@
                         lastLatestMsTo = msTo;
                     }
 
-                    autoBtn.innerText = 'Загрузить следующие 24ч';
+                    const nextFrom = lastLatestMsTo;
+                    const nextTo = lastLatestMsTo + 86400000;
+                    autoBtn.innerText = `Загрузить следующие 24ч (${formatDateTime(nextFrom)} - ${formatDateTime(nextTo)})`;
+                    
+                    const prevTo = lastEarliestMsFrom;
+                    const prevFrom = lastEarliestMsFrom - 86400000;
                     prevBtn.style.display = 'block';
-                    prevBtn.innerText = 'Загрузить предыдущие 24ч';
-                }
-
-                if (collectedFiles.length === reports.length) {
+                    prevBtn.innerText = `Загрузить предыдущие 24ч (${formatDateTime(prevFrom)} - ${formatDateTime(prevTo)})`;
+                    
                     btn.innerText = '✅ Все отчеты загружены';
                 } else if (collectedFiles.length > 0) {
                     btn.innerText = `⚠️ Загружено ${collectedFiles.length} из ${reports.length}`;
@@ -282,8 +297,17 @@
                 }
 
                 setTimeout(() => {
-                    btn.innerText = (btn === autoBtn && lastLatestMsTo !== null) ? 'Загрузить следующие 24ч' : 
-                                   (btn === prevBtn) ? 'Загрузить предыдущие 24ч' : originalText;
+                    if (btn === autoBtn && lastLatestMsTo !== null) {
+                        const nextFrom = lastLatestMsTo;
+                        const nextTo = lastLatestMsTo + 86400000;
+                        btn.innerText = `Загрузить следующие 24ч (${formatDateTime(nextFrom)} - ${formatDateTime(nextTo)})`;
+                    } else if (btn === prevBtn && lastEarliestMsFrom !== null) {
+                        const prevTo = lastEarliestMsFrom;
+                        const prevFrom = lastEarliestMsFrom - 86400000;
+                        btn.innerText = `Загрузить предыдущие 24ч (${formatDateTime(prevFrom)} - ${formatDateTime(prevTo)})`;
+                    } else {
+                        btn.innerText = originalText;
+                    }
                     btn.disabled = false;
                     autoBtn.disabled = false;
                     prevBtn.disabled = false;
