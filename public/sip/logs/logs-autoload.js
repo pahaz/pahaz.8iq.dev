@@ -1,11 +1,25 @@
 (function() {
     let EXTENSION_ID = null;
     const EXTENSION_URL = 'https://chromewebstore.google.com/detail/bridge/kjngblbbgmcjapdolbonbgmpccpdlpko';
+    let lastEarliestMsFrom = null;
+    let lastLatestMsTo = null;
     
     function calculateReportTimes(timeFrom, timeTo) {
-        const msTo = timeTo ? new Date(timeTo).getTime() : Date.now();
-        // 60 часов = 60 * 60 * 1000 * 60 = 216000000 ms
-        const msFrom = timeFrom ? new Date(timeFrom).getTime() : (msTo - 216000000);
+        let msTo, msFrom;
+        if (timeFrom !== null && timeTo !== null) {
+            msFrom = new Date(timeFrom).getTime();
+            msTo = new Date(timeTo).getTime();
+        } else if (timeTo !== null) {
+            msTo = new Date(timeTo).getTime();
+            msFrom = msTo - 86400000;
+        } else if (timeFrom !== null) {
+            msFrom = new Date(timeFrom).getTime();
+            msTo = msFrom + 86400000;
+        } else {
+            msTo = Date.now();
+            msFrom = msTo - 86400000;
+        }
+        
         return {
             msFrom,
             msTo,
@@ -72,7 +86,7 @@
                         "core_params": {
                             "base_url": "/app/discoverLegacy#/view/d9fb71d0-daac-11f0-848f-3b313048592e",
                             "report_format": "csv",
-                            "time_duration": "PT60H0.001S",
+                            "time_duration": "PT24H",
                             "saved_search_id": "d9fb71d0-daac-11f0-848f-3b313048592e"
                         }
                     },
@@ -121,7 +135,7 @@
                         "core_params": {
                             "base_url": "/app/discoverLegacy#/view/eb284230-dcb9-11f0-848f-3b313048592e",
                             "report_format": "csv",
-                            "time_duration": "PT60H",
+                            "time_duration": "PT24H",
                             "saved_search_id": "eb284230-dcb9-11f0-848f-3b313048592e"
                         }
                     },
@@ -170,7 +184,7 @@
                         "core_params": {
                             "base_url": "/app/discoverLegacy#/view/418bf7a0-e4b9-11f0-848f-3b313048592e",
                             "report_format": "csv",
-                            "time_duration": "PT60H0.001S",
+                            "time_duration": "PT24H",
                             "saved_search_id": "418bf7a0-e4b9-11f0-848f-3b313048592e"
                         }
                     },
@@ -202,21 +216,35 @@
 
         if (isInstalled) {
             const autoBtn = document.createElement('button');
+            autoBtn.id = 'btnLoadFromExtension';
             autoBtn.className = 'btn-primary';
             autoBtn.innerText = 'Загрузить через расширение';
             autoBtn.style.marginTop = '0.5rem';
-            autoBtn.onclick = async () => {
+
+            const prevBtn = document.createElement('button');
+            prevBtn.id = 'btnLoadPrevFromExtension';
+            prevBtn.className = 'btn-primary';
+            prevBtn.innerText = 'Загрузить предыдущие 24ч';
+            prevBtn.style.marginTop = '0.5rem';
+            prevBtn.style.display = 'none';
+
+            const runLoad = async (btn, startTime, endTime) => {
+                btn.disabled = true;
                 autoBtn.disabled = true;
-                const originalText = autoBtn.innerText;
+                prevBtn.disabled = true;
+                
+                const originalText = btn.innerText;
+
+                const { msFrom, msTo, isoFrom, isoTo } = calculateReportTimes(startTime, endTime);
                 const reports = [
-                    { name: 'sip_cdr', fn: () => generateSipReport(null, new Date().toISOString()) },
-                    { name: 'push_notifications', fn: () => generatePushReport(null, new Date().toISOString()) },
-                    { name: 'notification_tasks', fn: () => generateNotificationReport(null, new Date().toISOString()) }
+                    { name: 'sip_cdr', fn: () => generateSipReport(isoFrom, isoTo) },
+                    { name: 'push_notifications', fn: () => generatePushReport(isoFrom, isoTo) },
+                    { name: 'notification_tasks', fn: () => generateNotificationReport(isoFrom, isoTo) }
                 ];
 
                 const collectedFiles = [];
                 for (let i = 0; i < reports.length; i++) {
-                    autoBtn.innerText = `Загрузка... (${i + 1}/${reports.length})`;
+                    btn.innerText = `Загрузка... (${i + 1}/${reports.length})`;
                     const report = await getReportData(reports[i].name, reports[i].fn);
                     if (report) {
                         const file = new File([report.content], report.name, { type: 'text/csv' });
@@ -232,22 +260,57 @@
                         fileInput.files = dataTransfer.files;
                         fileInput.dispatchEvent(new Event('change', { bubbles: true }));
                     }
+
+                    if (lastEarliestMsFrom === null || msFrom < lastEarliestMsFrom) {
+                        lastEarliestMsFrom = msFrom;
+                    }
+                    if (lastLatestMsTo === null || msTo > lastLatestMsTo) {
+                        lastLatestMsTo = msTo;
+                    }
+
+                    autoBtn.innerText = 'Загрузить следующие 24ч';
+                    prevBtn.style.display = 'block';
+                    prevBtn.innerText = 'Загрузить предыдущие 24ч';
                 }
 
                 if (collectedFiles.length === reports.length) {
-                    autoBtn.innerText = '✅ Все отчеты загружены';
+                    btn.innerText = '✅ Все отчеты загружены';
                 } else if (collectedFiles.length > 0) {
-                    autoBtn.innerText = `⚠️ Загружено ${collectedFiles.length} из ${reports.length}`;
+                    btn.innerText = `⚠️ Загружено ${collectedFiles.length} из ${reports.length}`;
                 } else {
-                    autoBtn.innerText = '❌ Ошибка загрузки';
+                    btn.innerText = '❌ Ошибка загрузки';
                 }
 
                 setTimeout(() => {
-                    autoBtn.innerText = originalText;
+                    btn.innerText = (btn === autoBtn && lastLatestMsTo !== null) ? 'Загрузить следующие 24ч' : 
+                                   (btn === prevBtn) ? 'Загрузить предыдущие 24ч' : originalText;
+                    btn.disabled = false;
                     autoBtn.disabled = false;
+                    prevBtn.disabled = false;
                 }, 5000);
             };
+
+            autoBtn.onclick = () => {
+                if (lastLatestMsTo === null) {
+                    runLoad(autoBtn, null, null);
+                } else {
+                    const nextFrom = lastLatestMsTo;
+                    const nextTo = lastLatestMsTo + 86400000;
+                    runLoad(autoBtn, nextFrom, nextTo);
+                }
+            };
+            prevBtn.onclick = () => {
+                if (lastEarliestMsFrom === null) {
+                    runLoad(prevBtn, null, null);
+                } else {
+                    const prevTo = lastEarliestMsFrom;
+                    const prevFrom = lastEarliestMsFrom - 86400000;
+                    runLoad(prevBtn, prevFrom, prevTo);
+                }
+            };
+
             container.appendChild(autoBtn);
+            container.appendChild(prevBtn);
         } else {
             const link = document.createElement('a');
             link.href = EXTENSION_URL;
