@@ -95,7 +95,7 @@
                     }
                 }
 
-                const success = (response) ? response?.data?.some(x => x.success) : false
+                const success = (response && Array.isArray(response?.data)) ? response?.data?.some(x => x.success) : false
 
                 // Определение типа события согласно логике sendPush
                 let type = 'unknown';
