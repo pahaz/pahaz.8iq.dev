@@ -325,24 +325,45 @@
                 ]
             };
 
+            const options = {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { stacked: true },
+                    y: { stacked: true, beginAtZero: true }
+                },
+                plugins: {
+                    legend: { position: 'bottom' },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed.y !== null) {
+                                    const total = context.chart.data.datasets.reduce((sum, dataset) => {
+                                        return sum + dataset.data[context.dataIndex];
+                                    }, 0);
+                                    const percent = total > 0 ? ((context.parsed.y / total) * 100).toFixed(1) : 0;
+                                    label += `${context.parsed.y} (${percent}%)`;
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                }
+            };
+
             if (state.charts.history) {
                 state.charts.history.data = chartData;
+                state.charts.history.options = options;
                 state.charts.history.update();
             } else {
                 state.charts.history = new Chart(el.canvasHistory, {
                     type: 'bar',
                     data: chartData,
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: {
-                            x: { stacked: true },
-                            y: { stacked: true, beginAtZero: true }
-                        },
-                        plugins: {
-                            legend: { position: 'bottom' }
-                        }
-                    }
+                    options: options
                 });
             }
         },
@@ -427,28 +448,49 @@
                 ]
             };
 
+            const options = {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { stacked: true },
+                    y: { stacked: true, beginAtZero: true }
+                },
+                plugins: {
+                    legend: { position: 'bottom' },
+                    title: {
+                        display: true,
+                        text: 'Распределение статусов по длительности'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed.y !== null) {
+                                    const total = context.chart.data.datasets.reduce((sum, dataset) => {
+                                        return sum + (dataset.data[context.dataIndex] || 0);
+                                    }, 0);
+                                    const percent = total > 0 ? ((context.parsed.y / total) * 100).toFixed(1) : 0;
+                                    label += `${context.parsed.y} (${percent}%)`;
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                }
+            };
+
             if (state.charts.duration) {
                 state.charts.duration.data = chartData;
+                state.charts.duration.options = options;
                 state.charts.duration.update();
             } else {
                 state.charts.duration = new Chart(el.canvasDuration, {
                     type: 'bar',
                     data: chartData,
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: {
-                            x: { stacked: true },
-                            y: { stacked: true, beginAtZero: true }
-                        },
-                        plugins: {
-                            legend: { position: 'bottom' },
-                            title: {
-                                display: true,
-                                text: 'Распределение статусов по длительности'
-                            }
-                        }
-                    }
+                    options: options
                 });
             }
         },
