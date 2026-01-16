@@ -108,6 +108,7 @@
         panelBreakdown: q('panelBreakdown'),
         canvasDuration: q('chartDuration'),
         durationBreakdown: q('durationBreakdown'),
+        durationInterval: q('durationInterval'),
 
         // Details List
         callsTableBody: q('callsTableBody'),
@@ -169,6 +170,7 @@
         historyGrouping: 'day',
         historyBreakdown: 'none',
         durationBreakdown: 'none',
+        durationInterval: '2s',
         panelBreakdown: 'apt',
 
         activeCallId: null,
@@ -496,41 +498,16 @@
             if (!el.canvasDuration) return;
 
             const breakdownMode = state.durationBreakdown || 'none';
+            const intervalMode = state.durationInterval || '2s';
 
             // Определяем интервалы (бакеты) длительности
-            const buckets = [
-                { label: '0-2 с', max: 2 },
-                { label: '2-4 с', max: 4 },
-                { label: '5-6 с', max: 6 },
-                { label: '6-8 с', max: 8 },
-                { label: '8-10 с', max: 10 },
-                { label: '10-12 с', max: 12 },
-                { label: '12-14 с', max: 14 },
-                { label: '14-16 с', max: 16 },
-                { label: '16-18 с', max: 18 },
-                { label: '18-20 с', max: 20 },
-                { label: '20-22 с', max: 22 },
-                { label: '22-24 с', max: 24 },
-                { label: '26-28 с', max: 28 },
-                { label: '28-30 с', max: 30 },
-                { label: '30-32 с', max: 32 },
-                { label: '32-34 с', max: 34 },
-                { label: '34-36 с', max: 36 },
-                { label: '36-38 с', max: 38 },
-                { label: '38-40 с', max: 40 },
-                { label: '40-42 с', max: 42 },
-                { label: '42-44 с', max: 44 },
-                { label: '44-46 с', max: 46 },
-                { label: '46-48 с', max: 48 },
-                { label: '48-50 с', max: 50 },
-                { label: '50-52 с', max: 52 },
-                { label: '52-54 с', max: 54 },
-                { label: '54-56 с', max: 56 },
-                { label: '56-58 с', max: 58 },
-                { label: '58-60 с', max: 60 },
-                { label: '1-2 мин', max: 120 },
-                { label: '> 2 мин', max: Infinity },
-            ];
+            const buckets = [];
+            const step = intervalMode === '1s' ? 1 : 2;
+            for (let i = 0; i < 60; i += step) {
+                buckets.push({ label: `${i}-${i + step} с`, max: i + step });
+            }
+            buckets.push({ label: '1-2 мин', max: 120 });
+            buckets.push({ label: '> 2 мин', max: Infinity });
 
             const labels = buckets.map(b => b.label);
             let datasets = [];
@@ -1137,6 +1114,14 @@
                     this.saveSettings();
                 };
             }
+
+            if (el.durationInterval) {
+                el.durationInterval.onchange = (e) => {
+                    state.durationInterval = e.target.value;
+                    this.renderDurationChart(state.filteredData);
+                    this.saveSettings();
+                };
+            }
             if (el.panelBreakdown) {
                 el.panelBreakdown.onchange = (e) => {
                     state.panelBreakdown = e.target.value;
@@ -1522,6 +1507,10 @@
                             state.durationBreakdown = data.values.durationBreakdown;
                             el.durationBreakdown.value = state.durationBreakdown;
                         }
+                        if (data.values.durationInterval) {
+                            state.durationInterval = data.values.durationInterval;
+                            el.durationInterval.value = state.durationInterval;
+                        }
                         if (data.values.panelBreakdown) {
                             state.panelBreakdown = data.values.panelBreakdown;
                             el.panelBreakdown.value = state.panelBreakdown;
@@ -1552,6 +1541,7 @@
                     historyGrouping: state.historyGrouping,
                     historyBreakdown: state.historyBreakdown,
                     durationBreakdown: state.durationBreakdown,
+                    durationInterval: state.durationInterval,
                     panelBreakdown: state.panelBreakdown
                 },
                 history: state.inputHistory
