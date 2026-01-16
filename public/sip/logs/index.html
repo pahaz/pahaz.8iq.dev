@@ -160,7 +160,13 @@
         <div class="charts-grid">
             <div class="chart-card full-width">
                 <div class="card-header">
-                    <div class="card-title">Динамика звонков по дням</div>
+                    <div class="card-title">Динамика звонков</div>
+                    <div class="card-controls">
+                        <select id="historyGroup" class="select-sm">
+                            <option value="day">По дням</option>
+                            <option value="hour">По часам</option>
+                        </select>
+                    </div>
                 </div>
                 <div style="height: 400px;">
                     <canvas id="chartHistory"></canvas>

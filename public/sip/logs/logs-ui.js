@@ -99,6 +99,7 @@
 
         // Charts
         canvasHistory: q('chartHistory'),
+        historyGroup: q('historyGroup'),
         canvasStatus: q('chartStatus'),
         canvasTopPanels: q('chartTopPanels'),
         canvasPanelAnalysis: q('chartPanelAnalysis'),
@@ -152,6 +153,8 @@
 
         // Инстансы графиков Chart.js
         charts: {},
+
+        historyGrouping: 'day',
 
         activeCallId: null,
     };
@@ -289,28 +292,40 @@
         },
 
         renderHistoryChart(data) {
-            // Группировка по дням
-            const days = {};
+            // Группировка
+            const groups = {};
             data.forEach(d => {
-                const date = d.start_call_time ? d.start_call_time.toISOString().split('T')[0] : 'Unknown';
-                if (!days[date]) days[date] = { answered: 0, opened: 0, missed: 0, fail: 0 };
+                let key = 'Unknown';
+                if (d.start_call_time) {
+                    if (state.historyGrouping === 'hour') {
+                        // Формат: YYYY-MM-DD HH:00
+                        const date = d.start_call_time.toISOString().split('T')[0];
+                        const hour = d.start_call_time.getHours().toString().padStart(2, '0');
+                        key = `${date} ${hour}:00`;
+                    } else {
+                        // Формат: YYYY-MM-DD
+                        key = d.start_call_time.toISOString().split('T')[0];
+                    }
+                }
+
+                if (!groups[key]) groups[key] = { answered: 0, opened: 0, missed: 0, fail: 0 };
 
                 if (d.call_status === 'opened') {
-                    days[date].opened++;
+                    groups[key].opened++;
                 } else if (d.call_status === 'answered') {
-                    days[date].answered++;
+                    groups[key].answered++;
                 } else if (d.call_status === 'missed') {
-                    days[date].missed++;
+                    groups[key].missed++;
                 } else {
-                    days[date].fail++;
+                    groups[key].fail++;
                 }
             });
 
-            const labels = Object.keys(days).sort();
+            const labels = Object.keys(groups).sort();
 
             const createConfig = (label, key, color) => ({
                 label: label,
-                data: labels.map(l => days[l][key]),
+                data: labels.map(l => groups[l][key]),
                 backgroundColor: color,
                 stack: 'stack0'
             });
@@ -826,6 +841,15 @@
 
             // Modal
             if (el.closeModalBtn) el.closeModalBtn.onclick = () => this.closeModal();
+
+            // Переключение группировки графика
+            if (el.historyGroup) {
+                el.historyGroup.onchange = (e) => {
+                    state.historyGrouping = e.target.value;
+                    this.renderHistoryChart(state.filteredData);
+                };
+            }
+
             window.addEventListener('click', (event) => {
                 if (event.target == el.dataModal) {
                     this.closeModal();

@@ -278,6 +278,18 @@ input, select {
     min-height: 300px;
 }
 
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.select-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
 .chart-card.full-width {
     grid-column: span 2;
 }
