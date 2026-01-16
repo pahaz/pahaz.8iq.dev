@@ -8,6 +8,7 @@
     // Кэшируем все элементы интерфейса
     const q = (id) => document.getElementById(id);
     const LOCAL_UI_STATE = 'ui_state_data'
+    const DEFAULT_DETAILS_LIMIT = 100;
 
     const el = {
         // Nav
@@ -99,13 +100,19 @@
 
         // Charts
         canvasHistory: q('chartHistory'),
+        historyGroup: q('historyGroup'),
+        historyBreakdown: q('historyBreakdown'),
         canvasStatus: q('chartStatus'),
         canvasTopPanels: q('chartTopPanels'),
         canvasPanelAnalysis: q('chartPanelAnalysis'),
+        panelBreakdown: q('panelBreakdown'),
         canvasDuration: q('chartDuration'),
+        durationBreakdown: q('durationBreakdown'),
+        durationInterval: q('durationInterval'),
 
         // Details List
         callsTableBody: q('callsTableBody'),
+        callsTableMore: q('callsTableMore'),
 
         // Details Panel
         detailPlaceholder: q('detailPlaceholder'),
@@ -128,6 +135,13 @@
     };
 
     // --- 2. STATE ---
+    const STATUS_COLORS = {
+        opened: '#059669',   // Emerald 600
+        answered: '#10b981', // Emerald 500
+        missed: '#ef4444',   // Red 500
+        fail: '#94a3b8'      // Slate 400
+    };
+
     const state = {
         // Основное хранилище звонков (Map для быстрого поиска по ID или массив)
         // Используем массив для совместимости с фильтрами, но при мердже будем искать
@@ -153,7 +167,14 @@
         // Инстансы графиков Chart.js
         charts: {},
 
+        historyGrouping: 'day',
+        historyBreakdown: 'none',
+        durationBreakdown: 'none',
+        durationInterval: '2s',
+        panelBreakdown: 'none',
+
         activeCallId: null,
+        detailsLimit: DEFAULT_DETAILS_LIMIT,
     };
 
     // --- 3. UI LOGIC ---
@@ -289,60 +310,186 @@
         },
 
         renderHistoryChart(data) {
-            // Группировка по дням
-            const days = {};
-            data.forEach(d => {
-                const date = d.start_call_time ? d.start_call_time.toISOString().split('T')[0] : 'Unknown';
-                if (!days[date]) days[date] = { answered: 0, opened: 0, missed: 0, fail: 0 };
+            // Группировка
+            const groups = {};
+            const breakdownKeys = new Set();
+            const breakdownMode = state.historyBreakdown;
 
-                if (d.call_status === 'opened') {
-                    days[date].opened++;
-                } else if (d.call_status === 'answered') {
-                    days[date].answered++;
-                } else if (d.call_status === 'missed') {
-                    days[date].missed++;
-                } else {
-                    days[date].fail++;
+            const keyField = breakdownMode === 'panel' ? 'panel_id' : (breakdownMode === 'apt' ? 'apartment_id' : null);
+            let topGroups = [];
+            const groupToIdx = new Map();
+
+            if (keyField) {
+                const groupCounts = new Map();
+                data.forEach(d => {
+                    const val = d[keyField] || (breakdownMode === 'panel' ? 'Unknown Panel' : 'Unknown Apt');
+                    groupCounts.set(val, (groupCounts.get(val) || 0) + 1);
+                });
+                topGroups = Array.from(groupCounts.entries())
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 20)
+                    .map(g => g[0]);
+                topGroups.forEach((g, i) => groupToIdx.set(g, i));
+            }
+
+            data.forEach(d => {
+                let timeKey = 'Unknown';
+                if (d.start_call_time) {
+                    if (state.historyGrouping === 'hour') {
+                        const date = d.start_call_time.toISOString().split('T')[0];
+                        const hour = d.start_call_time.getHours().toString().padStart(2, '0');
+                        timeKey = `${date} ${hour}:00`;
+                    } else if (state.historyGrouping === '15min') {
+                        const date = d.start_call_time.toISOString().split('T')[0];
+                        const hour = d.start_call_time.getHours().toString().padStart(2, '0');
+                        const min = (Math.floor(d.start_call_time.getMinutes() / 15) * 15).toString().padStart(2, '0');
+                        timeKey = `${date} ${hour}:${min}`;
+                    } else if (state.historyGrouping === '1min') {
+                        const date = d.start_call_time.toISOString().split('T')[0];
+                        const hour = d.start_call_time.getHours().toString().padStart(2, '0');
+                        const min = d.start_call_time.getMinutes().toString().padStart(2, '0');
+                        timeKey = `${date} ${hour}:${min}`;
+                    } else {
+                        timeKey = d.start_call_time.toISOString().split('T')[0];
+                    }
                 }
+
+                let breakdownKey = 'Total';
+                if (breakdownMode !== 'none') {
+                    const val = d[keyField] || (breakdownMode === 'panel' ? 'Unknown Panel' : 'Unknown Apt');
+                    breakdownKey = groupToIdx.has(val) ? val : 'others';
+                }
+                breakdownKeys.add(breakdownKey);
+
+                if (!groups[timeKey]) groups[timeKey] = {};
+                
+                const status = d.call_status || 'fail';
+                if (!groups[timeKey][status]) groups[timeKey][status] = { _total: 0 };
+                if (!groups[timeKey][status][breakdownKey]) groups[timeKey][status][breakdownKey] = 0;
+
+                groups[timeKey][status]._total++;
+                groups[timeKey][status][breakdownKey]++;
             });
 
-            const labels = Object.keys(days).sort();
+            const labels = Object.keys(groups).sort();
+            const sortedBreakdownKeys = Array.from(breakdownKeys).sort();
 
-            const createConfig = (label, key, color) => ({
-                label: label,
-                data: labels.map(l => days[l][key]),
-                backgroundColor: color,
-                stack: 'stack0'
+            const statusConfigs = [
+                { label: 'Дверь открыта', key: 'opened', color: STATUS_COLORS.opened },
+                { label: 'Отвечено', key: 'answered', color: STATUS_COLORS.answered },
+                { label: 'Пропущено', key: 'missed', color: STATUS_COLORS.missed },
+                { label: 'Fail', key: 'fail', color: STATUS_COLORS.fail }
+            ];
+
+            const datasets = [];
+            statusConfigs.forEach(statusCfg => {
+                const statusKey = statusCfg.key;
+                
+                // Считаем суммарное количество для каждой breakdown-группы в рамках этого статуса
+                const breakdownTotals = {};
+                breakdownKeys.forEach(breakKey => {
+                    let total = 0;
+                    labels.forEach(l => {
+                        total += (groups[l][statusKey] && groups[l][statusKey][breakKey]) || 0;
+                    });
+                    breakdownTotals[breakKey] = total;
+                });
+
+                // Сортируем ключи разбивки по убыванию общего количества
+                const sortedKeysForStatus = Array.from(breakdownKeys).sort((a, b) => {
+                    const diff = breakdownTotals[b] - breakdownTotals[a];
+                    if (diff !== 0) return diff;
+                    return a.localeCompare(b); // Стабильная сортировка при равных значениях
+                });
+
+                sortedKeysForStatus.forEach(breakKey => {
+                    const dataset = {
+                        label: breakdownMode === 'none' ? statusCfg.label : `${statusCfg.label} (${breakKey})`,
+                        data: labels.map(l => (groups[l][statusKey] && groups[l][statusKey][breakKey]) || 0),
+                        backgroundColor: statusCfg.color,
+                        stack: 'stack0',
+                        statusKey: statusKey,
+                        breakdownKey: breakKey,
+                        statusLabel: statusCfg.label,
+                        groupLabel: breakdownMode === 'none' ? statusCfg.label : breakKey
+                    };
+                    
+                    const hasData = dataset.data.some(v => v > 0);
+                    if (hasData) {
+                        datasets.push(dataset);
+                    }
+                });
             });
 
             const chartData = {
                 labels,
-                datasets: [
-                    createConfig('Дверь открыта', 'opened', '#059669'),
-                    createConfig('Отвечено', 'answered', '#10b981'),
-                    createConfig('Пропущено', 'missed', '#ef4444'),
-                    createConfig('Fail', 'fail', '#94a3b8')
-                ]
+                datasets
+            };
+
+            const options = {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { stacked: true },
+                    y: { stacked: true, beginAtZero: true }
+                },
+                plugins: {
+                    legend: { 
+                        display: breakdownMode === 'none',
+                        position: 'bottom' 
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function (context) {
+                                let dataset = context.dataset;
+                                const val = context.parsed.y;
+                                if (val === null || val === 0) return null;
+
+                                const bucketIdx = context.dataIndex;
+                                const datasets = context.chart.data.datasets;
+
+                                // Общее количество в этом бакете (столбце)
+                                const totalInBucket = datasets.reduce((sum, ds) => sum + (ds.data[bucketIdx] || 0), 0);
+
+                                const currentStatusLabel = dataset.statusLabel;
+                                const currentGroupLabel = dataset.groupLabel;
+
+                                if (breakdownMode === 'none') {
+                                    const percent = totalInBucket > 0 ? ((val / totalInBucket) * 100).toFixed(1) : 0;
+                                    return [
+                                        `${currentGroupLabel}: ${val} (${percent}% от столбика)`,
+                                        `Всего: ${totalInBucket} в столбике`,
+                                    ];
+                                } else {
+                                    // Всего этого статуса (цвета) в бакете
+                                    const totalStatusInBucket = datasets
+                                        .filter(ds => ds.statusLabel === currentStatusLabel)
+                                        .reduce((sum, ds) => sum + (ds.data[bucketIdx] || 0), 0);
+
+                                    const percOfTotal = totalInBucket > 0 ? ((val / totalInBucket) * 100).toFixed(1) : 0;
+                                    const percStatusOfTotal = totalInBucket > 0 ? ((totalStatusInBucket / totalInBucket) * 100).toFixed(1) : 0;
+
+                                    return [
+                                        `${currentGroupLabel} [${currentStatusLabel}]: ${val} (${percOfTotal}% от столбика)`,
+                                        `${currentStatusLabel}: ${totalStatusInBucket} (${percStatusOfTotal}% от столбика)`,
+                                        `Всего: ${totalInBucket} в столбике`,
+                                    ];
+                                }
+                            }
+                        }
+                    }
+                }
             };
 
             if (state.charts.history) {
                 state.charts.history.data = chartData;
+                state.charts.history.options = options;
                 state.charts.history.update();
             } else {
                 state.charts.history = new Chart(el.canvasHistory, {
                     type: 'bar',
                     data: chartData,
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: {
-                            x: { stacked: true },
-                            y: { stacked: true, beginAtZero: true }
-                        },
-                        plugins: {
-                            legend: { position: 'bottom' }
-                        }
-                    }
+                    options: options
                 });
             }
         },
@@ -350,105 +497,216 @@
         renderDurationChart(data) {
             if (!el.canvasDuration) return;
 
+            const breakdownMode = state.durationBreakdown || 'none';
+            const intervalMode = state.durationInterval || '2s';
+
             // Определяем интервалы (бакеты) длительности
-            const buckets = [
-                { label: '0-2 с', max: 2 },
-                { label: '2-4 с', max: 4 },
-                { label: '5-6 с', max: 6 },
-                { label: '6-8 с', max: 8 },
-                { label: '8-10 с', max: 10 },
-                { label: '10-12 с', max: 12 },
-                { label: '12-14 с', max: 14 },
-                { label: '14-16 с', max: 16 },
-                { label: '16-18 с', max: 18 },
-                { label: '18-20 с', max: 20 },
-                { label: '20-22 с', max: 22 },
-                { label: '22-24 с', max: 24 },
-                { label: '26-28 с', max: 28 },
-                { label: '28-30 с', max: 30 },
-                { label: '30-32 с', max: 32 },
-                { label: '32-34 с', max: 34 },
-                { label: '34-36 с', max: 36 },
-                { label: '36-38 с', max: 38 },
-                { label: '38-40 с', max: 40 },
-                { label: '40-42 с', max: 42 },
-                { label: '42-44 с', max: 44 },
-                { label: '44-46 с', max: 46 },
-                { label: '46-48 с', max: 48 },
-                { label: '48-50 с', max: 50 },
-                { label: '50-52 с', max: 52 },
-                { label: '52-54 с', max: 54 },
-                { label: '54-56 с', max: 56 },
-                { label: '56-58 с', max: 58 },
-                { label: '58-60 с', max: 60 },
-                { label: '1-2 мин', max: 120 },
-                { label: '> 2 мин', max: Infinity },
-            ];
+            const buckets = [];
+            const step = intervalMode === '1s' ? 1 : 2;
+            for (let i = 0; i < 60; i += step) {
+                buckets.push({ label: `${i}-${i + step} с`, max: i + step });
+            }
+            buckets.push({ label: '1-2 мин', max: 120 });
+            buckets.push({ label: '> 2 мин', max: Infinity });
 
-            // Инициализация структуры для подсчета
-            const distribution = buckets.map(b => ({
-                label: b.label,
-                max: b.max,
-                stats: { answered: 0, opened: 0, missed: 0, fail: 0 }
-            }));
+            const labels = buckets.map(b => b.label);
+            let datasets = [];
 
-            data.forEach(d => {
-                const duration = parseFloat(d.duration_sec) || 0;
+            if (breakdownMode === 'none') {
+                const distribution = buckets.map(b => ({
+                    stats: { answered: 0, opened: 0, missed: 0, fail: 0 }
+                }));
 
-                // Находим подходящий интервал
-                const targetBucket = distribution.find(b => duration < b.max);
-
-                if (targetBucket) {
-                    const s = d.call_status;
-                    if (targetBucket.stats.hasOwnProperty(s)) {
-                        targetBucket.stats[s]++;
-                    } else {
-                        targetBucket.stats.fail++;
+                data.forEach(d => {
+                    const duration = parseFloat(d.duration_sec) || 0;
+                    const bucketIdx = buckets.findIndex(b => duration < b.max);
+                    if (bucketIdx !== -1) {
+                        const s = d.call_status;
+                        const stats = distribution[bucketIdx].stats;
+                        if (stats.hasOwnProperty(s)) {
+                            stats[s]++;
+                        } else {
+                            stats.fail++;
+                        }
                     }
-                }
-            });
+                });
 
-            const labels = distribution.map(d => d.label);
+                const createConfig = (label, key, color) => ({
+                    label: label,
+                    data: distribution.map(d => d.stats[key]),
+                    backgroundColor: color,
+                    stack: 'stackDuration',
+                    statusLabel: label,
+                    groupLabel: label
+                });
 
-            const createConfig = (label, key, color) => ({
-                label: label,
-                data: distribution.map(d => d.stats[key]),
-                backgroundColor: color,
-                stack: 'stackDuration'
-            });
+                datasets = [
+                    createConfig('Дверь открыта', 'opened', STATUS_COLORS.opened),
+                    createConfig('Отвечено', 'answered', STATUS_COLORS.answered),
+                    createConfig('Пропущено', 'missed', STATUS_COLORS.missed),
+                    createConfig('Fail', 'fail', STATUS_COLORS.fail)
+                ];
+            } else {
+                // Разбивка по панелям или квартирам
+                const keyField = breakdownMode === 'panel' ? 'panel_id' : 'apartment_id';
+                const groupCounts = new Map();
+
+                data.forEach(d => {
+                    const val = d[keyField] || 'Unknown';
+                    groupCounts.set(val, (groupCounts.get(val) || 0) + 1);
+                });
+
+                // Берем топ-20, остальное в "Другие"
+                const sortedGroups = Array.from(groupCounts.entries())
+                    .sort((a, b) => b[1] - a[1]);
+
+                const topGroups = sortedGroups.slice(0, 20).map(g => g[0]);
+                const groupToIdx = new Map(topGroups.map((g, i) => [g, i]));
+
+                // Группируем по [bucketIndex][status][groupIdx]
+                // groupIdx = 0..19 для топ-20, 20 для "Другие"
+                const distribution = buckets.map(() => ({
+                    opened: new Array(topGroups.length + 1).fill(0),
+                    answered: new Array(topGroups.length + 1).fill(0),
+                    missed: new Array(topGroups.length + 1).fill(0),
+                    fail: new Array(topGroups.length + 1).fill(0)
+                }));
+
+                // Для сортировки внутри каждого статуса нам нужны суммарные счетчики по группам для каждого статуса
+                const statusGroupTotals = {
+                    opened: new Array(topGroups.length + 1).fill(0),
+                    answered: new Array(topGroups.length + 1).fill(0),
+                    missed: new Array(topGroups.length + 1).fill(0),
+                    fail: new Array(topGroups.length + 1).fill(0)
+                };
+
+                data.forEach(d => {
+                    const duration = parseFloat(d.duration_sec) || 0;
+                    const bucketIdx = buckets.findIndex(b => duration < b.max);
+                    if (bucketIdx !== -1) {
+                        const val = d[keyField] || 'Unknown';
+                        const status = ['opened', 'answered', 'missed'].includes(d.call_status) ? d.call_status : 'fail';
+                        let gIdx = groupToIdx.has(val) ? groupToIdx.get(val) : topGroups.length;
+                        distribution[bucketIdx][status][gIdx]++;
+                        statusGroupTotals[status][gIdx]++;
+                    }
+                });
+
+                const statusConfigs = [
+                    { label: 'Дверь открыта', key: 'opened', color: STATUS_COLORS.opened },
+                    { label: 'Отвечено', key: 'answered', color: STATUS_COLORS.answered },
+                    { label: 'Пропущено', key: 'missed', color: STATUS_COLORS.missed },
+                    { label: 'Fail', key: 'fail', color: STATUS_COLORS.fail }
+                ];
+
+                statusConfigs.forEach(statusCfg => {
+                    const statusKey = statusCfg.key;
+                    
+                    // Считаем количество активных групп для этого статуса
+                    const activeGroupsCount = statusGroupTotals[statusKey].filter(count => count > 0).length;
+
+                    // Создаем список индексов групп (0..14 + 15 для "Другие")
+                    const indices = [];
+                    for (let i = 0; i <= topGroups.length; i++) {
+                        indices.push(i);
+                    }
+
+                    // Сортируем индексы по количеству элементов в данном статусе
+                    indices.sort((a, b) => statusGroupTotals[statusKey][b] - statusGroupTotals[statusKey][a]);
+
+                    indices.forEach(i => {
+                        const count = statusGroupTotals[statusKey][i];
+                        if (count === 0) return; // Пропускаем пустые группы для этого статуса
+
+                        const isOther = i === topGroups.length;
+                        const groupLabel = isOther ? 'Другие' : topGroups[i];
+
+                        datasets.push({
+                            label: `${statusCfg.label} [объектов: ${activeGroupsCount}] (${groupLabel})`,
+                            data: distribution.map(d => d[statusKey][i]),
+                            backgroundColor: statusCfg.color,
+                            stack: 'stackDuration',
+                            statusLabel: statusCfg.label,
+                            groupLabel: groupLabel
+                        });
+                    });
+                });
+            }
 
             const chartData = {
                 labels,
-                datasets: [
-                    createConfig('Дверь открыта', 'opened', '#059669'),
-                    createConfig('Отвечено', 'answered', '#10b981'),
-                    createConfig('Пропущено', 'missed', '#ef4444'),
-                    createConfig('Fail', 'fail', '#94a3b8')
-                ]
+                datasets
+            };
+
+            const options = {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { stacked: true },
+                    y: { stacked: true, beginAtZero: true }
+                },
+                plugins: {
+                    legend: { 
+                        display: breakdownMode === 'none',
+                        position: 'bottom' 
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function (context) {
+                                let dataset = context.dataset;
+                                const val = context.parsed.y;
+                                if (val === null || val === 0) return null;
+
+                                const bucketIdx = context.dataIndex;
+                                const datasets = context.chart.data.datasets;
+
+                                // Общее количество в этом бакете (столбце)
+                                const totalInBucket = datasets.reduce((sum, ds) => sum + (ds.data[bucketIdx] || 0), 0);
+
+                                const currentStatusLabel = dataset.statusLabel;
+                                const currentGroupLabel = dataset.groupLabel;
+
+                                if (breakdownMode === 'none') {
+                                    const percent = totalInBucket > 0 ? ((val / totalInBucket) * 100).toFixed(1) : 0;
+                                    return [
+                                        `${currentGroupLabel}: ${val} (${percent}% от столбика)`,
+                                        `Всего: ${totalInBucket} в столбике`,
+                                    ];
+                                } else {
+                                    // Всего этого статуса (цвета) в бакете
+                                    const totalStatusInBucket = datasets
+                                        .filter(ds => ds.statusLabel === currentStatusLabel)
+                                        .reduce((sum, ds) => sum + (ds.data[bucketIdx] || 0), 0);
+
+                                    // Всего этой группы в бакете
+                                    const totalGroupInBucket = datasets
+                                        .filter(ds => ds.groupLabel === currentGroupLabel)
+                                        .reduce((sum, ds) => sum + (ds.data[bucketIdx] || 0), 0);
+
+                                    const percOfTotal = totalInBucket > 0 ? ((val / totalInBucket) * 100).toFixed(1) : 0;
+                                    const percStatusOfTotal = totalInBucket > 0 ? ((totalStatusInBucket / totalInBucket) * 100).toFixed(1) : 0;
+
+                                    return [
+                                        `${currentGroupLabel}: ${val} (${percOfTotal}% от столбика)`,
+                                        `${currentStatusLabel}: ${totalStatusInBucket} (${percStatusOfTotal}% от столбика)`,
+                                        `Всего: ${totalInBucket} в столбике`,
+                                    ];
+                                }
+                            }
+                        }
+                    }
+                }
             };
 
             if (state.charts.duration) {
                 state.charts.duration.data = chartData;
+                state.charts.duration.options = options;
                 state.charts.duration.update();
             } else {
                 state.charts.duration = new Chart(el.canvasDuration, {
                     type: 'bar',
                     data: chartData,
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: {
-                            x: { stacked: true },
-                            y: { stacked: true, beginAtZero: true }
-                        },
-                        plugins: {
-                            legend: { position: 'bottom' },
-                            title: {
-                                display: true,
-                                text: 'Распределение статусов по длительности'
-                            }
-                        }
-                    }
+                    options: options
                 });
             }
         },
@@ -456,165 +714,199 @@
         renderPanelAnalysisChart(data) {
             if (!el.canvasPanelAnalysis) return;
 
-          // Группировка данных по панелям
-          const panels = {};
-          data.forEach(d => {
-            const p = d.panel_id || 'Unknown';
-            const apt = d.apartment_id || 'N/A';
-            if (!panels[p]) {
-              panels[p] = {
-                apts: {} // { aptId: { success: 0, fail: 0, total: 0 } }
-              };
-            }
+            const breakdownMode = state.panelBreakdown || 'none';
 
-            if (!panels[p].apts[apt]) {
-              panels[p].apts[apt] = { success: 0, fail: 0, total: 0 };
-            }
-
-            const s = d.call_status;
-            // Считаем успешными: answered и opened
-            const isSuccess = ['answered', 'opened'].includes(s);
-
-            panels[p].apts[apt].total++;
-            if (isSuccess) {
-              panels[p].apts[apt].success++;
-            } else {
-              panels[p].apts[apt].fail++;
-            }
-          });
-
-          // Подсчет общих сумм для отображения в лейблах
-          Object.values(panels).forEach(p => {
-            p.totalSuccess = 0;
-            p.totalFail = 0;
-            Object.values(p.apts).forEach(stats => {
-              p.totalSuccess += stats.success;
-              p.totalFail += stats.fail;
-            });
-          });
-
-          // Сортировка панелей и генерация лейблов
-          // Используем panelKeys для доступа к данным, а panelLabels для отображения
-          const panelKeys = Object.keys(panels).sort((a, b) => a.localeCompare(b));
-          const panelLabels = panelKeys.map(k => {
-            const p = panels[k];
-            return `${k} (❌${p.totalFail} | ✅${p.totalSuccess})`;
-          });
-
-          const chartHeight = Math.max(400, panelKeys.length * 35 + 100);
-          el.canvasPanelAnalysis.parentElement.style.height = `${chartHeight}px`;
-
-          const logify = (val) => val > 0 ? Math.log10(val + 1) : 0;
-
-          // Подготовка датасетов
-          const datasets = [];
-          // Находим максимальное кол-во квартир на одной панели для создания слоев
-          const maxAptCount = Math.max(...panelKeys.map(l => Object.keys(panels[l].apts).length));
-
-          for (let i = 0; i < maxAptCount; i++) {
-            // Генерация цветов: Зеленый для успеха, Красный для неудач
-            const step = Math.min(10, 50 / (maxAptCount || 1));
-
-            // Зеленый (HSL 142)
-            const gLight = Math.min(90, 35 + (i * step));
-            const greenColor = `hsl(142, 70%, ${gLight}%)`;
-
-            // Красный (HSL 0)
-            const rLight = Math.min(90, 45 + (i * step));
-            const redColor = `hsl(0, 80%, ${rLight}%)`;
-
-            // --- ПРАВАЯ ЧАСТЬ: Успешные звонки (Positive - Green) ---
-            datasets.push({
-              label: `Топ-${i + 1} (Успех)`,
-              data: panelKeys.map(l => {
-                const sortedApts = Object.entries(panels[l].apts).sort((a, b) => b[1].total - a[1].total);
-                const aptData = sortedApts[i];
-                return aptData ? logify(aptData[1].success) : 0;
-              }),
-              realValues: panelKeys.map(l => {
-                const sortedApts = Object.entries(panels[l].apts).sort((a, b) => b[1].total - a[1].total);
-                const aptData = sortedApts[i];
-                return aptData ? `${aptData[0]}: ${aptData[1].success}` : null;
-              }),
-              backgroundColor: greenColor,
-              stack: 'main',
-              hiddenInLegend: i > 5
-            });
-
-            // --- ЛЕВАЯ ЧАСТЬ: Неуспешные звонки (Negative - Red) ---
-            datasets.push({
-              label: `Топ-${i + 1} (Fail)`,
-              data: panelKeys.map(l => {
-                const sortedApts = Object.entries(panels[l].apts).sort((a, b) => b[1].total - a[1].total);
-                const aptData = sortedApts[i];
-                return aptData ? -logify(aptData[1].fail) : 0;
-              }),
-              realValues: panelKeys.map(l => {
-                const sortedApts = Object.entries(panels[l].apts).sort((a, b) => b[1].total - a[1].total);
-                const aptData = sortedApts[i];
-                return aptData ? `${aptData[0]}: ${aptData[1].fail}` : null;
-              }),
-              backgroundColor: redColor,
-              stack: 'main',
-              hiddenInLegend: true
-            });
-          }
-
-          if (state.charts.panelAnalysis) {
-            state.charts.panelAnalysis.data.labels = panelLabels;
-            state.charts.panelAnalysis.data.datasets = datasets;
-            state.charts.panelAnalysis.update();
-          } else {
-            state.charts.panelAnalysis = new Chart(el.canvasPanelAnalysis, {
-              type: 'bar',
-              data: { labels: panelLabels, datasets },
-              options: {
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                  x: {
-                    stacked: true,
-                    grid: { display: false },
-                    ticks: { display: false },
-                    title: { display: true, text: '← Неуспешные (Fail/Missed) | Успешные (Open/Ans) по квартирам →' }
-                  },
-                  y: { stacked: true, beginAtZero: true }
-                },
-                plugins: {
-                  tooltip: {
-                    callbacks: {
-                      label: (context) => {
-                        const rv = context.dataset.realValues[context.dataIndex];
-                        if (!rv) return null;
-                        const isSuccess = context.dataset.data[context.dataIndex] > 0;
-                        return `${isSuccess ? '✅' : '❌'} ${rv}`;
-                      }
-                    }
-                  },
-                  legend: {
-                    position: 'bottom',
-                    labels: {
-                      filter: (item, chartData) => {
-                        const ds = chartData.datasets[item.datasetIndex];
-                        return ds && !ds.hiddenInLegend;
-                      }
-                    }
-                  }
+            // Группировка данных по панелям
+            const panels = {};
+            data.forEach(d => {
+                const p = d.panel_id || 'Unknown';
+                const apt = breakdownMode === 'none' ? 'ALL' : (d.apartment_id || 'N/A');
+                if (!panels[p]) {
+                    panels[p] = {
+                        apts: {} // { aptId: { answered: 0, opened: 0, missed: 0, fail: 0, total: 0 } }
+                    };
                 }
-              }
+
+                if (!panels[p].apts[apt]) {
+                    panels[p].apts[apt] = { answered: 0, opened: 0, missed: 0, fail: 0, total: 0 };
+                }
+
+                const s = d.call_status;
+                if (panels[p].apts[apt].hasOwnProperty(s)) {
+                    panels[p].apts[apt][s]++;
+                } else {
+                    if (s === 'answered' || s === 'opened' || s === 'missed' || s === 'fail') {
+                        panels[p].apts[apt][s]++;
+                    }
+                }
+                panels[p].apts[apt].total++;
             });
-          }
+
+            const statusConfigs = [
+                { key: 'answered', label: 'Отвечено', color: STATUS_COLORS.answered, side: 'positive' },
+                { key: 'opened', label: 'Открыто', color: STATUS_COLORS.opened, side: 'positive' },
+                { key: 'missed', label: 'Пропущен', color: STATUS_COLORS.missed, side: 'negative' },
+                { key: 'fail', label: 'Ошибка', color: STATUS_COLORS.fail, side: 'negative' }
+            ];
+
+            // Подсчет общих сумм для отображения в лейблах
+            Object.values(panels).forEach(p => {
+                p.totals = { answered: 0, opened: 0, missed: 0, fail: 0 };
+                Object.values(p.apts).forEach(stats => {
+                    statusConfigs.forEach(cfg => {
+                        p.totals[cfg.key] += stats[cfg.key];
+                    });
+                });
+            });
+
+            // Сортировка панелей и генерация лейблов
+            const panelKeys = Object.keys(panels).sort((a, b) => a.localeCompare(b));
+            const panelLabels = panelKeys.map(k => {
+                const p = panels[k];
+                const pos = p.totals.answered + p.totals.opened;
+                const neg = p.totals.missed + p.totals.fail;
+                return `${k} (❌${neg} | ✅${pos})`;
+            });
+
+            const chartHeight = Math.max(400, panelKeys.length * 35 + 100);
+            el.canvasPanelAnalysis.parentElement.style.height = `${chartHeight}px`;
+
+            const datasets = [];
+            // Находим максимальное кол-во групп на одной панели
+            const maxGroupsCount = Math.max(...panelKeys.map(l => Object.keys(panels[l].apts).length));
+
+            statusConfigs.forEach(statusCfg => {
+                for (let i = 0; i < maxGroupsCount; i++) {
+                    const isPositive = statusCfg.side === 'positive';
+                    
+                    datasets.push({
+                        label: breakdownMode === 'none' ? statusCfg.label : `${statusCfg.label} (Группа #${i+1})`,
+                        statusKey: statusCfg.key,
+                        statusLabel: statusCfg.label,
+                        groupIndex: i,
+                        data: panelKeys.map(l => {
+                            const sortedApts = Object.entries(panels[l].apts).sort((a, b) => b[1].total - a[1].total);
+                            const aptData = sortedApts[i];
+                            if (!aptData) return 0;
+                            const val = aptData[1][statusCfg.key] || 0;
+                            return isPositive ? val : -val;
+                        }),
+                        realValues: panelKeys.map(l => {
+                            const sortedApts = Object.entries(panels[l].apts).sort((a, b) => b[1].total - a[1].total);
+                            const aptData = sortedApts[i];
+                            if (!aptData || aptData[1][statusCfg.key] <= 0) return null;
+                            return breakdownMode === 'none' ? `${aptData[1][statusCfg.key]}` : `${aptData[0]}: ${aptData[1][statusCfg.key]}`;
+                        }),
+                        statusTotals: panelKeys.map(l => panels[l].totals[statusCfg.key]),
+                        backgroundColor: statusCfg.color,
+                        stack: 'main',
+                        hiddenInLegend: i > 0
+                    });
+                }
+            });
+
+            if (state.charts.panelAnalysis) {
+                state.charts.panelAnalysis.data.labels = panelLabels;
+                state.charts.panelAnalysis.data.datasets = datasets;
+                state.charts.panelAnalysis.options.plugins.tooltip.callbacks.label = (context) => {
+                    const rv = context.dataset.realValues[context.dataIndex];
+                    if (!rv) return null;
+                    const statusLabel = context.dataset.statusLabel;
+                    const totalStatusInRow = context.dataset.statusTotals[context.dataIndex];
+                    
+                    let icon = '❓';
+                    if (context.dataset.statusKey === 'answered' || context.dataset.statusKey === 'opened') icon = '✅';
+                    if (context.dataset.statusKey === 'missed' || context.dataset.statusKey === 'fail') icon = '❌';
+
+                    if (breakdownMode === 'none') {
+                        return `${icon} ${statusLabel}: ${totalStatusInRow}`;
+                    } else {
+                        // rv имеет формат "Apt: Count"
+                        const [aptName, count] = rv.split(': ');
+                        return [
+                            `${icon} ${statusLabel}`,
+                            `Группа: ${aptName}`,
+                            `Объектов: ${count}`,
+                            `(всего в сегменте: ${totalStatusInRow})`
+                        ];
+                    }
+                };
+                state.charts.panelAnalysis.update();
+            } else {
+                state.charts.panelAnalysis = new Chart(el.canvasPanelAnalysis, {
+                    type: 'bar',
+                    data: { labels: panelLabels, datasets },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: {
+                                stacked: true,
+                                beginAtZero: false,
+                                title: { display: true, text: '← Пропущенные/Ошибки | Отвечено/Открыто →' }
+                            },
+                            y: { stacked: true, beginAtZero: true }
+                        },
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: (context) => {
+                                        const rv = context.dataset.realValues[context.dataIndex];
+                                        if (!rv) return null;
+                                        const statusLabel = context.dataset.statusLabel;
+                                        const totalStatusInRow = context.dataset.statusTotals[context.dataIndex];
+                                        
+                                        let icon = '❓';
+                                        if (context.dataset.statusKey === 'answered' || context.dataset.statusKey === 'opened') icon = '✅';
+                                        if (context.dataset.statusKey === 'missed' || context.dataset.statusKey === 'fail') icon = '❌';
+
+                                        if (breakdownMode === 'none') {
+                                            return `${icon} ${statusLabel}: ${totalStatusInRow}`;
+                                        } else {
+                                            // rv имеет формат "Apt: Count"
+                                            const [aptName, count] = rv.split(': ');
+                                            return [
+                                                `${icon} ${statusLabel}`,
+                                                `Группа: ${aptName}`,
+                                                `Объектов: ${count}`,
+                                                `(всего в сегменте: ${totalStatusInRow})`
+                                            ];
+                                        }
+                                    }
+                                }
+                            },
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    filter: (item, chartData) => {
+                                        const ds = chartData.datasets[item.datasetIndex];
+                                        if (ds && !ds.hiddenInLegend) {
+                                            item.text = ds.statusLabel;
+                                            return true;
+                                        }
+                                        return false;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
         },
 
         renderDetailsList() {
             el.callsTableBody.innerHTML = '';
+            if (el.callsTableMore) el.callsTableMore.innerHTML = '';
+            
             if (state.filteredData.length === 0) {
                 el.callsTableBody.innerHTML = '<div class="empty-state">Нет данных</div>';
                 return;
             }
 
-            state.filteredData.forEach(call => {
+            const dataToShow = state.filteredData.slice(0, state.detailsLimit);
+
+            dataToShow.forEach(call => {
                 const dateObj = call.start_call_time;
                 const timeStr = !(dateObj instanceof Date) || isNaN(dateObj)
                     ? '-'
@@ -646,6 +938,23 @@
                         `;
                 el.callsTableBody.appendChild(row);
             });
+
+            if (state.filteredData.length > state.detailsLimit) {
+                const moreBtn = document.createElement('button');
+                moreBtn.className = 'btn-secondary';
+                moreBtn.style.width = '100%';
+                moreBtn.style.margin = '10px 0';
+                moreBtn.textContent = `Показать еще (${state.filteredData.length - state.detailsLimit})`;
+                moreBtn.onclick = () => {
+                    state.detailsLimit = Infinity;
+                    this.renderDetailsList();
+                };
+                if (el.callsTableMore) {
+                    el.callsTableMore.appendChild(moreBtn);
+                } else {
+                    el.callsTableBody.appendChild(moreBtn);
+                }
+            }
         },
 
         selectCall(call) {
@@ -784,6 +1093,45 @@
 
             // Modal
             if (el.closeModalBtn) el.closeModalBtn.onclick = () => this.closeModal();
+
+            // Переключение группировки графика
+            if (el.historyGroup) {
+                el.historyGroup.onchange = (e) => {
+                    state.historyGrouping = e.target.value;
+                    this.renderHistoryChart(state.filteredData);
+                    this.saveSettings();
+                };
+            }
+            if (el.historyBreakdown) {
+                el.historyBreakdown.onchange = (e) => {
+                    state.historyBreakdown = e.target.value;
+                    this.renderHistoryChart(state.filteredData);
+                    this.saveSettings();
+                };
+            }
+            if (el.durationBreakdown) {
+                el.durationBreakdown.onchange = (e) => {
+                    state.durationBreakdown = e.target.value;
+                    this.renderDurationChart(state.filteredData);
+                    this.saveSettings();
+                };
+            }
+
+            if (el.durationInterval) {
+                el.durationInterval.onchange = (e) => {
+                    state.durationInterval = e.target.value;
+                    this.renderDurationChart(state.filteredData);
+                    this.saveSettings();
+                };
+            }
+            if (el.panelBreakdown) {
+                el.panelBreakdown.onchange = (e) => {
+                    state.panelBreakdown = e.target.value;
+                    this.renderDashboard();
+                    this.saveSettings();
+                };
+            }
+
             window.addEventListener('click', (event) => {
                 if (event.target == el.dataModal) {
                     this.closeModal();
@@ -1149,6 +1497,26 @@
                         // if (data.values.apt) el.filterApt.value = data.values.apt;
                         // if (data.values.panel) el.filterPanel.value = data.values.panel;
                         // if (data.values.id) el.filterId.value = data.values.id;
+                        // if (data.values.historyGrouping) {
+                        //     state.historyGrouping = data.values.historyGrouping;
+                        //     el.historyGroup.value = state.historyGrouping;
+                        // }
+                        // if (data.values.historyBreakdown) {
+                        //     state.historyBreakdown = data.values.historyBreakdown;
+                        //     el.historyBreakdown.value = state.historyBreakdown;
+                        // }
+                        // if (data.values.durationBreakdown) {
+                        //     state.durationBreakdown = data.values.durationBreakdown;
+                        //     el.durationBreakdown.value = state.durationBreakdown;
+                        // }
+                        // if (data.values.durationInterval) {
+                        //     state.durationInterval = data.values.durationInterval;
+                        //     el.durationInterval.value = state.durationInterval;
+                        // }
+                        // if (data.values.panelBreakdown) {
+                        //     state.panelBreakdown = data.values.panelBreakdown;
+                        //     el.panelBreakdown.value = state.panelBreakdown;
+                        // }
                     }
 
                     // Восстанавливаем историю
@@ -1171,7 +1539,12 @@
                     push: el.filterPush.value,
                     apt: el.filterApt.value,
                     panel: el.filterPanel.value,
-                    id: el.filterId.value
+                    id: el.filterId.value,
+                    historyGrouping: state.historyGrouping,
+                    historyBreakdown: state.historyBreakdown,
+                    durationBreakdown: state.durationBreakdown,
+                    durationInterval: state.durationInterval,
+                    panelBreakdown: state.panelBreakdown
                 },
                 history: state.inputHistory
             };
@@ -1179,6 +1552,7 @@
         },
 
         applyFilters() {
+            state.detailsLimit = DEFAULT_DETAILS_LIMIT;
             const start = el.filterDateStart.value;
             const end = el.filterDateEnd.value;
             const status = el.filterStatus.value;

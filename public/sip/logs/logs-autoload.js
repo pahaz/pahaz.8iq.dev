@@ -293,7 +293,7 @@
                 } else if (collectedFiles.length > 0) {
                     btn.innerText = `⚠️ Загружено ${collectedFiles.length} из ${reports.length}`;
                 } else {
-                    btn.innerText = '❌ Ошибка загрузки';
+                    btn.innerText = '❌ Ошибка загрузки. Открывается ли kibana?';
                 }
 
                 setTimeout(() => {

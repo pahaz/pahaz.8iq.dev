@@ -160,7 +160,20 @@
         <div class="charts-grid">
             <div class="chart-card full-width">
                 <div class="card-header">
-                    <div class="card-title">Динамика звонков по дням</div>
+                    <div class="card-title">Динамика звонков</div>
+                    <div class="card-controls">
+                        <select id="historyBreakdown" class="select-sm">
+                            <option value="none">Без разбивки</option>
+                            <option value="panel">По панелям</option>
+                            <option value="apt">По квартирам</option>
+                        </select>
+                        <select id="historyGroup" class="select-sm">
+                            <option value="day">По дням</option>
+                            <option value="hour">По часам</option>
+                            <option value="15min">По 15 минут</option>
+                            <option value="1min">По 1 минуте</option>
+                        </select>
+                    </div>
                 </div>
                 <div style="height: 400px;">
                     <canvas id="chartHistory"></canvas>
@@ -168,14 +181,34 @@
             </div>
 
             <div class="chart-card full-width">
-                <div class="chart-container">
+                <div class="card-header">
+                    <div class="card-title">Распределение статусов по длительности</div>
+                    <div class="card-controls">
+                        <select id="durationInterval" class="select-sm">
+                            <option value="1s">Интервал 1с</option>
+                            <option value="2s" selected>Интервал 2с</option>
+                        </select>
+                        <select id="durationBreakdown" class="select-sm">
+                            <option value="none">Без разбивки</option>
+                            <option value="panel">По панелям</option>
+                            <option value="apt">По квартирам</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="chart-container" style="height: 400px;">
                     <canvas id="chartDuration"></canvas>
                 </div>
             </div>
 
             <div class="chart-card full-width">
                 <div class="card-header">
-                    <div class="card-title">Аналитика по панелям: Статусы vs Квартиры (Log Scale)</div>
+                    <div class="card-title">Аналитика по панелям</div>
+                    <div class="card-controls">
+                        <select id="panelBreakdown" class="select-sm">
+                            <option value="none">Без разбивки</option>
+                            <option value="apt">По квартирам</option>
+                        </select>
+                    </div>
                 </div>
                 <div id="panelAnalysisWrapper" style="min-height: 400px; position: relative;">
                     <canvas id="chartPanelAnalysis"></canvas>
@@ -193,6 +226,7 @@
                     <!-- Rows injected via JS -->
                     <div class="empty-state">Данные не загружены</div>
                 </div>
+                <div id="callsTableMore"></div>
             </div>
 
             <!-- Right: Detail -->
