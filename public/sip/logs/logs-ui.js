@@ -8,6 +8,7 @@
     // Кэшируем все элементы интерфейса
     const q = (id) => document.getElementById(id);
     const LOCAL_UI_STATE = 'ui_state_data'
+    const DEFAULT_DETAILS_LIMIT = 100;
 
     const el = {
         // Nav
@@ -109,6 +110,7 @@
 
         // Details List
         callsTableBody: q('callsTableBody'),
+        callsTableMore: q('callsTableMore'),
 
         // Details Panel
         detailPlaceholder: q('detailPlaceholder'),
@@ -168,6 +170,7 @@
         durationBreakdown: 'none',
 
         activeCallId: null,
+        detailsLimit: DEFAULT_DETAILS_LIMIT,
     };
 
     // --- 3. UI LOGIC ---
@@ -883,12 +886,16 @@
 
         renderDetailsList() {
             el.callsTableBody.innerHTML = '';
+            if (el.callsTableMore) el.callsTableMore.innerHTML = '';
+            
             if (state.filteredData.length === 0) {
                 el.callsTableBody.innerHTML = '<div class="empty-state">Нет данных</div>';
                 return;
             }
 
-            state.filteredData.forEach(call => {
+            const dataToShow = state.filteredData.slice(0, state.detailsLimit);
+
+            dataToShow.forEach(call => {
                 const dateObj = call.start_call_time;
                 const timeStr = !(dateObj instanceof Date) || isNaN(dateObj)
                     ? '-'
@@ -920,6 +927,23 @@
                         `;
                 el.callsTableBody.appendChild(row);
             });
+
+            if (state.filteredData.length > state.detailsLimit) {
+                const moreBtn = document.createElement('button');
+                moreBtn.className = 'btn-secondary';
+                moreBtn.style.width = '100%';
+                moreBtn.style.margin = '10px 0';
+                moreBtn.textContent = `Показать еще (${state.filteredData.length - state.detailsLimit})`;
+                moreBtn.onclick = () => {
+                    state.detailsLimit = Infinity;
+                    this.renderDetailsList();
+                };
+                if (el.callsTableMore) {
+                    el.callsTableMore.appendChild(moreBtn);
+                } else {
+                    el.callsTableBody.appendChild(moreBtn);
+                }
+            }
         },
 
         selectCall(call) {
@@ -1492,6 +1516,7 @@
         },
 
         applyFilters() {
+            state.detailsLimit = DEFAULT_DETAILS_LIMIT;
             const start = el.filterDateStart.value;
             const end = el.filterDateEnd.value;
             const status = el.filterStatus.value;
