@@ -181,7 +181,17 @@
             </div>
 
             <div class="chart-card full-width">
-                <div class="chart-container">
+                <div class="card-header">
+                    <div class="card-title">Распределение статусов по длительности</div>
+                    <div class="card-controls">
+                        <select id="durationBreakdown" class="select-sm">
+                            <option value="none">Без разбивки</option>
+                            <option value="panel">По панелям</option>
+                            <option value="apt">По квартирам</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="chart-container" style="height: 400px;">
                     <canvas id="chartDuration"></canvas>
                 </div>
             </div>

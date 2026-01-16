@@ -105,6 +105,7 @@
         canvasTopPanels: q('chartTopPanels'),
         canvasPanelAnalysis: q('chartPanelAnalysis'),
         canvasDuration: q('chartDuration'),
+        durationBreakdown: q('durationBreakdown'),
 
         // Details List
         callsTableBody: q('callsTableBody'),
@@ -130,6 +131,13 @@
     };
 
     // --- 2. STATE ---
+    const STATUS_COLORS = {
+        opened: '#059669',   // Emerald 600
+        answered: '#10b981', // Emerald 500
+        missed: '#ef4444',   // Red 500
+        fail: '#94a3b8'      // Slate 400
+    };
+
     const state = {
         // Основное хранилище звонков (Map для быстрого поиска по ID или массив)
         // Используем массив для совместимости с фильтрами, но при мердже будем искать
@@ -157,6 +165,7 @@
 
         historyGrouping: 'day',
         historyBreakdown: 'none',
+        durationBreakdown: 'none',
 
         activeCallId: null,
     };
@@ -299,6 +308,23 @@
             const breakdownKeys = new Set();
             const breakdownMode = state.historyBreakdown;
 
+            const keyField = breakdownMode === 'panel' ? 'panel_id' : (breakdownMode === 'apt' ? 'apartment_id' : null);
+            let topGroups = [];
+            const groupToIdx = new Map();
+
+            if (keyField) {
+                const groupCounts = new Map();
+                data.forEach(d => {
+                    const val = d[keyField] || (breakdownMode === 'panel' ? 'Unknown Panel' : 'Unknown Apt');
+                    groupCounts.set(val, (groupCounts.get(val) || 0) + 1);
+                });
+                topGroups = Array.from(groupCounts.entries())
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 20)
+                    .map(g => g[0]);
+                topGroups.forEach((g, i) => groupToIdx.set(g, i));
+            }
+
             data.forEach(d => {
                 let timeKey = 'Unknown';
                 if (d.start_call_time) {
@@ -322,10 +348,9 @@
                 }
 
                 let breakdownKey = 'Total';
-                if (breakdownMode === 'panel') {
-                    breakdownKey = d.panel_id || 'Unknown Panel';
-                } else if (breakdownMode === 'apt') {
-                    breakdownKey = d.apartment_id || 'Unknown Apt';
+                if (breakdownMode !== 'none') {
+                    const val = d[keyField] || (breakdownMode === 'panel' ? 'Unknown Panel' : 'Unknown Apt');
+                    breakdownKey = groupToIdx.has(val) ? val : 'others';
                 }
                 breakdownKeys.add(breakdownKey);
 
@@ -343,27 +368,45 @@
             const sortedBreakdownKeys = Array.from(breakdownKeys).sort();
 
             const statusConfigs = [
-                { label: 'Дверь открыта', key: 'opened', color: '#059669' },
-                { label: 'Отвечено', key: 'answered', color: '#10b981' },
-                { label: 'Пропущено', key: 'missed', color: '#ef4444' },
-                { label: 'Fail', key: 'fail', color: '#94a3b8' }
+                { label: 'Дверь открыта', key: 'opened', color: STATUS_COLORS.opened },
+                { label: 'Отвечено', key: 'answered', color: STATUS_COLORS.answered },
+                { label: 'Пропущено', key: 'missed', color: STATUS_COLORS.missed },
+                { label: 'Fail', key: 'fail', color: STATUS_COLORS.fail }
             ];
 
             const datasets = [];
             statusConfigs.forEach(statusCfg => {
-                sortedBreakdownKeys.forEach(breakKey => {
+                const statusKey = statusCfg.key;
+                
+                // Считаем суммарное количество для каждой breakdown-группы в рамках этого статуса
+                const breakdownTotals = {};
+                breakdownKeys.forEach(breakKey => {
+                    let total = 0;
+                    labels.forEach(l => {
+                        total += (groups[l][statusKey] && groups[l][statusKey][breakKey]) || 0;
+                    });
+                    breakdownTotals[breakKey] = total;
+                });
+
+                // Сортируем ключи разбивки по убыванию общего количества
+                const sortedKeysForStatus = Array.from(breakdownKeys).sort((a, b) => {
+                    const diff = breakdownTotals[b] - breakdownTotals[a];
+                    if (diff !== 0) return diff;
+                    return a.localeCompare(b); // Стабильная сортировка при равных значениях
+                });
+
+                sortedKeysForStatus.forEach(breakKey => {
                     const dataset = {
                         label: breakdownMode === 'none' ? statusCfg.label : `${statusCfg.label} (${breakKey})`,
-                        data: labels.map(l => (groups[l][statusCfg.key] && groups[l][statusCfg.key][breakKey]) || 0),
+                        data: labels.map(l => (groups[l][statusKey] && groups[l][statusKey][breakKey]) || 0),
                         backgroundColor: statusCfg.color,
                         stack: 'stack0',
-                        statusKey: statusCfg.key,
+                        statusKey: statusKey,
                         breakdownKey: breakKey,
-                        statusLabel: statusCfg.label
+                        statusLabel: statusCfg.label,
+                        groupLabel: breakdownMode === 'none' ? statusCfg.label : breakKey
                     };
-                    // Если данных по этому срезу вообще нет ни в одном интервале, можно пропустить, 
-                    // но для простоты оставим все комбинации, Chart.js их переварит.
-                    // Однако, если у нас сотни квартир, это может тормозить.
+                    
                     const hasData = dataset.data.some(v => v > 0);
                     if (hasData) {
                         datasets.push(dataset);
@@ -390,36 +433,41 @@
                     },
                     tooltip: {
                         callbacks: {
-                            label: function(context) {
-                                const dataset = context.dataset;
-                                const timeKey = context.label;
+                            label: function (context) {
+                                let dataset = context.dataset;
                                 const val = context.parsed.y;
                                 if (val === null || val === 0) return null;
 
-                                const statusKey = dataset.statusKey;
-                                const statusLabel = dataset.statusLabel;
-                                const breakKey = dataset.breakdownKey;
-                                
-                                const groupData = groups[timeKey] && groups[timeKey][statusKey];
-                                const statusTotal = groupData ? groupData._total : 0;
-                                
-                                const totalInInterval = Object.values(groups[timeKey] || {}).reduce((sum, s) => sum + s._total, 0);
+                                const bucketIdx = context.dataIndex;
+                                const datasets = context.chart.data.datasets;
 
-                                let label = '';
+                                // Общее количество в этом бакете (столбце)
+                                const totalInBucket = datasets.reduce((sum, ds) => sum + (ds.data[bucketIdx] || 0), 0);
+
+                                const currentStatusLabel = dataset.statusLabel;
+                                const currentGroupLabel = dataset.groupLabel;
+
                                 if (breakdownMode === 'none') {
-                                    const percentOfTotal = totalInInterval > 0 ? ((val / totalInInterval) * 100).toFixed(1) : 0;
-                                    label = `${statusLabel}: ${val} (${percentOfTotal}%)`;
+                                    const percent = totalInBucket > 0 ? ((val / totalInBucket) * 100).toFixed(1) : 0;
+                                    return [
+                                        `${currentGroupLabel}: ${val} (${percent}% от столбика)`,
+                                        `Всего: ${totalInBucket} в столбике`,
+                                    ];
                                 } else {
-                                    const percentOfStatus = statusTotal > 0 ? ((val / statusTotal) * 100).toFixed(1) : 0;
-                                    const percentOfTotal = totalInInterval > 0 ? ((val / totalInInterval) * 100).toFixed(1) : 0;
-                                    
-                                    label = [
-                                        `${statusLabel} [${breakKey}]: ${val}`,
-                                        `  % от статуса: ${percentOfStatus}% (всего ${statusTotal})`,
-                                        `  % от интервала: ${percentOfTotal}% (всего ${totalInInterval})`
+                                    // Всего этого статуса (цвета) в бакете
+                                    const totalStatusInBucket = datasets
+                                        .filter(ds => ds.statusLabel === currentStatusLabel)
+                                        .reduce((sum, ds) => sum + (ds.data[bucketIdx] || 0), 0);
+
+                                    const percOfTotal = totalInBucket > 0 ? ((val / totalInBucket) * 100).toFixed(1) : 0;
+                                    const percStatusOfTotal = totalInBucket > 0 ? ((totalStatusInBucket / totalInBucket) * 100).toFixed(1) : 0;
+
+                                    return [
+                                        `${currentGroupLabel} [${currentStatusLabel}]: ${val} (${percOfTotal}% от столбика)`,
+                                        `${currentStatusLabel}: ${totalStatusInBucket} (${percStatusOfTotal}% от столбика)`,
+                                        `Всего: ${totalInBucket} в столбике`,
                                     ];
                                 }
-                                return label;
                             }
                         }
                     }
@@ -441,6 +489,8 @@
 
         renderDurationChart(data) {
             if (!el.canvasDuration) return;
+
+            const breakdownMode = state.durationBreakdown || 'none';
 
             // Определяем интервалы (бакеты) длительности
             const buckets = [
@@ -477,46 +527,131 @@
                 { label: '> 2 мин', max: Infinity },
             ];
 
-            // Инициализация структуры для подсчета
-            const distribution = buckets.map(b => ({
-                label: b.label,
-                max: b.max,
-                stats: { answered: 0, opened: 0, missed: 0, fail: 0 }
-            }));
+            const labels = buckets.map(b => b.label);
+            let datasets = [];
 
-            data.forEach(d => {
-                const duration = parseFloat(d.duration_sec) || 0;
+            if (breakdownMode === 'none') {
+                const distribution = buckets.map(b => ({
+                    stats: { answered: 0, opened: 0, missed: 0, fail: 0 }
+                }));
 
-                // Находим подходящий интервал
-                const targetBucket = distribution.find(b => duration < b.max);
-
-                if (targetBucket) {
-                    const s = d.call_status;
-                    if (targetBucket.stats.hasOwnProperty(s)) {
-                        targetBucket.stats[s]++;
-                    } else {
-                        targetBucket.stats.fail++;
+                data.forEach(d => {
+                    const duration = parseFloat(d.duration_sec) || 0;
+                    const bucketIdx = buckets.findIndex(b => duration < b.max);
+                    if (bucketIdx !== -1) {
+                        const s = d.call_status;
+                        const stats = distribution[bucketIdx].stats;
+                        if (stats.hasOwnProperty(s)) {
+                            stats[s]++;
+                        } else {
+                            stats.fail++;
+                        }
                     }
-                }
-            });
+                });
 
-            const labels = distribution.map(d => d.label);
+                const createConfig = (label, key, color) => ({
+                    label: label,
+                    data: distribution.map(d => d.stats[key]),
+                    backgroundColor: color,
+                    stack: 'stackDuration'
+                });
 
-            const createConfig = (label, key, color) => ({
-                label: label,
-                data: distribution.map(d => d.stats[key]),
-                backgroundColor: color,
-                stack: 'stackDuration'
-            });
+                datasets = [
+                    createConfig('Дверь открыта', 'opened', STATUS_COLORS.opened),
+                    createConfig('Отвечено', 'answered', STATUS_COLORS.answered),
+                    createConfig('Пропущено', 'missed', STATUS_COLORS.missed),
+                    createConfig('Fail', 'fail', STATUS_COLORS.fail)
+                ];
+            } else {
+                // Разбивка по панелям или квартирам
+                const keyField = breakdownMode === 'panel' ? 'panel_id' : 'apartment_id';
+                const groupCounts = new Map();
+
+                data.forEach(d => {
+                    const val = d[keyField] || 'Unknown';
+                    groupCounts.set(val, (groupCounts.get(val) || 0) + 1);
+                });
+
+                // Берем топ-20, остальное в "Другие"
+                const sortedGroups = Array.from(groupCounts.entries())
+                    .sort((a, b) => b[1] - a[1]);
+
+                const topGroups = sortedGroups.slice(0, 20).map(g => g[0]);
+                const groupToIdx = new Map(topGroups.map((g, i) => [g, i]));
+
+                // Группируем по [bucketIndex][status][groupIdx]
+                // groupIdx = 0..19 для топ-20, 20 для "Другие"
+                const distribution = buckets.map(() => ({
+                    opened: new Array(topGroups.length + 1).fill(0),
+                    answered: new Array(topGroups.length + 1).fill(0),
+                    missed: new Array(topGroups.length + 1).fill(0),
+                    fail: new Array(topGroups.length + 1).fill(0)
+                }));
+
+                // Для сортировки внутри каждого статуса нам нужны суммарные счетчики по группам для каждого статуса
+                const statusGroupTotals = {
+                    opened: new Array(topGroups.length + 1).fill(0),
+                    answered: new Array(topGroups.length + 1).fill(0),
+                    missed: new Array(topGroups.length + 1).fill(0),
+                    fail: new Array(topGroups.length + 1).fill(0)
+                };
+
+                data.forEach(d => {
+                    const duration = parseFloat(d.duration_sec) || 0;
+                    const bucketIdx = buckets.findIndex(b => duration < b.max);
+                    if (bucketIdx !== -1) {
+                        const val = d[keyField] || 'Unknown';
+                        const status = ['opened', 'answered', 'missed'].includes(d.call_status) ? d.call_status : 'fail';
+                        let gIdx = groupToIdx.has(val) ? groupToIdx.get(val) : topGroups.length;
+                        distribution[bucketIdx][status][gIdx]++;
+                        statusGroupTotals[status][gIdx]++;
+                    }
+                });
+
+                const statusConfigs = [
+                    { label: 'Дверь открыта', key: 'opened', color: STATUS_COLORS.opened },
+                    { label: 'Отвечено', key: 'answered', color: STATUS_COLORS.answered },
+                    { label: 'Пропущено', key: 'missed', color: STATUS_COLORS.missed },
+                    { label: 'Fail', key: 'fail', color: STATUS_COLORS.fail }
+                ];
+
+                statusConfigs.forEach(statusCfg => {
+                    const statusKey = statusCfg.key;
+                    
+                    // Считаем количество активных групп для этого статуса
+                    const activeGroupsCount = statusGroupTotals[statusKey].filter(count => count > 0).length;
+
+                    // Создаем список индексов групп (0..14 + 15 для "Другие")
+                    const indices = [];
+                    for (let i = 0; i <= topGroups.length; i++) {
+                        indices.push(i);
+                    }
+
+                    // Сортируем индексы по количеству элементов в данном статусе
+                    indices.sort((a, b) => statusGroupTotals[statusKey][b] - statusGroupTotals[statusKey][a]);
+
+                    indices.forEach(i => {
+                        const count = statusGroupTotals[statusKey][i];
+                        if (count === 0) return; // Пропускаем пустые группы для этого статуса
+
+                        const isOther = i === topGroups.length;
+                        const groupLabel = isOther ? 'Другие' : topGroups[i];
+
+                        datasets.push({
+                            label: `${statusCfg.label} [объектов: ${activeGroupsCount}] (${groupLabel})`,
+                            data: distribution.map(d => d[statusKey][i]),
+                            backgroundColor: statusCfg.color,
+                            stack: 'stackDuration',
+                            statusLabel: statusCfg.label,
+                            groupLabel: groupLabel
+                        });
+                    });
+                });
+            }
 
             const chartData = {
                 labels,
-                datasets: [
-                    createConfig('Дверь открыта', 'opened', '#059669'),
-                    createConfig('Отвечено', 'answered', '#10b981'),
-                    createConfig('Пропущено', 'missed', '#ef4444'),
-                    createConfig('Fail', 'fail', '#94a3b8')
-                ]
+                datasets
             };
 
             const options = {
@@ -527,26 +662,52 @@
                     y: { stacked: true, beginAtZero: true }
                 },
                 plugins: {
-                    legend: { position: 'bottom' },
-                    title: {
-                        display: true,
-                        text: 'Распределение статусов по длительности'
+                    legend: { 
+                        display: breakdownMode === 'none',
+                        position: 'bottom' 
                     },
                     tooltip: {
                         callbacks: {
-                            label: function(context) {
-                                let label = context.dataset.label || '';
-                                if (label) {
-                                    label += ': ';
+                            label: function (context) {
+                                let dataset = context.dataset;
+                                const val = context.parsed.y;
+                                if (val === null || val === 0) return null;
+
+                                const bucketIdx = context.dataIndex;
+                                const datasets = context.chart.data.datasets;
+
+                                // Общее количество в этом бакете (столбце)
+                                const totalInBucket = datasets.reduce((sum, ds) => sum + (ds.data[bucketIdx] || 0), 0);
+
+                                const currentStatusLabel = dataset.statusLabel;
+                                const currentGroupLabel = dataset.groupLabel;
+
+                                if (breakdownMode === 'none') {
+                                    const percent = totalInBucket > 0 ? ((val / totalInBucket) * 100).toFixed(1) : 0;
+                                    return [
+                                        `${currentGroupLabel}: ${val} (${percent}% от столбика)`,
+                                        `Всего: ${totalInBucket} в столбике`,
+                                    ];
+                                } else {
+                                    // Всего этого статуса (цвета) в бакете
+                                    const totalStatusInBucket = datasets
+                                        .filter(ds => ds.statusLabel === currentStatusLabel)
+                                        .reduce((sum, ds) => sum + (ds.data[bucketIdx] || 0), 0);
+
+                                    // Всего этой группы в бакете
+                                    const totalGroupInBucket = datasets
+                                        .filter(ds => ds.groupLabel === currentGroupLabel)
+                                        .reduce((sum, ds) => sum + (ds.data[bucketIdx] || 0), 0);
+
+                                    const percOfTotal = totalInBucket > 0 ? ((val / totalInBucket) * 100).toFixed(1) : 0;
+                                    const percStatusOfTotal = totalInBucket > 0 ? ((totalStatusInBucket / totalInBucket) * 100).toFixed(1) : 0;
+
+                                    return [
+                                        `${currentGroupLabel}: ${val} (${percOfTotal}% от столбика)`,
+                                        `${currentStatusLabel}: ${totalStatusInBucket} (${percStatusOfTotal}% от столбика)`,
+                                        `Всего: ${totalInBucket} в столбике`,
+                                    ];
                                 }
-                                if (context.parsed.y !== null) {
-                                    const total = context.chart.data.datasets.reduce((sum, dataset) => {
-                                        return sum + (dataset.data[context.dataIndex] || 0);
-                                    }, 0);
-                                    const percent = total > 0 ? ((context.parsed.y / total) * 100).toFixed(1) : 0;
-                                    label += `${context.parsed.y} (${percent}%)`;
-                                }
-                                return label;
                             }
                         }
                     }
@@ -910,6 +1071,13 @@
                 el.historyBreakdown.onchange = (e) => {
                     state.historyBreakdown = e.target.value;
                     this.renderHistoryChart(state.filteredData);
+                    this.saveSettings();
+                };
+            }
+            if (el.durationBreakdown) {
+                el.durationBreakdown.onchange = (e) => {
+                    state.durationBreakdown = e.target.value;
+                    this.renderDurationChart(state.filteredData);
                     this.saveSettings();
                 };
             }
@@ -1287,6 +1455,10 @@
                             state.historyBreakdown = data.values.historyBreakdown;
                             el.historyBreakdown.value = state.historyBreakdown;
                         }
+                        if (data.values.durationBreakdown) {
+                            state.durationBreakdown = data.values.durationBreakdown;
+                            el.durationBreakdown.value = state.durationBreakdown;
+                        }
                     }
 
                     // Восстанавливаем историю
@@ -1311,7 +1483,8 @@
                     panel: el.filterPanel.value,
                     id: el.filterId.value,
                     historyGrouping: state.historyGrouping,
-                    historyBreakdown: state.historyBreakdown
+                    historyBreakdown: state.historyBreakdown,
+                    durationBreakdown: state.durationBreakdown
                 },
                 history: state.inputHistory
             };
