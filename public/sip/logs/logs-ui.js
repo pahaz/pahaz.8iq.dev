@@ -171,7 +171,7 @@
         historyBreakdown: 'none',
         durationBreakdown: 'none',
         durationInterval: '2s',
-        panelBreakdown: 'apt',
+        panelBreakdown: 'none',
 
         activeCallId: null,
         detailsLimit: DEFAULT_DETAILS_LIMIT,
@@ -535,7 +535,9 @@
                     label: label,
                     data: distribution.map(d => d.stats[key]),
                     backgroundColor: color,
-                    stack: 'stackDuration'
+                    stack: 'stackDuration',
+                    statusLabel: label,
+                    groupLabel: label
                 });
 
                 datasets = [
@@ -712,7 +714,7 @@
         renderPanelAnalysisChart(data) {
             if (!el.canvasPanelAnalysis) return;
 
-            const breakdownMode = state.panelBreakdown || 'apt';
+            const breakdownMode = state.panelBreakdown || 'none';
 
             // Группировка данных по панелям
             const panels = {};
