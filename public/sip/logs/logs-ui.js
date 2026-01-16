@@ -105,6 +105,7 @@
         canvasStatus: q('chartStatus'),
         canvasTopPanels: q('chartTopPanels'),
         canvasPanelAnalysis: q('chartPanelAnalysis'),
+        panelBreakdown: q('panelBreakdown'),
         canvasDuration: q('chartDuration'),
         durationBreakdown: q('durationBreakdown'),
 
@@ -168,6 +169,7 @@
         historyGrouping: 'day',
         historyBreakdown: 'none',
         durationBreakdown: 'none',
+        panelBreakdown: 'apt',
 
         activeCallId: null,
         detailsLimit: DEFAULT_DETAILS_LIMIT,
@@ -733,155 +735,185 @@
         renderPanelAnalysisChart(data) {
             if (!el.canvasPanelAnalysis) return;
 
-          // Группировка данных по панелям
-          const panels = {};
-          data.forEach(d => {
-            const p = d.panel_id || 'Unknown';
-            const apt = d.apartment_id || 'N/A';
-            if (!panels[p]) {
-              panels[p] = {
-                apts: {} // { aptId: { success: 0, fail: 0, total: 0 } }
-              };
-            }
+            const breakdownMode = state.panelBreakdown || 'apt';
 
-            if (!panels[p].apts[apt]) {
-              panels[p].apts[apt] = { success: 0, fail: 0, total: 0 };
-            }
-
-            const s = d.call_status;
-            // Считаем успешными: answered и opened
-            const isSuccess = ['answered', 'opened'].includes(s);
-
-            panels[p].apts[apt].total++;
-            if (isSuccess) {
-              panels[p].apts[apt].success++;
-            } else {
-              panels[p].apts[apt].fail++;
-            }
-          });
-
-          // Подсчет общих сумм для отображения в лейблах
-          Object.values(panels).forEach(p => {
-            p.totalSuccess = 0;
-            p.totalFail = 0;
-            Object.values(p.apts).forEach(stats => {
-              p.totalSuccess += stats.success;
-              p.totalFail += stats.fail;
-            });
-          });
-
-          // Сортировка панелей и генерация лейблов
-          // Используем panelKeys для доступа к данным, а panelLabels для отображения
-          const panelKeys = Object.keys(panels).sort((a, b) => a.localeCompare(b));
-          const panelLabels = panelKeys.map(k => {
-            const p = panels[k];
-            return `${k} (❌${p.totalFail} | ✅${p.totalSuccess})`;
-          });
-
-          const chartHeight = Math.max(400, panelKeys.length * 35 + 100);
-          el.canvasPanelAnalysis.parentElement.style.height = `${chartHeight}px`;
-
-          const logify = (val) => val > 0 ? Math.log10(val + 1) : 0;
-
-          // Подготовка датасетов
-          const datasets = [];
-          // Находим максимальное кол-во квартир на одной панели для создания слоев
-          const maxAptCount = Math.max(...panelKeys.map(l => Object.keys(panels[l].apts).length));
-
-          for (let i = 0; i < maxAptCount; i++) {
-            // Генерация цветов: Зеленый для успеха, Красный для неудач
-            const step = Math.min(10, 50 / (maxAptCount || 1));
-
-            // Зеленый (HSL 142)
-            const gLight = Math.min(90, 35 + (i * step));
-            const greenColor = `hsl(142, 70%, ${gLight}%)`;
-
-            // Красный (HSL 0)
-            const rLight = Math.min(90, 45 + (i * step));
-            const redColor = `hsl(0, 80%, ${rLight}%)`;
-
-            // --- ПРАВАЯ ЧАСТЬ: Успешные звонки (Positive - Green) ---
-            datasets.push({
-              label: `Топ-${i + 1} (Успех)`,
-              data: panelKeys.map(l => {
-                const sortedApts = Object.entries(panels[l].apts).sort((a, b) => b[1].total - a[1].total);
-                const aptData = sortedApts[i];
-                return aptData ? logify(aptData[1].success) : 0;
-              }),
-              realValues: panelKeys.map(l => {
-                const sortedApts = Object.entries(panels[l].apts).sort((a, b) => b[1].total - a[1].total);
-                const aptData = sortedApts[i];
-                return aptData ? `${aptData[0]}: ${aptData[1].success}` : null;
-              }),
-              backgroundColor: greenColor,
-              stack: 'main',
-              hiddenInLegend: i > 5
-            });
-
-            // --- ЛЕВАЯ ЧАСТЬ: Неуспешные звонки (Negative - Red) ---
-            datasets.push({
-              label: `Топ-${i + 1} (Fail)`,
-              data: panelKeys.map(l => {
-                const sortedApts = Object.entries(panels[l].apts).sort((a, b) => b[1].total - a[1].total);
-                const aptData = sortedApts[i];
-                return aptData ? -logify(aptData[1].fail) : 0;
-              }),
-              realValues: panelKeys.map(l => {
-                const sortedApts = Object.entries(panels[l].apts).sort((a, b) => b[1].total - a[1].total);
-                const aptData = sortedApts[i];
-                return aptData ? `${aptData[0]}: ${aptData[1].fail}` : null;
-              }),
-              backgroundColor: redColor,
-              stack: 'main',
-              hiddenInLegend: true
-            });
-          }
-
-          if (state.charts.panelAnalysis) {
-            state.charts.panelAnalysis.data.labels = panelLabels;
-            state.charts.panelAnalysis.data.datasets = datasets;
-            state.charts.panelAnalysis.update();
-          } else {
-            state.charts.panelAnalysis = new Chart(el.canvasPanelAnalysis, {
-              type: 'bar',
-              data: { labels: panelLabels, datasets },
-              options: {
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                  x: {
-                    stacked: true,
-                    grid: { display: false },
-                    ticks: { display: false },
-                    title: { display: true, text: '← Неуспешные (Fail/Missed) | Успешные (Open/Ans) по квартирам →' }
-                  },
-                  y: { stacked: true, beginAtZero: true }
-                },
-                plugins: {
-                  tooltip: {
-                    callbacks: {
-                      label: (context) => {
-                        const rv = context.dataset.realValues[context.dataIndex];
-                        if (!rv) return null;
-                        const isSuccess = context.dataset.data[context.dataIndex] > 0;
-                        return `${isSuccess ? '✅' : '❌'} ${rv}`;
-                      }
-                    }
-                  },
-                  legend: {
-                    position: 'bottom',
-                    labels: {
-                      filter: (item, chartData) => {
-                        const ds = chartData.datasets[item.datasetIndex];
-                        return ds && !ds.hiddenInLegend;
-                      }
-                    }
-                  }
+            // Группировка данных по панелям
+            const panels = {};
+            data.forEach(d => {
+                const p = d.panel_id || 'Unknown';
+                const apt = breakdownMode === 'none' ? 'ALL' : (d.apartment_id || 'N/A');
+                if (!panels[p]) {
+                    panels[p] = {
+                        apts: {} // { aptId: { answered: 0, opened: 0, missed: 0, fail: 0, total: 0 } }
+                    };
                 }
-              }
+
+                if (!panels[p].apts[apt]) {
+                    panels[p].apts[apt] = { answered: 0, opened: 0, missed: 0, fail: 0, total: 0 };
+                }
+
+                const s = d.call_status;
+                if (panels[p].apts[apt].hasOwnProperty(s)) {
+                    panels[p].apts[apt][s]++;
+                } else {
+                    if (s === 'answered' || s === 'opened' || s === 'missed' || s === 'fail') {
+                        panels[p].apts[apt][s]++;
+                    }
+                }
+                panels[p].apts[apt].total++;
             });
-          }
+
+            const statusConfigs = [
+                { key: 'answered', label: 'Отвечено', color: STATUS_COLORS.answered, side: 'positive' },
+                { key: 'opened', label: 'Открыто', color: STATUS_COLORS.opened, side: 'positive' },
+                { key: 'missed', label: 'Пропущен', color: STATUS_COLORS.missed, side: 'negative' },
+                { key: 'fail', label: 'Ошибка', color: STATUS_COLORS.fail, side: 'negative' }
+            ];
+
+            // Подсчет общих сумм для отображения в лейблах
+            Object.values(panels).forEach(p => {
+                p.totals = { answered: 0, opened: 0, missed: 0, fail: 0 };
+                Object.values(p.apts).forEach(stats => {
+                    statusConfigs.forEach(cfg => {
+                        p.totals[cfg.key] += stats[cfg.key];
+                    });
+                });
+            });
+
+            // Сортировка панелей и генерация лейблов
+            const panelKeys = Object.keys(panels).sort((a, b) => a.localeCompare(b));
+            const panelLabels = panelKeys.map(k => {
+                const p = panels[k];
+                const pos = p.totals.answered + p.totals.opened;
+                const neg = p.totals.missed + p.totals.fail;
+                return `${k} (❌${neg} | ✅${pos})`;
+            });
+
+            const chartHeight = Math.max(400, panelKeys.length * 35 + 100);
+            el.canvasPanelAnalysis.parentElement.style.height = `${chartHeight}px`;
+
+            const datasets = [];
+            // Находим максимальное кол-во групп на одной панели
+            const maxGroupsCount = Math.max(...panelKeys.map(l => Object.keys(panels[l].apts).length));
+
+            statusConfigs.forEach(statusCfg => {
+                for (let i = 0; i < maxGroupsCount; i++) {
+                    const isPositive = statusCfg.side === 'positive';
+                    
+                    datasets.push({
+                        label: breakdownMode === 'none' ? statusCfg.label : `${statusCfg.label} (Группа #${i+1})`,
+                        statusKey: statusCfg.key,
+                        statusLabel: statusCfg.label,
+                        groupIndex: i,
+                        data: panelKeys.map(l => {
+                            const sortedApts = Object.entries(panels[l].apts).sort((a, b) => b[1].total - a[1].total);
+                            const aptData = sortedApts[i];
+                            if (!aptData) return 0;
+                            const val = aptData[1][statusCfg.key] || 0;
+                            return isPositive ? val : -val;
+                        }),
+                        realValues: panelKeys.map(l => {
+                            const sortedApts = Object.entries(panels[l].apts).sort((a, b) => b[1].total - a[1].total);
+                            const aptData = sortedApts[i];
+                            if (!aptData || aptData[1][statusCfg.key] <= 0) return null;
+                            return breakdownMode === 'none' ? `${aptData[1][statusCfg.key]}` : `${aptData[0]}: ${aptData[1][statusCfg.key]}`;
+                        }),
+                        statusTotals: panelKeys.map(l => panels[l].totals[statusCfg.key]),
+                        backgroundColor: statusCfg.color,
+                        stack: 'main',
+                        hiddenInLegend: i > 0
+                    });
+                }
+            });
+
+            if (state.charts.panelAnalysis) {
+                state.charts.panelAnalysis.data.labels = panelLabels;
+                state.charts.panelAnalysis.data.datasets = datasets;
+                state.charts.panelAnalysis.options.plugins.tooltip.callbacks.label = (context) => {
+                    const rv = context.dataset.realValues[context.dataIndex];
+                    if (!rv) return null;
+                    const statusLabel = context.dataset.statusLabel;
+                    const totalStatusInRow = context.dataset.statusTotals[context.dataIndex];
+                    
+                    let icon = '❓';
+                    if (context.dataset.statusKey === 'answered' || context.dataset.statusKey === 'opened') icon = '✅';
+                    if (context.dataset.statusKey === 'missed' || context.dataset.statusKey === 'fail') icon = '❌';
+
+                    if (breakdownMode === 'none') {
+                        return `${icon} ${statusLabel}: ${totalStatusInRow}`;
+                    } else {
+                        // rv имеет формат "Apt: Count"
+                        const [aptName, count] = rv.split(': ');
+                        return [
+                            `${icon} ${statusLabel}`,
+                            `Группа: ${aptName}`,
+                            `Объектов: ${count}`,
+                            `(всего в сегменте: ${totalStatusInRow})`
+                        ];
+                    }
+                };
+                state.charts.panelAnalysis.update();
+            } else {
+                state.charts.panelAnalysis = new Chart(el.canvasPanelAnalysis, {
+                    type: 'bar',
+                    data: { labels: panelLabels, datasets },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: {
+                                stacked: true,
+                                beginAtZero: false,
+                                title: { display: true, text: '← Пропущенные/Ошибки | Отвечено/Открыто →' }
+                            },
+                            y: { stacked: true, beginAtZero: true }
+                        },
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: (context) => {
+                                        const rv = context.dataset.realValues[context.dataIndex];
+                                        if (!rv) return null;
+                                        const statusLabel = context.dataset.statusLabel;
+                                        const totalStatusInRow = context.dataset.statusTotals[context.dataIndex];
+                                        
+                                        let icon = '❓';
+                                        if (context.dataset.statusKey === 'answered' || context.dataset.statusKey === 'opened') icon = '✅';
+                                        if (context.dataset.statusKey === 'missed' || context.dataset.statusKey === 'fail') icon = '❌';
+
+                                        if (breakdownMode === 'none') {
+                                            return `${icon} ${statusLabel}: ${totalStatusInRow}`;
+                                        } else {
+                                            // rv имеет формат "Apt: Count"
+                                            const [aptName, count] = rv.split(': ');
+                                            return [
+                                                `${icon} ${statusLabel}`,
+                                                `Группа: ${aptName}`,
+                                                `Объектов: ${count}`,
+                                                `(всего в сегменте: ${totalStatusInRow})`
+                                            ];
+                                        }
+                                    }
+                                }
+                            },
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    filter: (item, chartData) => {
+                                        const ds = chartData.datasets[item.datasetIndex];
+                                        if (ds && !ds.hiddenInLegend) {
+                                            item.text = ds.statusLabel;
+                                            return true;
+                                        }
+                                        return false;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
         },
 
         renderDetailsList() {
@@ -1102,6 +1134,13 @@
                 el.durationBreakdown.onchange = (e) => {
                     state.durationBreakdown = e.target.value;
                     this.renderDurationChart(state.filteredData);
+                    this.saveSettings();
+                };
+            }
+            if (el.panelBreakdown) {
+                el.panelBreakdown.onchange = (e) => {
+                    state.panelBreakdown = e.target.value;
+                    this.renderDashboard();
                     this.saveSettings();
                 };
             }
@@ -1483,6 +1522,10 @@
                             state.durationBreakdown = data.values.durationBreakdown;
                             el.durationBreakdown.value = state.durationBreakdown;
                         }
+                        if (data.values.panelBreakdown) {
+                            state.panelBreakdown = data.values.panelBreakdown;
+                            el.panelBreakdown.value = state.panelBreakdown;
+                        }
                     }
 
                     // Восстанавливаем историю
@@ -1508,7 +1551,8 @@
                     id: el.filterId.value,
                     historyGrouping: state.historyGrouping,
                     historyBreakdown: state.historyBreakdown,
-                    durationBreakdown: state.durationBreakdown
+                    durationBreakdown: state.durationBreakdown,
+                    panelBreakdown: state.panelBreakdown
                 },
                 history: state.inputHistory
             };

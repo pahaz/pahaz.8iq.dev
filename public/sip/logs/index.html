@@ -198,7 +198,13 @@
 
             <div class="chart-card full-width">
                 <div class="card-header">
-                    <div class="card-title">Аналитика по панелям: Статусы vs Квартиры (Log Scale)</div>
+                    <div class="card-title">Аналитика по панелям</div>
+                    <div class="card-controls">
+                        <select id="panelBreakdown" class="select-sm">
+                            <option value="none">Без разбивки</option>
+                            <option value="apt">По квартирам</option>
+                        </select>
+                    </div>
                 </div>
                 <div id="panelAnalysisWrapper" style="min-height: 400px; position: relative;">
                     <canvas id="chartPanelAnalysis"></canvas>
