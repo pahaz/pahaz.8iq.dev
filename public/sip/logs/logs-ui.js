@@ -1495,26 +1495,26 @@
                         // if (data.values.apt) el.filterApt.value = data.values.apt;
                         // if (data.values.panel) el.filterPanel.value = data.values.panel;
                         // if (data.values.id) el.filterId.value = data.values.id;
-                        if (data.values.historyGrouping) {
-                            state.historyGrouping = data.values.historyGrouping;
-                            el.historyGroup.value = state.historyGrouping;
-                        }
-                        if (data.values.historyBreakdown) {
-                            state.historyBreakdown = data.values.historyBreakdown;
-                            el.historyBreakdown.value = state.historyBreakdown;
-                        }
-                        if (data.values.durationBreakdown) {
-                            state.durationBreakdown = data.values.durationBreakdown;
-                            el.durationBreakdown.value = state.durationBreakdown;
-                        }
-                        if (data.values.durationInterval) {
-                            state.durationInterval = data.values.durationInterval;
-                            el.durationInterval.value = state.durationInterval;
-                        }
-                        if (data.values.panelBreakdown) {
-                            state.panelBreakdown = data.values.panelBreakdown;
-                            el.panelBreakdown.value = state.panelBreakdown;
-                        }
+                        // if (data.values.historyGrouping) {
+                        //     state.historyGrouping = data.values.historyGrouping;
+                        //     el.historyGroup.value = state.historyGrouping;
+                        // }
+                        // if (data.values.historyBreakdown) {
+                        //     state.historyBreakdown = data.values.historyBreakdown;
+                        //     el.historyBreakdown.value = state.historyBreakdown;
+                        // }
+                        // if (data.values.durationBreakdown) {
+                        //     state.durationBreakdown = data.values.durationBreakdown;
+                        //     el.durationBreakdown.value = state.durationBreakdown;
+                        // }
+                        // if (data.values.durationInterval) {
+                        //     state.durationInterval = data.values.durationInterval;
+                        //     el.durationInterval.value = state.durationInterval;
+                        // }
+                        // if (data.values.panelBreakdown) {
+                        //     state.panelBreakdown = data.values.panelBreakdown;
+                        //     el.panelBreakdown.value = state.panelBreakdown;
+                        // }
                     }
 
                     // Восстанавливаем историю
