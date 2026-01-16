@@ -388,7 +388,6 @@ input, select {
 .timeline-horizontal .tl-item {
     flex: 0 1 auto;
     min-width: 120px;
-    padding-left: 0;
     margin-bottom: 0.5rem;
     background: #f8fafc;
     padding: 8px;

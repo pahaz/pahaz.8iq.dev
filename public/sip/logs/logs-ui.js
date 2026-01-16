@@ -302,6 +302,18 @@
                         const date = d.start_call_time.toISOString().split('T')[0];
                         const hour = d.start_call_time.getHours().toString().padStart(2, '0');
                         key = `${date} ${hour}:00`;
+                    } else if (state.historyGrouping === '15min') {
+                        // Формат: YYYY-MM-DD HH:MM (кратно 15)
+                        const date = d.start_call_time.toISOString().split('T')[0];
+                        const hour = d.start_call_time.getHours().toString().padStart(2, '0');
+                        const min = (Math.floor(d.start_call_time.getMinutes() / 15) * 15).toString().padStart(2, '0');
+                        key = `${date} ${hour}:${min}`;
+                    } else if (state.historyGrouping === '1min') {
+                        // Формат: YYYY-MM-DD HH:MM
+                        const date = d.start_call_time.toISOString().split('T')[0];
+                        const hour = d.start_call_time.getHours().toString().padStart(2, '0');
+                        const min = d.start_call_time.getMinutes().toString().padStart(2, '0');
+                        key = `${date} ${hour}:${min}`;
                     } else {
                         // Формат: YYYY-MM-DD
                         key = d.start_call_time.toISOString().split('T')[0];
