@@ -100,6 +100,7 @@
         // Charts
         canvasHistory: q('chartHistory'),
         historyGroup: q('historyGroup'),
+        historyBreakdown: q('historyBreakdown'),
         canvasStatus: q('chartStatus'),
         canvasTopPanels: q('chartTopPanels'),
         canvasPanelAnalysis: q('chartPanelAnalysis'),
@@ -155,6 +156,7 @@
         charts: {},
 
         historyGrouping: 'day',
+        historyBreakdown: 'none',
 
         activeCallId: null,
     };
@@ -294,62 +296,84 @@
         renderHistoryChart(data) {
             // Группировка
             const groups = {};
+            const breakdownKeys = new Set();
+            const breakdownMode = state.historyBreakdown;
+
             data.forEach(d => {
-                let key = 'Unknown';
+                let timeKey = 'Unknown';
                 if (d.start_call_time) {
                     if (state.historyGrouping === 'hour') {
-                        // Формат: YYYY-MM-DD HH:00
                         const date = d.start_call_time.toISOString().split('T')[0];
                         const hour = d.start_call_time.getHours().toString().padStart(2, '0');
-                        key = `${date} ${hour}:00`;
+                        timeKey = `${date} ${hour}:00`;
                     } else if (state.historyGrouping === '15min') {
-                        // Формат: YYYY-MM-DD HH:MM (кратно 15)
                         const date = d.start_call_time.toISOString().split('T')[0];
                         const hour = d.start_call_time.getHours().toString().padStart(2, '0');
                         const min = (Math.floor(d.start_call_time.getMinutes() / 15) * 15).toString().padStart(2, '0');
-                        key = `${date} ${hour}:${min}`;
+                        timeKey = `${date} ${hour}:${min}`;
                     } else if (state.historyGrouping === '1min') {
-                        // Формат: YYYY-MM-DD HH:MM
                         const date = d.start_call_time.toISOString().split('T')[0];
                         const hour = d.start_call_time.getHours().toString().padStart(2, '0');
                         const min = d.start_call_time.getMinutes().toString().padStart(2, '0');
-                        key = `${date} ${hour}:${min}`;
+                        timeKey = `${date} ${hour}:${min}`;
                     } else {
-                        // Формат: YYYY-MM-DD
-                        key = d.start_call_time.toISOString().split('T')[0];
+                        timeKey = d.start_call_time.toISOString().split('T')[0];
                     }
                 }
 
-                if (!groups[key]) groups[key] = { answered: 0, opened: 0, missed: 0, fail: 0 };
-
-                if (d.call_status === 'opened') {
-                    groups[key].opened++;
-                } else if (d.call_status === 'answered') {
-                    groups[key].answered++;
-                } else if (d.call_status === 'missed') {
-                    groups[key].missed++;
-                } else {
-                    groups[key].fail++;
+                let breakdownKey = 'Total';
+                if (breakdownMode === 'panel') {
+                    breakdownKey = d.panel_id || 'Unknown Panel';
+                } else if (breakdownMode === 'apt') {
+                    breakdownKey = d.apartment_id || 'Unknown Apt';
                 }
+                breakdownKeys.add(breakdownKey);
+
+                if (!groups[timeKey]) groups[timeKey] = {};
+                
+                const status = d.call_status || 'fail';
+                if (!groups[timeKey][status]) groups[timeKey][status] = { _total: 0 };
+                if (!groups[timeKey][status][breakdownKey]) groups[timeKey][status][breakdownKey] = 0;
+
+                groups[timeKey][status]._total++;
+                groups[timeKey][status][breakdownKey]++;
             });
 
             const labels = Object.keys(groups).sort();
+            const sortedBreakdownKeys = Array.from(breakdownKeys).sort();
 
-            const createConfig = (label, key, color) => ({
-                label: label,
-                data: labels.map(l => groups[l][key]),
-                backgroundColor: color,
-                stack: 'stack0'
+            const statusConfigs = [
+                { label: 'Дверь открыта', key: 'opened', color: '#059669' },
+                { label: 'Отвечено', key: 'answered', color: '#10b981' },
+                { label: 'Пропущено', key: 'missed', color: '#ef4444' },
+                { label: 'Fail', key: 'fail', color: '#94a3b8' }
+            ];
+
+            const datasets = [];
+            statusConfigs.forEach(statusCfg => {
+                sortedBreakdownKeys.forEach(breakKey => {
+                    const dataset = {
+                        label: breakdownMode === 'none' ? statusCfg.label : `${statusCfg.label} (${breakKey})`,
+                        data: labels.map(l => (groups[l][statusCfg.key] && groups[l][statusCfg.key][breakKey]) || 0),
+                        backgroundColor: statusCfg.color,
+                        stack: 'stack0',
+                        statusKey: statusCfg.key,
+                        breakdownKey: breakKey,
+                        statusLabel: statusCfg.label
+                    };
+                    // Если данных по этому срезу вообще нет ни в одном интервале, можно пропустить, 
+                    // но для простоты оставим все комбинации, Chart.js их переварит.
+                    // Однако, если у нас сотни квартир, это может тормозить.
+                    const hasData = dataset.data.some(v => v > 0);
+                    if (hasData) {
+                        datasets.push(dataset);
+                    }
+                });
             });
 
             const chartData = {
                 labels,
-                datasets: [
-                    createConfig('Дверь открыта', 'opened', '#059669'),
-                    createConfig('Отвечено', 'answered', '#10b981'),
-                    createConfig('Пропущено', 'missed', '#ef4444'),
-                    createConfig('Fail', 'fail', '#94a3b8')
-                ]
+                datasets
             };
 
             const options = {
@@ -360,20 +384,40 @@
                     y: { stacked: true, beginAtZero: true }
                 },
                 plugins: {
-                    legend: { position: 'bottom' },
+                    legend: { 
+                        display: breakdownMode === 'none',
+                        position: 'bottom' 
+                    },
                     tooltip: {
                         callbacks: {
                             label: function(context) {
-                                let label = context.dataset.label || '';
-                                if (label) {
-                                    label += ': ';
-                                }
-                                if (context.parsed.y !== null) {
-                                    const total = context.chart.data.datasets.reduce((sum, dataset) => {
-                                        return sum + dataset.data[context.dataIndex];
-                                    }, 0);
-                                    const percent = total > 0 ? ((context.parsed.y / total) * 100).toFixed(1) : 0;
-                                    label += `${context.parsed.y} (${percent}%)`;
+                                const dataset = context.dataset;
+                                const timeKey = context.label;
+                                const val = context.parsed.y;
+                                if (val === null || val === 0) return null;
+
+                                const statusKey = dataset.statusKey;
+                                const statusLabel = dataset.statusLabel;
+                                const breakKey = dataset.breakdownKey;
+                                
+                                const groupData = groups[timeKey] && groups[timeKey][statusKey];
+                                const statusTotal = groupData ? groupData._total : 0;
+                                
+                                const totalInInterval = Object.values(groups[timeKey] || {}).reduce((sum, s) => sum + s._total, 0);
+
+                                let label = '';
+                                if (breakdownMode === 'none') {
+                                    const percentOfTotal = totalInInterval > 0 ? ((val / totalInInterval) * 100).toFixed(1) : 0;
+                                    label = `${statusLabel}: ${val} (${percentOfTotal}%)`;
+                                } else {
+                                    const percentOfStatus = statusTotal > 0 ? ((val / statusTotal) * 100).toFixed(1) : 0;
+                                    const percentOfTotal = totalInInterval > 0 ? ((val / totalInInterval) * 100).toFixed(1) : 0;
+                                    
+                                    label = [
+                                        `${statusLabel} [${breakKey}]: ${val}`,
+                                        `  % от статуса: ${percentOfStatus}% (всего ${statusTotal})`,
+                                        `  % от интервала: ${percentOfTotal}% (всего ${totalInInterval})`
+                                    ];
                                 }
                                 return label;
                             }
@@ -859,6 +903,14 @@
                 el.historyGroup.onchange = (e) => {
                     state.historyGrouping = e.target.value;
                     this.renderHistoryChart(state.filteredData);
+                    this.saveSettings();
+                };
+            }
+            if (el.historyBreakdown) {
+                el.historyBreakdown.onchange = (e) => {
+                    state.historyBreakdown = e.target.value;
+                    this.renderHistoryChart(state.filteredData);
+                    this.saveSettings();
                 };
             }
 
@@ -1227,6 +1279,14 @@
                         // if (data.values.apt) el.filterApt.value = data.values.apt;
                         // if (data.values.panel) el.filterPanel.value = data.values.panel;
                         // if (data.values.id) el.filterId.value = data.values.id;
+                        if (data.values.historyGrouping) {
+                            state.historyGrouping = data.values.historyGrouping;
+                            el.historyGroup.value = state.historyGrouping;
+                        }
+                        if (data.values.historyBreakdown) {
+                            state.historyBreakdown = data.values.historyBreakdown;
+                            el.historyBreakdown.value = state.historyBreakdown;
+                        }
                     }
 
                     // Восстанавливаем историю
@@ -1249,7 +1309,9 @@
                     push: el.filterPush.value,
                     apt: el.filterApt.value,
                     panel: el.filterPanel.value,
-                    id: el.filterId.value
+                    id: el.filterId.value,
+                    historyGrouping: state.historyGrouping,
+                    historyBreakdown: state.historyBreakdown
                 },
                 history: state.inputHistory
             };
