@@ -65,24 +65,83 @@
           <button onclick="showCode('cpp')" class="tab-btn p-1 transition-all" id="btn-cpp">c++</button>
           <button onclick="showCode('onec')" class="tab-btn p-1 transition-all" id="btn-onec">1c</button>
         </div>
+        <span class="mono text-[9px] text-gray-400 ml-4 hidden sm:block">member_validation.sh</span>
       </div>
 
       <div class="p-6 mono text-sm leading-relaxed overflow-x-auto text-gray-800 dark:text-gray-300">
         <div id="code-bash" class="code-block active">
-                        <pre><code><span class="text-blue-500">#!/bin/bash</span>
-<span class="text-purple-500">if</span> [[ <span class="text-red-500">"$ROLE"</span> == <span class="text-green-600">"sales"</span> ]]; <span class="text-purple-500">then</span>
-    <span class="text-blue-600">echo</span> <span class="text-green-600">"Access Denied"</span> && <span class="text-blue-600">exit</span> 1
+            <pre><code><span class="text-blue-500">#!/bin/bash</span>
+<span class="text-gray-400"># Only practitioners with real responsibility allowed</span>
+<span class="text-purple-500">if</span> [[ <span class="text-red-500">"$USER_ROLE"</span> =~ (sales|consultant|marketing) ]]; <span class="text-purple-500">then</span>
+    <span class="text-blue-600">echo</span> <span class="text-green-600">"Access denied. Practitioners only."</span> && <span class="text-blue-600">exit</span> 1
 <span class="text-purple-500">fi</span>
 
-<span class="text-blue-600">curl</span> -X POST https://ctokitchen.ai/apply \
-  -d <span class="text-green-600">"industry=PropTech"</span> \
-  -d <span class="text-green-600">"responsibility=P&L"</span></code></pre>
+<span class="text-blue-600">curl</span> -X POST https://ctokitchen.ai/v1/apply \
+  -d <span class="text-green-600">'{
+    "industry": "PropTech",
+    "pnl_responsibility": true,
+    "architecture_responsibility": true
+  }'</span></code></pre>
         </div>
-        <div id="code-js" class="code-block"><pre><code><span class="text-purple-500">const</span> <span class="text-blue-600">joinClub</span> = <span class="text-purple-500">async</span> (user) => { <span class="text-purple-500">if</span> (user.isSales) <span class="text-purple-500">return</span> BAN; };</code></pre></div>
-        <div id="code-php" class="code-block"><pre><code><span class="text-purple-500">public function</span> <span class="text-blue-600">isEligible</span>(User <span class="text-red-500">$u</span>) { <span class="text-purple-500">return</span> <span class="text-red-500">$u</span>->hasPnl; }</code></pre></div>
-        <div id="code-csharp" class="code-block"><pre><code><span class="text-purple-500">public bool</span> <span class="text-blue-600">Validate</span>(User u) => u.Industry == <span class="text-green-600">"PropTech"</span>;</code></pre></div>
-        <div id="code-cpp" class="code-block"><pre><code><span class="text-purple-500">bool</span> <span class="text-blue-600">check</span>(<span class="text-purple-500">const</span> User& u) { <span class="text-purple-500">return</span> u.pnl_responsibility; }</code></pre></div>
-        <div id="code-onec" class="code-block"><pre><code><span class="text-purple-500">Функция</span> <span class="text-blue-600">Проверить</span>(Кандидат) <span class="text-purple-500">Возврат</span> Кандидат.Отрасль = <span class="text-green-600">"PropTech"</span>; <span class="text-purple-500">КонецФункции</span></code></pre></div>
+
+        <div id="code-js" class="code-block">
+            <pre><code><span class="text-purple-500">const</span> <span class="text-blue-600">validateMember</span> = <span class="text-purple-500">async</span> (candidate) => {
+  <span class="text-purple-500">const</span> { industry, isSales, bearsPnL, definesArch } = candidate;
+
+  <span class="text-purple-500">if</span> (isSales || industry !== <span class="text-green-600">'PropTech'</span>) {
+    <span class="text-purple-500">return</span> <span class="text-blue-600">Promise</span>.<span class="text-blue-600">reject</span>(<span class="text-green-600">'Forbidden'</span>);
+  }
+
+  <span class="text-purple-500">return</span> (bearsPnL || definesArch)
+    ? <span class="text-blue-600">grantAccess</span>({ shareFailureStory: <span class="text-purple-500">true</span> })
+    : <span class="text-blue-600">ban</span>();
+};</code></pre>
+        </div>
+
+        <div id="code-php" class="code-block">
+            <pre><code><span class="text-purple-500">public function</span> <span class="text-blue-600">canJoinClub</span>(Candidate <span class="text-red-500">$cto</span>): bool {
+    <span class="text-purple-500">if</span> (<span class="text-red-500">$cto</span>->isSales() || <span class="text-red-500">$cto</span>->industry !== <span class="text-green-600">'PropTech'</span>) {
+        <span class="text-purple-500">throw new</span> <span class="text-blue-600">AccessDeniedException</span>();
+    }
+
+    <span class="text-purple-500">return</span> <span class="text-red-500">$cto</span>->hasResponsibilityFor(<span class="text-green-600">'budget'</span>)
+        || <span class="text-red-500">$cto</span>->makesArchitecturalDecisions();
+}</code></pre>
+        </div>
+
+        <div id="code-csharp" class="code-block">
+            <pre><code><span class="text-purple-500">public async</span> Task&lt;Result&gt; <span class="text-blue-600">CheckEligibility</span>(Member m)
+{
+    <span class="text-purple-500">bool</span> isForbidden = m.Role == <span class="text-green-600">"Sales"</span> || m.Role == <span class="text-green-600">"Consultant"</span>;
+    <span class="text-purple-500">bool</span> isPropTech = m.Domain == <span class="text-green-600">"PropTech"</span> && (m.HasPnL || m.IsArchitect);
+
+    <span class="text-purple-500">return</span> (!isForbidden && isPropTech)
+        ? <span class="text-purple-500">await</span> Club.RequestEntrance(m.MostExpensiveFailure)
+        : Result.Denied;
+}</code></pre>
+        </div>
+
+        <div id="code-cpp" class="code-block">
+            <pre><code><span class="text-purple-500">bool</span> <span class="text-blue-600">is_qualified</span>(<span class="text-purple-500">const</span> CTO& person) {
+    <span class="text-purple-500">if</span> (person.is_sales_focused()) <span class="text-purple-500">return false</span>;
+
+    <span class="text-purple-500">auto</span> criteria = {person.bears_result, person.makes_arch_decisions};
+    <span class="text-purple-500">bool</span> bears_risks = std::any_of(criteria.begin(), criteria.end(), [](bool v){return v;});
+
+    <span class="text-purple-500">return</span> (person.industry == <span class="text-green-600">"PropTech"</span>) && bears_risks;
+}</code></pre>
+        </div>
+
+        <div id="code-onec" class="code-block">
+            <pre><code><span class="text-purple-500">Функция</span> <span class="text-blue-600">ПроверитьДопускВКлуб</span>(Кандидат) <span class="text-purple-500">Экспорт</span>
+    <span class="text-purple-500">Если</span> Кандидат.Продажник <span class="text-purple-500">Или</span> Кандидат.Консультант <span class="text-purple-500">Тогда</span>
+        <span class="text-purple-500">Возврат Ложь;</span>
+    <span class="text-purple-500">КонецЕсли;</span>
+
+    <span class="text-purple-500">Возврат</span> Кандидат.Отрасль = <span class="text-green-600">"PropTech"</span>
+        <span class="text-purple-500">И</span> (Кандидат.ОтветственностьЗаПНЛ <span class="text-purple-500">Или</span> Кандидат.ПринимаетАрхитектурныеРешения);
+<span class="text-purple-500">КонецФункции</span></code></pre>
+        </div>
       </div>
     </div>
   </section>
