@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ru" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CTOKitchen | PropTech Club</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+    }
+  </script>
+  <style>
+      /* Решение проблемы перекрытия: отступ при скролле равен высоте хедера (80px) */
+      html {
+          scroll-padding-top: 80px;
+      }
+      body { font-family: 'Inter', sans-serif; transition: background-color 0.3s, color 0.3s; }
+      .mono { font-family: 'JetBrains Mono', monospace; }
+      .code-block { display: none; }
+      .code-block.active { display: block; }
+      .tab-btn.active { border-bottom: 2px solid currentColor; color: black; }
+      .dark .tab-btn.active { color: white; }
+  </style>
+</head>
+<body class="bg-white text-gray-900 dark:bg-[#0a0a0a] dark:text-gray-100 selection:bg-black dark:selection:bg-white selection:text-white dark:selection:text-black">
+
+<header class="border-b border-gray-200 dark:border-gray-800 py-4 px-6 md:px-12 flex justify-between items-center sticky top-0 bg-white/80 dark:bg-[#0a0a0a]/80 backdrop-blur-md z-50 h-[70px]">
+  <div class="text-xl font-bold tracking-tighter uppercase">CTOKitchen</div>
+
+  <nav class="hidden md:flex space-x-6 text-sm font-medium text-gray-600 dark:text-gray-400 items-center">
+    <a href="#for-whom" class="hover:text-black dark:hover:text-white transition-colors">Для кого</a>
+    <a href="#what" class="hover:text-black dark:hover:text-white transition-colors">Что</a>
+    <a href="#why" class="hover:text-black dark:hover:text-white transition-colors">Зачем</a>
+    <a href="#manifesto" class="hover:text-black dark:hover:text-white transition-colors">Манифест</a>
+    <a href="#apply" class="hover:text-black dark:hover:text-white mono text-xs bg-black text-white dark:bg-white dark:text-black px-3 py-1.5">[ SEND_APPLICATION ]</a>
+
+    <button onclick="toggleTheme()" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors ml-2" id="theme-toggle">
+      <svg id="sun" class="hidden dark:block w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 9h-1m15.364-6.364l-.707.707M6.343 17.657l-.707.707M16.95 17.657l.707.707M7.05 7.05l.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z"/></svg>
+      <svg id="moon" class="block dark:hidden w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+    </button>
+  </nav>
+</header>
+
+<main class="max-w-4xl mx-auto px-6 py-16 md:py-24">
+
+  <section class="mb-20">
+    <div class="inline-block border border-black dark:border-white text-black dark:text-white text-[10px] font-bold px-2 py-0.5 mb-6 uppercase tracking-widest">Strictly Private</div>
+    <h1 class="text-4xl md:text-6xl font-bold tracking-tight mb-6">CTO/CIO PropTech клуб</h1>
+
+    <div class="border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden shadow-sm mt-12 bg-white dark:bg-[#111]">
+      <div class="bg-gray-50 dark:bg-[#161616] border-b border-gray-200 dark:border-gray-800 px-4 py-2 flex items-center justify-between overflow-x-auto">
+        <div class="flex gap-4 mono text-[10px] text-gray-400 uppercase tracking-wider min-w-max">
+          <button onclick="showCode('bash')" class="tab-btn active p-1 transition-all" id="btn-bash">bash</button>
+          <button onclick="showCode('js')" class="tab-btn p-1 transition-all" id="btn-js">javascript</button>
+          <button onclick="showCode('php')" class="tab-btn p-1 transition-all" id="btn-php">php</button>
+          <button onclick="showCode('csharp')" class="tab-btn p-1 transition-all" id="btn-csharp">c#</button>
+          <button onclick="showCode('cpp')" class="tab-btn p-1 transition-all" id="btn-cpp">c++</button>
+          <button onclick="showCode('onec')" class="tab-btn p-1 transition-all" id="btn-onec">1c</button>
+        </div>
+      </div>
+
+      <div class="p-6 mono text-sm leading-relaxed overflow-x-auto text-gray-800 dark:text-gray-300">
+        <div id="code-bash" class="code-block active">
+                        <pre><code><span class="text-blue-500">#!/bin/bash</span>
+<span class="text-purple-500">if</span> [[ <span class="text-red-500">"$ROLE"</span> == <span class="text-green-600">"sales"</span> ]]; <span class="text-purple-500">then</span>
+    <span class="text-blue-600">echo</span> <span class="text-green-600">"Access Denied"</span> && <span class="text-blue-600">exit</span> 1
+<span class="text-purple-500">fi</span>
+
+<span class="text-blue-600">curl</span> -X POST https://ctokitchen.ai/apply \
+  -d <span class="text-green-600">"industry=PropTech"</span> \
+  -d <span class="text-green-600">"responsibility=P&L"</span></code></pre>
+        </div>
+        <div id="code-js" class="code-block"><pre><code><span class="text-purple-500">const</span> <span class="text-blue-600">joinClub</span> = <span class="text-purple-500">async</span> (user) => { <span class="text-purple-500">if</span> (user.isSales) <span class="text-purple-500">return</span> BAN; };</code></pre></div>
+        <div id="code-php" class="code-block"><pre><code><span class="text-purple-500">public function</span> <span class="text-blue-600">isEligible</span>(User <span class="text-red-500">$u</span>) { <span class="text-purple-500">return</span> <span class="text-red-500">$u</span>->hasPnl; }</code></pre></div>
+        <div id="code-csharp" class="code-block"><pre><code><span class="text-purple-500">public bool</span> <span class="text-blue-600">Validate</span>(User u) => u.Industry == <span class="text-green-600">"PropTech"</span>;</code></pre></div>
+        <div id="code-cpp" class="code-block"><pre><code><span class="text-purple-500">bool</span> <span class="text-blue-600">check</span>(<span class="text-purple-500">const</span> User& u) { <span class="text-purple-500">return</span> u.pnl_responsibility; }</code></pre></div>
+        <div id="code-onec" class="code-block"><pre><code><span class="text-purple-500">Функция</span> <span class="text-blue-600">Проверить</span>(Кандидат) <span class="text-purple-500">Возврат</span> Кандидат.Отрасль = <span class="text-green-600">"PropTech"</span>; <span class="text-purple-500">КонецФункции</span></code></pre></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="for-whom" class="mb-24">
+    <h2 class="text-2xl font-bold mb-8 uppercase tracking-tight">Для кого</h2>
+    <div class="space-y-6 text-gray-600 dark:text-gray-400">
+      <p class="text-lg">Руководители digital / IT-продуктов в PropTech: девелопмент, стройка, эксплуатация, платформы и сервисы вокруг недвижимости.</p>
+      <div class="space-y-4">
+        <div class="flex items-start gap-4 p-4 border border-gray-200 dark:border-gray-800">
+          <span class="mono text-black dark:text-white font-bold text-lg">01</span>
+          <p>Те, кто отвечает за <strong>P&L</strong> или бюджеты.</p>
+        </div>
+        <div class="flex items-start gap-4 p-4 border border-gray-200 dark:border-gray-800">
+          <span class="mono text-black dark:text-white font-bold text-lg">02</span>
+          <p>Те, кто принимает <strong>архитектурные</strong> и вендорные решения.</p>
+        </div>
+        <div class="flex items-start gap-4 p-4 border border-gray-200 dark:border-gray-800">
+          <span class="mono text-black dark:text-white font-bold text-lg">03</span>
+          <p>Те, кто несет <strong>ответственность за результат</strong>, сроки, качество и безопасность.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="what" class="mb-24 py-16 border-y border-gray-200 dark:border-gray-800">
+    <h2 class="text-2xl font-bold mb-8 uppercase tracking-tight">Что</h2>
+    <div class="max-w-none">
+      <p class="text-xl leading-relaxed mb-8">
+        Закрытое сообщество <strong>практиков</strong>, которые делают и внедряют <strong>цифровые продукты</strong> в <strong>PropTech</strong> и платят за ошибки деньгами, репутацией и срывами.
+      </p>
+      <div class="bg-gray-50 dark:bg-[#111] p-8 rounded-lg border border-gray-100 dark:border-gray-800">
+        <p class="font-bold mb-4 uppercase text-xs tracking-widest text-gray-400">Это не:</p>
+        <ul class="list-none space-y-2 mb-8 text-gray-500">
+          <li><span class="text-red-500">×</span> конференция, не стартап-тусовка</li>
+          <li><span class="text-red-500">×</span> не обучение и не “нетворк ради нетворка”</li>
+        </ul>
+        <p class="font-bold mb-4 uppercase text-xs tracking-widest text-gray-400">Среда, куда не приглашают:</p>
+        <ul class="list-none space-y-2 text-gray-500">
+          <li><span class="text-red-500">×</span> продажников, “партнеров по развитию”, инфоцыган и маркетологов</li>
+          <li><span class="text-red-500">×</span> консультантов без ответственности за внедрение</li>
+          <li><span class="text-red-500">×</span> людей “послушать” и новичков</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="why" class="mb-24">
+    <h2 class="text-2xl font-bold mb-8 uppercase tracking-tight">Зачем</h2>
+    <p class="text-lg mb-8 text-gray-600 dark:text-gray-400">Чтобы <strong>принимать решения быстрее и дешевле</strong>, чем в одиночку. Ошибка в архитектуре, выборе вендора или модели внедрения стоит месяцев, десятков миллионов и репутации внутри бизнеса.</p>
+    <div class="space-y-4 text-gray-700 dark:text-gray-300">
+      <p class="flex items-start gap-3"><span class="mono text-black dark:text-white font-bold">[*]</span> <strong>не вариться в своем пузыре</strong> и сверять с теми, кто живет в той же реальности;</p>
+      <p class="flex items-start gap-3"><span class="mono text-black dark:text-white font-bold">[*]</span> <strong>учиться на чужих ошибках</strong>, а не оплачивать свои;</p>
+      <p class="flex items-start gap-3"><span class="mono text-black dark:text-white font-bold">[*]</span> <strong>проверять гипотезы до того</strong>, как они попадут в бюджет и контракт;</p>
+      <p class="flex items-start gap-3"><span class="mono text-black dark:text-white font-bold">[*]</span> <strong>понимать, как реально делают</strong> — а не как красиво рассказывают;</p>
+      <p class="flex items-start gap-3"><span class="mono text-black dark:text-white font-bold">[*]</span> <strong>снижать личный риск CTO/CIO</strong>, когда ставка — P&L и доверие бизнеса.</p>
+    </div>
+  </section>
+
+  <section id="manifesto" class="mb-24 pt-16 border-t border-gray-200 dark:border-gray-800">
+    <h2 class="text-3xl font-bold mb-12 italic mono uppercase">Манифест (драфт)</h2>
+    <div class="space-y-12">
+      <div>
+        <h3 class="text-xl font-bold mb-4 underline decoration-gray-300">1. Здесь ничего не продают</h3>
+        <p class="text-gray-500 dark:text-gray-400 leading-relaxed">Сообщество — это не витрина и не воронка продаж. Если вы пришли, чтобы «продать» свой продукт, софт или услуги — вы ошиблись дверью. Мы <strong>меняем опыт на опыт</strong>, а не на деньги. За попытку продажи — бан.</p>
+      </div>
+      <div>
+        <h3 class="text-xl font-bold mb-4 underline decoration-gray-300">2. Правда важнее статуса</h3>
+        <p class="text-gray-500 dark:text-gray-400 leading-relaxed">Успешные кейсы оставьте для конференций и пресс-релизов. Здесь мы обсуждаем то, что болит: кривую архитектуру, сорванные сроки, раздутые бюджеты и факапы с вендорами. Нам нужны ваши ошибки, чтобы мы их не повторяли.</p>
+      </div>
+      <div>
+        <h3 class="text-xl font-bold mb-4 underline decoration-gray-300">3. Вы не гости, а хозяева</h3>
+        <p class="text-gray-500 dark:text-gray-400 leading-relaxed">Клуб — это не сервис по подписке, где вас развлекают контентом. Качество сообщества зависит от того, что вы в него принесли. Не ждите «пользы» от модератора — создавайте её сами, задавая острые вопросы и отвечая честно.</p>
+      </div>
+      <div>
+        <h3 class="text-xl font-bold mb-4 underline decoration-gray-300">4. Право на «Нет» и несогласие</h3>
+        <p class="text-gray-500 dark:text-gray-400 leading-relaxed">Если вы считаете решение коллеги слабым или ошибочным — скажите об этом прямо. Мы здесь, чтобы обтачивать свои идеи об экспертность других, а не для того, чтобы хвалить друг друга. Хамство и переход на личности — бан.</p>
+      </div>
+      <div>
+        <h3 class="text-xl font-bold mb-4 underline decoration-gray-300">5. Радикальная закрытость</h3>
+        <p class="text-gray-500 dark:text-gray-400 leading-relaxed">Всё, что сказано внутри, остается внутри. Никаких цитат в соцсетях, никаких имен в отчетах. Это безопасное пространство, где CTO может признаться, что он чего-то не знает или что проект на грани краха. За раскрытие — бан.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="apply" class="border-2 border-black dark:border-white p-8 md:p-16 text-center">
+    <h2 class="text-sm font-bold uppercase tracking-[0.3em] mb-8 text-gray-400">Следующий шаг</h2>
+    <p class="text-2xl md:text-3xl font-medium mb-10">Если вы готовы обсуждать не только победы, но и <strong>самый дорогой технический провал</strong> — нам с вами по пути.</p>
+    <button class="bg-black text-white dark:bg-white dark:text-black px-10 py-4 font-mono text-sm hover:opacity-80 transition-all">
+      [ SEND_APPLICATION ]
+    </button>
+  </section>
+
+</main>
+
+<footer class="border-t border-gray-200 dark:border-gray-800 py-12 px-6 md:px-12 flex flex-col md:flex-row justify-between items-center gap-6 opacity-50">
+  <div class="text-sm font-bold uppercase">CTOKitchen</div>
+  <p class="mono text-[10px] uppercase tracking-widest">No marketing fluff.</p>
+  <div class="flex gap-4 mono text-[10px]">
+    <span>v1.2.5</span>
+    <span>2026</span>
+  </div>
+</footer>
+
+<script>
+  function toggleTheme() {
+    document.documentElement.classList.toggle('dark');
+  }
+
+  function showCode(lang) {
+    document.querySelectorAll('.code-block').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+    document.getElementById('code-' + lang).classList.add('active');
+    document.getElementById('btn-' + lang).classList.add('active');
+  }
+</script>
+</body>
+</html>
