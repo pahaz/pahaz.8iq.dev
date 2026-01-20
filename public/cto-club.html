@@ -60,6 +60,7 @@
         <div class="flex gap-4 mono text-[10px] text-gray-400 uppercase tracking-wider min-w-max">
           <button onclick="showCode('bash')" class="tab-btn active p-1 transition-all" id="btn-bash">bash</button>
           <button onclick="showCode('js')" class="tab-btn p-1 transition-all" id="btn-js">javascript</button>
+          <button onclick="showCode('python')" class="tab-btn p-1 transition-all" id="btn-python">python</button>
           <button onclick="showCode('php')" class="tab-btn p-1 transition-all" id="btn-php">php</button>
           <button onclick="showCode('csharp')" class="tab-btn p-1 transition-all" id="btn-csharp">c#</button>
           <button onclick="showCode('cpp')" class="tab-btn p-1 transition-all" id="btn-cpp">c++</button>
@@ -96,6 +97,17 @@
     ? <span class="text-blue-600">grantAccess</span>({ shareFailureStory: <span class="text-purple-500">true</span> })
     : <span class="text-blue-600">ban</span>();
 };</code></pre>
+        </div>
+
+        <div id="code-python" class="code-block">
+  <pre><code><span class="text-purple-500">def</span> <span class="text-blue-600">is_valid_member</span>(candidate):
+    <span class="text-gray-400"># No sales, no consultants, only real practitioners</span>
+    <span class="text-purple-500">if</span> candidate.role <span class="text-purple-500">in</span> [<span class="text-green-600">"sales"</span>, <span class="text-green-600">"consultant"</span>, <span class="text-green-600">"marketing"</span>]:
+        <span class="text-purple-500">return</span> <span class="text-purple-500">False</span>
+
+    is_practitioner = candidate.has_pnl_responsibility <span class="text-purple-500">or</span> candidate.makes_people_decisions
+
+    <span class="text-purple-500">return</span> candidate.industry == <span class="text-green-600">"PropTech"</span> <span class="text-purple-500">and</span> is_practitioner</code></pre>
         </div>
 
         <div id="code-php" class="code-block">
@@ -202,7 +214,7 @@
   </section>
 
   <section id="manifesto" class="mb-24 pt-16 border-t border-gray-200 dark:border-gray-800">
-    <h2 class="text-3xl font-bold mb-12 italic mono uppercase">Манифест (драфт)</h2>
+    <h2 class="text-3xl font-bold mb-12 italic mono uppercase">Манифест (v1.0)</h2>
     <div class="space-y-12">
       <div>
         <h3 class="text-xl font-bold mb-4 underline decoration-gray-300">1. Здесь ничего не продают</h3>
