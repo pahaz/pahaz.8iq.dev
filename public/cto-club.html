@@ -14,22 +14,26 @@
     }
   </script>
   <style>
-      /* Решение проблемы перекрытия: отступ при скролле равен высоте хедера (80px) */
-      html {
-          scroll-padding-top: 80px;
-      }
+      html { scroll-padding-top: 80px; }
       body { font-family: 'Inter', sans-serif; transition: background-color 0.3s, color 0.3s; }
       .mono { font-family: 'JetBrains Mono', monospace; }
       .code-block { display: none; }
       .code-block.active { display: block; }
       .tab-btn.active { border-bottom: 2px solid currentColor; color: black; }
       .dark .tab-btn.active { color: white; }
+      /* Modal Animation */
+      #modal.hidden { display: none; }
+      #modal:not(.hidden) { display: flex; animation: fadeIn 0.2s ease-out; }
+      @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
   </style>
 </head>
 <body class="bg-white text-gray-900 dark:bg-[#0a0a0a] dark:text-gray-100 selection:bg-black dark:selection:bg-white selection:text-white dark:selection:text-black">
 
 <header class="border-b border-gray-200 dark:border-gray-800 py-4 px-6 md:px-12 flex justify-between items-center sticky top-0 bg-white/80 dark:bg-[#0a0a0a]/80 backdrop-blur-md z-50 h-[70px]">
-  <div class="text-xl font-bold tracking-tighter uppercase">CTOKitchen</div>
+  <div class="text-xl font-bold mono flex items-center">
+    <span class="text-black dark:text-white">CTO</span>
+    <span class="text-gray-400 dark:text-gray-600">Kitchen</span>
+  </div>
 
   <nav class="hidden md:flex space-x-6 text-sm font-medium text-gray-600 dark:text-gray-400 items-center">
     <a href="#for-whom" class="hover:text-black dark:hover:text-white transition-colors">Для кого</a>
@@ -38,7 +42,7 @@
     <a href="#manifesto" class="hover:text-black dark:hover:text-white transition-colors">Манифест</a>
     <a href="#apply" class="hover:text-black dark:hover:text-white mono text-xs bg-black text-white dark:bg-white dark:text-black px-3 py-1.5">[ SEND_APPLICATION ]</a>
 
-    <button onclick="toggleTheme()" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors ml-2" id="theme-toggle">
+    <button onclick="toggleTheme()" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors ml-2">
       <svg id="sun" class="hidden dark:block w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 9h-1m15.364-6.364l-.707.707M6.343 17.657l-.707.707M16.95 17.657l.707.707M7.05 7.05l.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z"/></svg>
       <svg id="moon" class="block dark:hidden w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
     </button>
@@ -167,18 +171,42 @@
   <section id="apply" class="border-2 border-black dark:border-white p-8 md:p-16 text-center">
     <h2 class="text-sm font-bold uppercase tracking-[0.3em] mb-8 text-gray-400">Следующий шаг</h2>
     <p class="text-2xl md:text-3xl font-medium mb-10">Если вы готовы обсуждать не только победы, но и <strong>самый дорогой технический провал</strong> — нам с вами по пути.</p>
-    <button class="bg-black text-white dark:bg-white dark:text-black px-10 py-4 font-mono text-sm hover:opacity-80 transition-all">
+    <button onclick="openModal()" class="bg-black text-white dark:bg-white dark:text-black px-10 py-4 font-mono text-sm hover:opacity-80 transition-all">
       [ SEND_APPLICATION ]
     </button>
   </section>
 
 </main>
 
-<footer class="border-t border-gray-200 dark:border-gray-800 py-12 px-6 md:px-12 flex flex-col md:flex-row justify-between items-center gap-6 opacity-50">
-  <div class="text-sm font-bold uppercase">CTOKitchen</div>
-  <p class="mono text-[10px] uppercase tracking-widest">No marketing fluff.</p>
+<div id="modal" class="hidden fixed inset-0 z-[100] items-center justify-center p-6">
+  <div class="absolute inset-0 bg-white/90 dark:bg-black/95 backdrop-blur-sm" onclick="closeModal()"></div>
+  <div class="relative bg-white dark:bg-[#111] border border-black dark:border-white p-8 md:p-12 max-w-lg w-full text-center shadow-2xl">
+    <div class="flex justify-center mb-8">
+      <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="text-black dark:text-white opacity-20">
+        <path d="M12 9V14M12 17.01L12.01 16.998" stroke-linecap="square"/>
+        <path d="M2 20L12 2L22 20H2Z" stroke-linecap="square"/>
+        <path d="M7 14L10 11M17 14L14 11" stroke-linecap="square" stroke-opacity="0.5"/>
+      </svg>
+    </div>
+
+    <h2 class="mono text-2xl font-bold mb-4 uppercase tracking-tighter">System Error: 403</h2>
+    <div class="h-px bg-gray-200 dark:bg-gray-800 mb-6"></div>
+
+    <p class="text-gray-600 dark:text-gray-400 mb-2 font-medium italic">Вступление в клуб временно ограничено.</p>
+    <p class="mono text-xs text-gray-400 mb-10">
+      Следующее окно возможностей откроется через <span class="text-black dark:text-white font-bold">~3 месяца</span>.
+    </p>
+
+    <button onclick="closeModal()" class="w-full border border-black dark:border-white py-3 text-xs mono uppercase hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-all">
+      [ Close_Window ]
+    </button>
+  </div>
+</div>
+
+<footer class="border-t border-gray-200 dark:border-gray-800 py-12 px-6 md:px-12 flex flex-col md:flex-row justify-between items-center gap-6 opacity-40">
+  <div class="text-sm font-bold">CTOKitchen</div>
   <div class="flex gap-4 mono text-[10px]">
-    <span>v1.2.5</span>
+    <span>v1.3.1</span>
     <span>2026</span>
   </div>
 </footer>
@@ -191,9 +219,26 @@
   function showCode(lang) {
     document.querySelectorAll('.code-block').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-    document.getElementById('code-' + lang).classList.add('active');
-    document.getElementById('btn-' + lang).classList.add('active');
+    const block = document.getElementById('code-' + lang);
+    const btn = document.getElementById('btn-' + lang);
+    if (block) block.classList.add('active');
+    if (btn) btn.classList.add('active');
   }
+
+  function openModal() {
+    document.getElementById('modal').classList.remove('hidden');
+    document.body.style.overflow = 'hidden'; // Запрет скролла
+  }
+
+  function closeModal() {
+    document.getElementById('modal').classList.add('hidden');
+    document.body.style.overflow = 'auto'; // Возврат скролла
+  }
+
+  // Close modal on ESC key
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeModal();
+  });
 </script>
 </body>
 </html>
