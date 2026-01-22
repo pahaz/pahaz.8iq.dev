@@ -13,8 +13,8 @@
          */
         check: (content) => {
             const firstLine = content.slice(0, 30000).split('\n')[0];
-            return firstLine.includes('_source.variables.sip_call_id') &&
-                firstLine.includes('_source.variables.sip_h_X-Other-Call-ID');
+            return firstLine.includes('sip_call_id') &&
+                firstLine.includes('sip_h_X-Other-Call-ID');
         },
 
         parse: (content) => {
@@ -23,7 +23,18 @@
 
             // 1. Динамический маппинг заголовков в индексы
             const headers = rows[0].map((x) => x.trim()||'_');
-            const col = (name) => headers.indexOf(name);
+            const col = (name) => {
+                const candidates = [
+                    name,
+                    name.replace('.', '\\.'),
+                    `_source.${name}`,
+                ];
+                for (const c of candidates) {
+                    const i = headers.indexOf(c);
+                    if (i !== -1) return i;
+                }
+                return -1;
+            };
 
             // Карта для агрегации звонков по ID домофонной сессии
             const callsMap = new Map();
@@ -36,10 +47,10 @@
                     continue;
                 }
 
-                const direction = row[col('_source.variables.direction')].trim();
-                const sipCallId = row[col('_source.variables.sip_call_id')].trim();
-                const otherCallId = row[col('_source.variables.sip_h_X-Other-Call-ID')].trim();
-                const uid = row[col('_source.variables.uuid')].trim();
+                const direction = row[col('variables.direction')].trim();
+                const sipCallId = row[col('variables.sip_call_id')].trim();
+                const otherCallId = row[col('variables.sip_h_X-Other-Call-ID')].trim();
+                const uid = row[col('variables.uuid')].trim();
 
                 // Определяем основной ID звонка (всегда ID inbound ноги)
                 let masterId = null;
@@ -186,7 +197,7 @@
     function createMetaCallFromRow (id, headers, row) {
         const meta = {}
         for (let j = 0; j < headers.length; j++) {
-            let key = headers[j]
+            let key = headers[j].replaceAll('\\.', '.')
             const value = row[j].trim()
             if (key && key !== '_' && value !== '') {
                 if (key.startsWith('_source.')) {

@@ -16,9 +16,9 @@
         check: (content) => {
             const slice = content.slice(0, 10000);
             const firstLine = slice.split('\n')[0];
-            const hasHeader = firstLine.includes('_source.data');
-            const hasNameHeader = firstLine.includes('_source.fileName');
-            const hasTime = firstLine.includes('_source.time');
+            const hasHeader = firstLine.includes('data');
+            const hasNameHeader = firstLine.includes('fileName');
+            const hasTime = firstLine.includes('time');
             const hasWorkerSign = slice.includes('deliverMessage.js');
             return hasHeader && hasNameHeader && hasTime && hasWorkerSign;
         },
@@ -28,11 +28,22 @@
             if (rows.length < 2) return [];
 
             const headers = rows[0].map((x) => x.trim() || '_');
-            
-            // Определяем индексы нужных колонок
-            const colData = headers.indexOf('_source.data');
-            const colFileName = headers.indexOf('_source.fileName'); // или _source.name
-            const colTime = headers.indexOf('_source.time'); // Unix timestamp
+            const col = (name) => {
+              const candidates = [
+                name,
+                name.replace('.', '\\.'),
+                `_source.${name}`,
+              ];
+              for (const c of candidates) {
+                const i = headers.indexOf(c);
+                if (i !== -1) return i;
+              }
+              return -1;
+            };
+
+            const colData = col('data');
+            const colFileName = col('fileName'); // или _source.name
+            const colTime = col('time'); // Unix timestamp
             
             // Если критических колонок нет — пробуем альтернативные имена или выходим
             if (colData === -1) {
@@ -147,7 +158,7 @@
                 const failureCount = data?.deliveryMeta?.failureCount;
                 const responses = (data?.deliveryMeta?.responses || []);
                 responses.forEach((item) => {
-                    if (item['pushToken']) item['pushToken'] = '<hidden>';
+                    if (item?.['pushToken']) item['pushToken'] = '<hidden>';
                 })
                 const typeIcon = (pushData?.type === 'VOIP_INCOMING_CALL_MESSAGE') ? '📞' : (pushData?.type === 'CANCELED_CALL_MESSAGE_PUSH') ? '🛑' : '';
                 const details = `📤sent${typeIcon}: ${successCount}👌${failureCount > 0 ? '/ ' + failureCount + '❌' : '' }`;

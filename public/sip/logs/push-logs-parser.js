@@ -10,7 +10,7 @@
 
         check: (content) => {
             const firstLine = content.slice(0, 5000).split('\n')[0];
-            return firstLine.includes('_source.esl.args');
+            return firstLine.includes('esl.args') || firstLine.includes('esl\\.args');
         },
 
         parse: (content) => {
@@ -18,10 +18,24 @@
             if (rows.length < 2) return [];
 
             const headers = rows[0].map((x) => x.trim() || '_');
-            const colIdx = headers.indexOf('_source.esl.args');
+
+            const col = (name) => {
+              const candidates = [
+                name,
+                name.replace('.', '\\.'),
+                `_source.${name}`,
+              ];
+              for (const c of candidates) {
+                const i = headers.indexOf(c);
+                if (i !== -1) return i;
+              }
+              return -1;
+            };
+
+            const colIdx = col('esl.args');
 
             if (colIdx === -1) {
-                throw new Error('Required column "_source.esl.args" not found');
+                throw new Error('Required column "esl.args" not found');
             }
 
             const callsMap = new Map();
