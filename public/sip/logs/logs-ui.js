@@ -1625,7 +1625,7 @@
                 // Фильтрация по пуш-уведомлениям
                 let matchesPush = true
                 if (pushFilter !== 'all') {
-                    const pushes = item.events.filter(x => x.event_type === 'push_call_sent')
+                    const pushes = item.events.filter(x => x.event_type === 'push_call_sent' || x.event_type === 'push_call_send_start')
                     const hasPushNotifications = pushes.length > 0
                     switch (pushFilter) {
                         case 'has_push':
@@ -1676,7 +1676,7 @@
             let totalSentFail = 0;
 
             data.forEach(call => {
-                const pushes = call.events.filter(x => x.event_type === 'push_call_sent')
+                const pushes = call.events.filter(x => x.event_type === 'push_call_sent' || x.event_type === 'push_call_send_start')
                 const hasPushNotifications = pushes.length > 0
                 const hasSuccessPushNotifications = pushes.filter(x => x?.meta?.success).length > 0
                 if (hasPushNotifications) {
