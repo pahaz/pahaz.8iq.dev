@@ -14,6 +14,80 @@
         return `${day}.${month} ${hours}:${minutes}`;
     }
 
+    function flattenObject(obj, prefix = '', result = {}) {
+      if (obj === null || obj === undefined) return result;
+
+      for (const key in obj) {
+        if (Object.prototype.hasOwnProperty.call(obj, key)) {
+          const newKey = prefix ? `${prefix}.${key}` : key;
+          const value = obj[key];
+
+          if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+            flattenObject(value, newKey, result);
+          } else {
+            result[newKey] = value;
+          }
+        }
+      }
+      return result;
+    }
+
+    function convertToCSV(jsonData) {
+      // Поддержка структуры ответа OpenSearch Dashboards (rawResponse) или чистого OpenSearch
+      const hits = jsonData?.rawResponse?.hits?.hits || jsonData?.hits?.hits;
+      if (!hits || hits.length === 0) return "";
+
+      const flattenedHits = hits.map(hit => {
+        const flatHit = {};
+        // Разворачиваем _source
+        if (hit._source) {
+          const flatSource = flattenObject(hit._source, '_source');
+          Object.assign(flatHit, flatSource);
+        }
+        // Разворачиваем fields (обычно там массивы значений, но для CSV берем как есть)
+        if (hit.fields) {
+          // fields в OpenSearch обычно плоские, но значения массивы.
+          // Если нужно тоже развернуть структуру имен, делаем flattenObject.
+          // Но fields обычно уже выбраны конкретными полями.
+          // Оставим как есть или тоже flatten, если там объекты.
+          Object.keys(hit.fields).forEach(k => {
+            flatHit[k] = hit.fields[k];
+          });
+        }
+        return flatHit;
+      });
+
+      // Собираем все уникальные ключи
+      const allKeys = new Set();
+      flattenedHits.forEach(row => {
+        Object.keys(row).forEach(k => allKeys.add(k));
+      });
+      const headers = Array.from(allKeys).sort();
+
+      const csvRows = [headers.join(",")];
+
+      flattenedHits.forEach(row => {
+        const csvRow = headers.map(header => {
+          let val = row[header];
+
+          if (val === undefined || val === null) return "";
+
+          if (Array.isArray(val)) val = JSON.stringify(val);
+          else if (typeof val === 'object') val = JSON.stringify(val);
+
+          const strVal = String(val);
+          // Экранирование для CSV: если есть кавычки, запятые или переводы строк
+          if (/[",\n\r]/.test(strVal)) {
+            return `"${strVal.replace(/"/g, '""')}"`;
+          }
+          return strVal;
+        });
+        csvRows.push(csvRow.join(","));
+      });
+
+      return csvRows.join("\n");
+    }
+
     function calculateReportTimes(timeFrom, timeTo) {
         let msTo, msFrom;
         if (timeFrom !== null && timeTo !== null) {
@@ -43,7 +117,7 @@
         return url.replace(/time:\(from:'[^']+',to:'[^']+'\)/, `time:(from:'${isoFrom}',to:'${isoTo}')`);
     }
 
-    async function getReportData(name, generateFn) {
+    async function getReportData(name, generateFn, isoFrom, isoTo, index) {
         try {
             const response = await generateFn();
             if (response && response.ok && response.json && response.json.data && response.json.filename) {
@@ -54,6 +128,12 @@
                     name: filename,
                     content: csvData
                 };
+            } else if (response && response.ok && response.json.rawResponse) {
+                const data = convertToCSV(response.json);
+                return {
+                    name: `report_${index}_${isoFrom}_${isoTo}.csv`,
+                    content: data,
+                }
             } else {
                 console.error(`Failed to generate ${name} report:`, response);
                 return null;
@@ -66,149 +146,232 @@
 
     // 1. Отчет по SIP CDR (fields.log_type: "sip-prod-cdr" ...)
     async function generateSipReport(timeFrom, timeTo) {
-        if (!EXTENSION_ID) { console.warn('generateSipReport without EXTENSION_ID!'); return; }
+      if (!EXTENSION_ID) { console.warn('generateSipReport without EXTENSION_ID!'); return; }
 
-        const { msFrom, msTo, isoFrom, isoTo } = calculateReportTimes(timeFrom, timeTo);
+      const { isoFrom, isoTo } = calculateReportTimes(timeFrom, timeTo);
 
-        const queryParams = new URLSearchParams({
-            timezone: "Europe/Istanbul",
-            dateFormat: "MMM D, YYYY @ HH:mm:ss.SSS",
-            csvSeparator: ",",
-            allowLeadingWildcards: "true"
-        });
-
-        const originalQueryUrl = "/app/discoverLegacy#/view/d9fb71d0-daac-11f0-848f-3b313048592e?_g=(filters:!(),refreshInterval:(pause:!t,value:0),time:(from:'2026-01-13T03:13:28.738Z',to:'2026-01-15T15:13:28.738Z'))&_a=(columns:!(_source),filters:!(),index:'7e8fa130-a362-11f0-848f-3b313048592e',interval:auto,query:(language:kuery,query:'fields.log_type:%20%22sip-prod-cdr%22%20OR%20fields.log_type:%20%22sip-cdr%22'),sort:!())";
-        const queryUrl = updateQueryUrlTime(originalQueryUrl, isoFrom, isoTo);
-
-        const payload = {
-            path: `/api/reporting/generateReport?${queryParams.toString()}`,
-            method: "POST",
-            headers: { "osd-xsrf": "reporting" },
+      const payload = {
+        path: "/internal/search/opensearch-with-long-numerals",
+        method: "POST",
+        headers: { "osd-version": "3.2.0" },
+        body: {
+          params: {
+            index: "doma-production-intercom-sip-production-*",
             body: {
-                "query_url": queryUrl,
-                "time_from": msFrom,
-                "time_to": msTo,
-                "report_definition": {
-                    "report_params": {
-                        "report_name": "On_demand_report",
-                        "report_source": "Saved search",
-                        "description": "In-context report download",
-                        "core_params": {
-                            "base_url": "/app/discoverLegacy#/view/d9fb71d0-daac-11f0-848f-3b313048592e",
-                            "report_format": "csv",
-                            "time_duration": "PT24H",
-                            "saved_search_id": "d9fb71d0-daac-11f0-848f-3b313048592e"
-                        }
+              sort: [{ "@timestamp": { order: "desc", unmapped_type: "boolean" } }],
+              size: 10000,
+              version: true,
+              stored_fields: ["*"],
+              script_fields: {},
+              docvalue_fields: [
+                { field: "@timestamp", format: "date_time" },
+                { field: "container.labels.org_opencontainers_image_created", format: "date_time" },
+                { field: "esl.time", format: "date_time" },
+                { field: "json.time", format: "date_time" }
+              ],
+              _source: { excludes: [] },
+              query: {
+                bool: {
+                  must: [],
+                  filter: [
+                    {
+                      bool: {
+                        should: [
+                          { bool: { should: [{ match_phrase: { "fields.log_type": "sip-prod-cdr" } }], minimum_should_match: 1 } },
+                          { bool: { should: [{ match_phrase: { "fields.log_type": "sip-cdr" } }], minimum_should_match: 1 } }
+                        ],
+                        minimum_should_match: 1
+                      }
                     },
-                    "delivery": { "configIds": [""], "title": "", "textDescription": "", "htmlDescription": "" },
-                    "trigger": { "trigger_type": "On demand" }
+                    {
+                      range: {
+                        "@timestamp": {
+                          gte: isoFrom,
+                          lte: isoTo,
+                          format: "strict_date_optional_time"
+                        }
+                      }
+                    }
+                  ],
+                  should: [],
+                  must_not: []
                 }
-            }
-        };
+              },
+              highlight: {
+                pre_tags: ["@opensearch-dashboards-highlighted-field@"],
+                post_tags: ["@/opensearch-dashboards-highlighted-field@"],
+                fields: { "*": {} },
+                fragment_size: 2147483647,
+              },
+            },
+            preference: Date.now(),
+          }
+        }
+      };
 
-        return await chrome.runtime.sendMessage(EXTENSION_ID, {
-            type: "RUN_SERVICE_QUERY",
-            serviceId: "kibana",
-            payload
-        });
+      return await chrome.runtime.sendMessage(EXTENSION_ID, {
+        type: "RUN_SERVICE_QUERY",
+        serviceId: "kibana",
+        payload
+      });
     }
 
-    // 2. Отчет по Push-уведомлениям (esl.args: "sendPush" ...)
+  // 2. Отчет по Push-уведомлениям (esl.args: "sendPush" ...)
     async function generatePushReport(timeFrom, timeTo) {
-        if (!EXTENSION_ID) { console.warn('generatePushReport without EXTENSION_ID!'); return; }
+      if (!EXTENSION_ID) { console.warn('generatePushReport without EXTENSION_ID!'); return; }
 
-        const { msFrom, msTo, isoFrom, isoTo } = calculateReportTimes(timeFrom, timeTo);
+      const { isoFrom, isoTo } = calculateReportTimes(timeFrom, timeTo);
 
-        const queryParams = new URLSearchParams({
-            timezone: "Europe/Istanbul",
-            dateFormat: "MMM D, YYYY @ HH:mm:ss.SSS",
-            csvSeparator: ",",
-            allowLeadingWildcards: "true"
-        });
-
-        const originalQueryUrl = "/app/discoverLegacy#/view/eb284230-dcb9-11f0-848f-3b313048592e?_g=(filters:!(),refreshInterval:(pause:!t,value:0),time:(from:'2026-01-13T03:14:32.522Z',to:'2026-01-15T15:14:32.522Z'))&_a=(columns:!(_source),filters:!(),index:'7e8fa130-a362-11f0-848f-3b313048592e',interval:auto,query:(language:kuery,query:'esl.args:%20(%22sendPush%22)%20and%20not%20esl.args:%20%22push%20sending%20end%22%20and%20not%20esl.args:%20%22push%20cancel%20end%22'),sort:!())";
-        const queryUrl = updateQueryUrlTime(originalQueryUrl, isoFrom, isoTo);
-
-        const payload = {
-            path: `/api/reporting/generateReport?${queryParams.toString()}`,
-            method: "POST",
-            headers: { "osd-xsrf": "reporting" },
+      const payload = {
+        path: "/internal/search/opensearch-with-long-numerals",
+        method: "POST",
+        headers: { "osd-version": "3.2.0" },
+        body: {
+          params: {
+            index: "doma-production-intercom-sip-production-*",
             body: {
-                "query_url": queryUrl,
-                "time_from": msFrom,
-                "time_to": msTo,
-                "report_definition": {
-                    "report_params": {
-                        "report_name": "On_demand_report",
-                        "report_source": "Saved search",
-                        "description": "In-context report download",
-                        "core_params": {
-                            "base_url": "/app/discoverLegacy#/view/eb284230-dcb9-11f0-848f-3b313048592e",
-                            "report_format": "csv",
-                            "time_duration": "PT24H",
-                            "saved_search_id": "eb284230-dcb9-11f0-848f-3b313048592e"
-                        }
+              sort: [{ "@timestamp": { order: "desc", unmapped_type: "boolean" } }],
+              size: 10000,
+              version: true,
+              stored_fields: ["*"],
+              script_fields: {},
+              docvalue_fields: [
+                { field: "@timestamp", format: "date_time" },
+                { field: "container.labels.org_opencontainers_image_created", format: "date_time" },
+                { field: "esl.time", format: "date_time" },
+                { field: "json.time", format: "date_time" }
+              ],
+              _source: { excludes: [] },
+              query: {
+                bool: {
+                  must: [],
+                  filter: [
+                    {
+                      bool: {
+                        filter: [
+                          { bool: { should: [{ match_phrase: { "esl.args": "sendPush" } }], minimum_should_match: 1 } },
+                          {
+                            bool: {
+                              filter: [
+                                { bool: { must_not: { bool: { should: [{ match_phrase: { "esl.args": "push sending end" } }], minimum_should_match: 1 } } } },
+                                { bool: { must_not: { bool: { should: [{ match_phrase: { "esl.args": "push cancel end" } }], minimum_should_match: 1 } } } }
+                              ]
+                            }
+                          }
+                        ]
+                      }
                     },
-                    "delivery": { "configIds": [""], "title": "", "textDescription": "", "htmlDescription": "" },
-                    "trigger": { "trigger_type": "On demand" }
+                    {
+                      range: {
+                        "@timestamp": {
+                          gte: isoFrom,
+                          lte: isoTo,
+                          format: "strict_date_optional_time"
+                        }
+                      }
+                    }
+                  ],
+                  should: [],
+                  must_not: []
                 }
-            }
-        };
+              },
+              highlight: {
+                pre_tags: ["@opensearch-dashboards-highlighted-field@"],
+                post_tags: ["@/opensearch-dashboards-highlighted-field@"],
+                fields: { "*": {} },
+                fragment_size: 2147483647,
+              },
+            },
+            preference: Date.now(),
+          }
+        }
+      };
 
-        return await chrome.runtime.sendMessage(EXTENSION_ID, {
-            type: "RUN_SERVICE_QUERY",
-            serviceId: "kibana",
-            payload
-        });
+      return await chrome.runtime.sendMessage(EXTENSION_ID, {
+        type: "RUN_SERVICE_QUERY",
+        serviceId: "kibana",
+        payload
+      });
     }
 
     // 3. Отчет по уведомлениям задач (Notification tasks)
     async function generateNotificationReport(timeFrom, timeTo) {
-        if (!EXTENSION_ID) { console.warn('generateNotificationReport without EXTENSION_ID!'); return; }
+      if (!EXTENSION_ID) { console.warn('generateNotificationReport without EXTENSION_ID!'); return; }
 
-        const { msFrom, msTo, isoFrom, isoTo } = calculateReportTimes(timeFrom, timeTo);
+      const { isoFrom, isoTo } = calculateReportTimes(timeFrom, timeTo);
 
-        const queryParams = new URLSearchParams({
-            timezone: "Europe/Istanbul",
-            dateFormat: "MMM D, YYYY @ HH:mm:ss.SSS",
-            csvSeparator: ",",
-            allowLeadingWildcards: "true"
-        });
-
-        const originalQueryUrl = "/app/discoverLegacy#/view/418bf7a0-e4b9-11f0-848f-3b313048592e?_g=(filters:!(),refreshInterval:(pause:!t,value:0),time:(from:'2026-01-13T03:15:01.173Z',to:'2026-01-15T15:15:01.173Z'))&_a=(columns:!(_source),filters:!(('$state':(store:appState),meta:(alias:!n,disabled:!f,index:d2944a70-a42e-11f0-848f-3b313048592e,key:msg,negate:!f,params:(query:sendMessageByAdapter),type:phrase),query:(match_phrase:(msg:sendMessageByAdapter))),('$state':(store:appState),meta:(alias:!n,disabled:!f,index:d2944a70-a42e-11f0-848f-3b313048592e,key:name,negate:!f,params:(query:apps%2Fcondo%2Fdomains%2Fnotification%2Ftasks%2FdeliverMessage.js),type:phrase),query:(match_phrase:(name:apps%2Fcondo%2Fdomains%2Fnotification%2Ftasks%2FdeliverMessage.js)))),index:d2944a70-a42e-11f0-848f-3b313048592e,interval:auto,query:(language:kuery,query:'event.original:%22sipCallId%22'),sort:!())";
-        const queryUrl = updateQueryUrlTime(originalQueryUrl, isoFrom, isoTo);
-
-        const payload = {
-            path: `/api/reporting/generateReport?${queryParams.toString()}`,
-            method: "POST",
-            headers: { "osd-xsrf": "reporting" },
+      const payload = {
+        path: "/internal/search/opensearch-with-long-numerals",
+        method: "POST",
+        headers: { "osd-version": "3.2.0" },
+        body: {
+          params: {
+            index: "production-*",
             body: {
-                "query_url": queryUrl,
-                "time_from": msFrom,
-                "time_to": msTo,
-                "report_definition": {
-                    "report_params": {
-                        "report_name": "On_demand_report",
-                        "report_source": "Saved search",
-                        "description": "In-context report download",
-                        "core_params": {
-                            "base_url": "/app/discoverLegacy#/view/418bf7a0-e4b9-11f0-848f-3b313048592e",
-                            "report_format": "csv",
-                            "time_duration": "PT24H",
-                            "saved_search_id": "418bf7a0-e4b9-11f0-848f-3b313048592e"
-                        }
+              sort: [{ "@timestamp": { order: "desc", unmapped_type: "boolean" } }],
+              size: 10000,
+              version: true,
+              stored_fields: ["*"],
+              script_fields: {},
+              docvalue_fields: [
+                { field: "@timestamp", format: "date_time" },
+                { field: "error.extensions.messageInterpolation.givenDate", format: "date_time" },
+                { field: "error.originalError.errors.errors.time_thrown", format: "date_time" },
+                { field: "error.originalError.errors.extensions.messageInterpolation.givenDate", format: "date_time" },
+                { field: "error.originalError.errors.originalError.errors.extensions.messageInterpolation.givenDate", format: "date_time" },
+                { field: "error.originalError.errors.originalError.time_thrown", format: "date_time" },
+                { field: "req.query.advancedAt_gte", format: "date_time" },
+                { field: "req.query.advancedAt_lte", format: "date_time" },
+                { field: "req.query.createdAt_gte", format: "date_time" },
+                { field: "req.query.createdAt_lte", format: "date_time" },
+                { field: "req.query.lastPeriod", format: "date_time" },
+                { field: "req.query.period", format: "date_time" },
+                { field: "req.query.tm", format: "date_time" }
+              ],
+              _source: { excludes: [] },
+              query: {
+                bool: {
+                  must: [],
+                  filter: [
+                    {
+                      bool: {
+                        filter: [
+                          { bool: { should: [{ match_phrase: { "msg": "sendMessageByAdapter" } }], minimum_should_match: 1 } },
+                          { bool: { should: [{ match_phrase: { "event.original": "sipCallId" } }], minimum_should_match: 1 } }
+                        ]
+                      }
                     },
-                    "delivery": { "configIds": [""], "title": "", "textDescription": "", "htmlDescription": "" },
-                    "trigger": { "trigger_type": "On demand" }
+                    {
+                      range: {
+                        "@timestamp": {
+                          gte: isoFrom,
+                          lte: isoTo,
+                          format: "strict_date_optional_time"
+                        }
+                      }
+                    }
+                  ],
+                  should: [],
+                  must_not: []
                 }
-            }
-        };
+              },
+              highlight: {
+                pre_tags: ["@opensearch-dashboards-highlighted-field@"],
+                post_tags: ["@/opensearch-dashboards-highlighted-field@"],
+                fields: { "*": {} },
+                fragment_size: 2147483647,
+              },
+            },
+            preference: Date.now(),
+          }
+        }
+      };
 
-        return await chrome.runtime.sendMessage(EXTENSION_ID, {
-            type: "RUN_SERVICE_QUERY",
-            serviceId: "kibana",
-            payload
-        });
+      return await chrome.runtime.sendMessage(EXTENSION_ID, {
+        type: "RUN_SERVICE_QUERY",
+        serviceId: "kibana",
+        payload
+      });
     }
 
     function injectUI(isInstalled) {
@@ -255,10 +418,20 @@
                 const collectedFiles = [];
                 for (let i = 0; i < reports.length; i++) {
                     btn.innerText = `Загрузка... (${i + 1}/${reports.length})`;
-                    const report = await getReportData(reports[i].name, reports[i].fn);
+                    const report = await getReportData(reports[i].name, reports[i].fn, isoFrom, isoTo, i + 1);
                     if (report) {
                         const file = new File([report.content], report.name, { type: 'text/csv' });
                         collectedFiles.push(file);
+                        if (window.DOWLOAD_CSV_MODE === true) {
+                          const url = URL.createObjectURL(file);
+                          const a = document.createElement('a');
+                          a.href = url;
+                          a.download = report.name;
+                          document.body.appendChild(a);
+                          a.click();
+                          document.body.removeChild(a);
+                          URL.revokeObjectURL(url);
+                        }
                     }
                 }
 
