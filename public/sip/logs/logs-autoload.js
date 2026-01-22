@@ -119,25 +119,26 @@
 
     async function getReportData(name, generateFn, isoFrom, isoTo, index) {
         try {
+            let nameRes, content;
             const response = await generateFn();
             if (response && response.ok && response.json && response.json.data && response.json.filename) {
-                const csvData = response.json.data;
                 const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-                const filename = `${name}_${timestamp}.csv`;
-                return {
-                    name: filename,
-                    content: csvData
-                };
+                nameRes = `report_file_${name}_${timestamp}.csv`;
+                content = response.json.data;
             } else if (response && response.ok && response.json.rawResponse) {
-                const data = convertToCSV(response.json);
-                return {
-                    name: `report_${index}_${isoFrom}_${isoTo}.csv`,
-                    content: data,
-                }
-            } else {
+                nameRes = `report_${index}_${isoFrom}_${isoTo}.csv`
+                content = convertToCSV(response.json);
+            }
+
+            if (!nameRes || !content) {
                 console.error(`Failed to generate ${name} report:`, response);
                 return null;
             }
+
+            return {
+              name: nameRes,
+              content,
+            };
         } catch (error) {
             console.error(`Error generating ${name} report:`, error);
             return null;

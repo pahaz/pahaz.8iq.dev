@@ -1182,7 +1182,11 @@
                 try {
                     let text = await this.readFileAsText(file);
                     if (text.startsWith('"') && text.endsWith('"')) {
+                      try {
                         text = JSON.parse(text)
+                      } catch (e) {
+                        console.warn('trying to JSON.parse error', file.name, e)
+                      }
                     }
 
                     // Поиск подходящего обработчика
