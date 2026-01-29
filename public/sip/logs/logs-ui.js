@@ -113,7 +113,8 @@
         historyGroup: q('historyGroup'),
         historyBreakdown: q('historyBreakdown'),
         togglePercentMode: q('togglePercentMode'),
-        toggleExtraLines: q('toggleExtraLines'),
+        toggleWebhookLines: q('toggleWebhookLines'),
+        togglePushDomaLines: q('togglePushDomaLines'),
         canvasStatus: q('chartStatus'),
         canvasTopPanels: q('chartTopPanels'),
         canvasPanelAnalysis: q('chartPanelAnalysis'),
@@ -182,7 +183,8 @@
         historyGrouping: 'day',
         historyBreakdown: 'none',
         historyPercentMode: false,
-        showExtraLines: false,
+        showWebhookLines: false,
+        showPushDomaLines: false,
         durationBreakdown: 'none',
         durationInterval: '2s',
         panelBreakdown: 'none',
@@ -479,17 +481,8 @@
             });
 
             // Добавляем линии для вебхуков и пушей Дома
-            if (state.showExtraLines) {
-                const extraConfigs = [
-                    { label: 'Вебхуки успешно', key: 'webhookSuccess', color: STATUS_COLORS.opened, dashed: false },
-                    { label: 'Вебхуки неуспешно', key: 'webhookFail', color: STATUS_COLORS.missed, dashed: true },
-                    { label: 'Вебхуки пропущен', key: 'webhookNo', color: STATUS_COLORS.fail, dashed: true },
-                    { label: 'Пуши Дома успешно', key: 'pushDomaSuccess', color: STATUS_COLORS.opened, dashed: false },
-                    { label: 'Пуши Дома неуспешно', key: 'pushDomaFail', color: STATUS_COLORS.missed, dashed: true },
-                    { label: 'Пуши Дома пропущен', key: 'pushDomaNo', color: STATUS_COLORS.fail, dashed: true },
-                ];
-
-                extraConfigs.forEach(cfg => {
+            const addExtraLineDatasets = (configs) => {
+                configs.forEach(cfg => {
                     const data = labels.map(l => {
                         const val = (groups[l]._extra && groups[l]._extra[cfg.key]) || 0;
                         if (state.historyPercentMode) {
@@ -520,6 +513,24 @@
                         datasets.push(dataset);
                     }
                 });
+            };
+
+            if (state.showWebhookLines) {
+                const webhookConfigs = [
+                    { label: 'Вебхуки успешно', key: 'webhookSuccess', color: STATUS_COLORS.opened, dashed: false },
+                    { label: 'Вебхуки неуспешно', key: 'webhookFail', color: STATUS_COLORS.missed, dashed: true },
+                    { label: 'Вебхуки пропущен', key: 'webhookNo', color: STATUS_COLORS.fail, dashed: true },
+                ];
+                addExtraLineDatasets(webhookConfigs);
+            }
+
+            if (state.showPushDomaLines) {
+                const pushDomaConfigs = [
+                    { label: 'Пуши Дома успешно', key: 'pushDomaSuccess', color: STATUS_COLORS.opened, dashed: false },
+                    { label: 'Пуши Дома неуспешно', key: 'pushDomaFail', color: STATUS_COLORS.missed, dashed: true },
+                    { label: 'Пуши Дома пропущен', key: 'pushDomaNo', color: STATUS_COLORS.fail, dashed: true },
+                ];
+                addExtraLineDatasets(pushDomaConfigs);
             }
 
             const chartData = {
@@ -1258,10 +1269,18 @@
                     this.saveSettings();
                 };
             }
-            if (el.toggleExtraLines) {
-                el.toggleExtraLines.onclick = () => {
-                    state.showExtraLines = !state.showExtraLines;
-                    el.toggleExtraLines.classList.toggle('active', state.showExtraLines);
+            if (el.toggleWebhookLines) {
+                el.toggleWebhookLines.onclick = () => {
+                    state.showWebhookLines = !state.showWebhookLines;
+                    el.toggleWebhookLines.classList.toggle('active', state.showWebhookLines);
+                    this.renderHistoryChart(state.filteredData);
+                    this.saveSettings();
+                };
+            }
+            if (el.togglePushDomaLines) {
+                el.togglePushDomaLines.onclick = () => {
+                    state.showPushDomaLines = !state.showPushDomaLines;
+                    el.togglePushDomaLines.classList.toggle('active', state.showPushDomaLines);
                     this.renderHistoryChart(state.filteredData);
                     this.saveSettings();
                 };
@@ -1678,16 +1697,22 @@
                         //     state.panelBreakdown = data.values.panelBreakdown;
                         //     el.panelBreakdown.value = state.panelBreakdown;
                         // }
+                        // if (data.values.showWebhookLines !== undefined) {
+                        //     state.showWebhookLines = data.values.showWebhookLines;
+                        //     if (el.toggleWebhookLines) {
+                        //         el.toggleWebhookLines.classList.toggle('active', state.showWebhookLines);
+                        //     }
+                        // }
+                        // if (data.values.showPushDomaLines !== undefined) {
+                        //     state.showPushDomaLines = data.values.showPushDomaLines;
+                        //     if (el.togglePushDomaLines) {
+                        //         el.togglePushDomaLines.classList.toggle('active', state.showPushDomaLines);
+                        //     }
+                        // }
                         // if (data.values.historyPercentMode !== undefined) {
                         //     state.historyPercentMode = data.values.historyPercentMode;
                         //     if (el.togglePercentMode) {
                         //         el.togglePercentMode.classList.toggle('active', state.historyPercentMode);
-                        //     }
-                        // }
-                        // if (data.values.showExtraLines !== undefined) {
-                        //     state.showExtraLines = data.values.showExtraLines;
-                        //     if (el.toggleExtraLines) {
-                        //         el.toggleExtraLines.classList.toggle('active', state.showExtraLines);
                         //     }
                         // }
                     }
@@ -1719,7 +1744,8 @@
                     durationBreakdown: state.durationBreakdown,
                     durationInterval: state.durationInterval,
                     panelBreakdown: state.panelBreakdown,
-                    showExtraLines: state.showExtraLines
+                    showWebhookLines: state.showWebhookLines,
+                    showPushDomaLines: state.showPushDomaLines
                 },
                 history: state.inputHistory
             };
