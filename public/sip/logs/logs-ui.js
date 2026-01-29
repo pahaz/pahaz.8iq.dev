@@ -84,6 +84,11 @@
         percPushFail: q("perc-push-fail"),
         percPushFailAll: q("perc-push-fail-all"),
 
+        valPushNo: q("val-push-no"),
+        valPushNoAll: q("val-push-no-all"),
+        percPushNo: q("perc-push-no"),
+        percPushNoAll: q("perc-push-no-all"),
+
         // Doma Push Metrics
         valPushDomaSent: q("val-push-doma-sent"),
         valPushDomaSentAll: q("val-push-doma-sent-all"),
@@ -97,6 +102,11 @@
         valPushDomaFailAll: q("val-push-doma-fail-all"),
         percPushDomaFail: q("perc-push-doma-fail"),
         percPushDomaFailAll: q("perc-push-doma-fail-all"),
+
+        valPushDomaNo: q("val-push-doma-no"),
+        valPushDomaNoAll: q("val-push-doma-no-all"),
+        percPushDomaNo: q("perc-push-doma-no"),
+        percPushDomaNoAll: q("perc-push-doma-no-all"),
 
         // Charts
         canvasHistory: q('chartHistory'),
@@ -293,6 +303,7 @@
             updateMetric(el.valPushSent, el.valPushSentAll, el.percPushSent, el.percPushSentAll, pushStats.totalSent, pushStatsAll.totalSent, total, totalAll);
             updateMetric(el.valPushSuccess, el.valPushSuccessAll, el.percPushSuccess, el.percPushSuccessAll, pushStats.totalSentSuccess, pushStatsAll.totalSentSuccess, total, totalAll);
             updateMetric(el.valPushFail, el.valPushFailAll, el.percPushFail, el.percPushFailAll, pushStats.totalSentFail, pushStatsAll.totalSentFail, total, totalAll);
+            updateMetric(el.valPushNo, el.valPushNoAll, el.percPushNo, el.percPushNoAll, pushStats.totalNo, pushStatsAll.totalNo, total, totalAll);
 
             // Подсчет статистики по пуш-уведомлениям Doma
             const pushStatsDoma = this.calculatePushStatsDoma(data);
@@ -301,6 +312,7 @@
             updateMetric(el.valPushDomaSent, el.valPushDomaSentAll, el.percPushDomaSent, el.percPushDomaSentAll, pushStatsDoma.totalSent, pushStatsDomaAll.totalSent, total, totalAll);
             updateMetric(el.valPushDomaSuccess, el.valPushDomaSuccessAll, el.percPushDomaSuccess, el.percPushDomaSuccessAll, pushStatsDoma.totalSentSuccess, pushStatsDomaAll.totalSentSuccess, total, totalAll);
             updateMetric(el.valPushDomaFail, el.valPushDomaFailAll, el.percPushDomaFail, el.percPushDomaFailAll, pushStatsDoma.totalSentFail, pushStatsDomaAll.totalSentFail, total, totalAll);
+            updateMetric(el.valPushDomaNo, el.valPushDomaNoAll, el.percPushDomaNo, el.percPushDomaNoAll, pushStatsDoma.totalNo, pushStatsDomaAll.totalNo, total, totalAll);
 
             this.updateCharts(data);
         },
@@ -1833,6 +1845,7 @@
             let totalSent = 0 // sentPush + cancel=false
             let totalSentSuccess = 0 // sentPush + cancel=false + в ответе есть данные о том что пуш был отправлен
             let totalSentFail = 0;
+            let totalNo = 0;
 
             data.forEach(call => {
                 const pushes = call.events.filter(x => x.event_type === 'push_call_sent' || x.event_type === 'push_call_send_start')
@@ -1845,6 +1858,8 @@
                     } else {
                         totalSentFail++;
                     }
+                } else {
+                    totalNo++;
                 }
             })
 
@@ -1852,6 +1867,7 @@
                 totalSent,
                 totalSentSuccess,
                 totalSentFail,
+                totalNo,
             }
         },
 
@@ -1860,6 +1876,7 @@
           let totalSent = 0 // sentPush + cancel=false
           let totalSentSuccess = 0 // sentPush + cancel=false + в ответе есть данные о том что пуш был отправлен
           let totalSentFail = 0;
+          let totalNo = 0;
 
           data.forEach(call => {
             const pushes = call.events.filter(x => x.event_type === 'push_sent_worker' && x?.meta?.type === 'VOIP_INCOMING_CALL_MESSAGE')
@@ -1872,6 +1889,8 @@
               } else {
                 totalSentFail++;
               }
+            } else {
+              totalNo++;
             }
           })
 
@@ -1879,6 +1898,7 @@
             totalSent,
             totalSentSuccess,
             totalSentFail,
+            totalNo,
           }
         },
     };
