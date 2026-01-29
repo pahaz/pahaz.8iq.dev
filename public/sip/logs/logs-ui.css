@@ -135,6 +135,33 @@ main {
     cursor: not-allowed;
 }
 
+.btn-secondary {
+    background: var(--white);
+    color: var(--text-main);
+    border: 1px solid var(--border);
+    padding: 0.5rem 1rem;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+}
+
+.btn-secondary.active {
+    background: #eff6ff;
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+}
+
 .progress-wrapper {
     margin-top: 1.5rem;
     text-align: left;

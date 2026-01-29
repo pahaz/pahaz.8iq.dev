@@ -102,6 +102,7 @@
         canvasHistory: q('chartHistory'),
         historyGroup: q('historyGroup'),
         historyBreakdown: q('historyBreakdown'),
+        toggleExtraLines: q('toggleExtraLines'),
         canvasStatus: q('chartStatus'),
         canvasTopPanels: q('chartTopPanels'),
         canvasPanelAnalysis: q('chartPanelAnalysis'),
@@ -169,6 +170,7 @@
 
         historyGrouping: 'day',
         historyBreakdown: 'none',
+        showExtraLines: false,
         durationBreakdown: 'none',
         durationInterval: '2s',
         panelBreakdown: 'none',
@@ -369,6 +371,28 @@
 
                 groups[timeKey][status]._total++;
                 groups[timeKey][status][breakdownKey]++;
+
+                // Сбор статистики по вебхукам и пушам Дома для графика
+                if (!groups[timeKey]._extra) {
+                    groups[timeKey]._extra = {
+                        webhookSuccess: 0,
+                        webhookFail: 0,
+                        pushDomaSuccess: 0,
+                        pushDomaFail: 0
+                    };
+                }
+                
+                const pushes = d.events.filter(x => x.event_type === 'push_call_sent' || x.event_type === 'push_call_send_start');
+                if (pushes.length > 0) {
+                    if (pushes.some(x => x?.meta?.success)) groups[timeKey]._extra.webhookSuccess++;
+                    else groups[timeKey]._extra.webhookFail++;
+                }
+
+                const pushesDoma = d.events.filter(x => x.event_type === 'push_sent_worker' && x?.meta?.type === 'VOIP_INCOMING_CALL_MESSAGE');
+                if (pushesDoma.length > 0) {
+                    if (pushesDoma.some(x => x?.meta?.success)) groups[timeKey]._extra.pushDomaSuccess++;
+                    else groups[timeKey]._extra.pushDomaFail++;
+                }
             });
 
             const labels = Object.keys(groups).sort();
@@ -408,10 +432,12 @@
                         data: labels.map(l => (groups[l][statusKey] && groups[l][statusKey][breakKey]) || 0),
                         backgroundColor: statusCfg.color,
                         stack: 'stack0',
+                        stacked: true,
                         statusKey: statusKey,
                         breakdownKey: breakKey,
                         statusLabel: statusCfg.label,
-                        groupLabel: breakdownMode === 'none' ? statusCfg.label : breakKey
+                        groupLabel: breakdownMode === 'none' ? statusCfg.label : breakKey,
+                        order: 2 // Рисуем столбцы под линиями
                     };
                     
                     const hasData = dataset.data.some(v => v > 0);
@@ -420,6 +446,37 @@
                     }
                 });
             });
+
+            // Добавляем линии для вебхуков и пушей Дома
+            if (state.showExtraLines) {
+                const extraConfigs = [
+                    { label: 'Вебхуки успешно', key: 'webhookSuccess', color: STATUS_COLORS.opened, dashed: false },
+                    { label: 'Вебхуки неуспешно', key: 'webhookFail', color: STATUS_COLORS.fail, dashed: true },
+                    { label: 'Пуши Дома успешно', key: 'pushDomaSuccess', color: STATUS_COLORS.opened, dashed: false },
+                    { label: 'Пуши Дома неуспешно', key: 'pushDomaFail', color: STATUS_COLORS.fail, dashed: true }
+                ];
+
+                extraConfigs.forEach(cfg => {
+                    const dataset = {
+                        type: 'line',
+                        label: cfg.label,
+                        data: labels.map(l => (groups[l]._extra && groups[l]._extra[cfg.key]) || 0),
+                        borderColor: cfg.color,
+                        backgroundColor: cfg.color,
+                        borderWidth: 2,
+                        borderDash: cfg.dashed ? [5, 5] : [],
+                        fill: false,
+                        tension: 0.1,
+                        pointRadius: 3,
+                        stacked: false,
+                        yAxisID: 'y',
+                        order: 1 // Рисуем линии поверх столбцов
+                    };
+                    if (dataset.data.some(v => v > 0)) {
+                        datasets.push(dataset);
+                    }
+                });
+            }
 
             const chartData = {
                 labels,
@@ -431,11 +488,18 @@
                 maintainAspectRatio: false,
                 scales: {
                     x: { stacked: true },
-                    y: { stacked: true, beginAtZero: true }
+                    y: { 
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                if (value % 1 === 0) return value;
+                            }
+                        }
+                    }
                 },
                 plugins: {
                     legend: { 
-                        display: breakdownMode === 'none',
+                        display: breakdownMode === 'none' || datasets.some(ds => ds.type === 'line'),
                         position: 'bottom' 
                     },
                     tooltip: {
@@ -449,10 +513,20 @@
                                 const datasets = context.chart.data.datasets;
 
                                 // Общее количество в этом бакете (столбце)
-                                const totalInBucket = datasets.reduce((sum, ds) => sum + (ds.data[bucketIdx] || 0), 0);
+                                const totalInBucket = datasets
+                                    .filter(ds => ds.type !== 'line')
+                                    .reduce((sum, ds) => sum + (ds.data[bucketIdx] || 0), 0);
 
                                 const currentStatusLabel = dataset.statusLabel;
                                 const currentGroupLabel = dataset.groupLabel;
+
+                                if (dataset.type === 'line') {
+                                    const percent = totalInBucket > 0 ? ((val / totalInBucket) * 100).toFixed(1) : 0;
+                                    return [
+                                        `${dataset.label}: ${val} (${percent}% от столбика)`,
+                                        `Всего: ${totalInBucket} в столбике`,
+                                    ];
+                                }
 
                                 if (breakdownMode === 'none') {
                                     const percent = totalInBucket > 0 ? ((val / totalInBucket) * 100).toFixed(1) : 0;
@@ -1109,6 +1183,14 @@
                     this.saveSettings();
                 };
             }
+            if (el.toggleExtraLines) {
+                el.toggleExtraLines.onclick = () => {
+                    state.showExtraLines = !state.showExtraLines;
+                    el.toggleExtraLines.classList.toggle('active', state.showExtraLines);
+                    this.renderHistoryChart(state.filteredData);
+                    this.saveSettings();
+                };
+            }
             if (el.durationBreakdown) {
                 el.durationBreakdown.onchange = (e) => {
                     state.durationBreakdown = e.target.value;
@@ -1521,6 +1603,12 @@
                         //     state.panelBreakdown = data.values.panelBreakdown;
                         //     el.panelBreakdown.value = state.panelBreakdown;
                         // }
+                        // if (data.values.showExtraLines !== undefined) {
+                        //     state.showExtraLines = data.values.showExtraLines;
+                        //     if (el.toggleExtraLines) {
+                        //         el.toggleExtraLines.classList.toggle('active', state.showExtraLines);
+                        //     }
+                        // }
                     }
 
                     // Восстанавливаем историю
@@ -1548,7 +1636,8 @@
                     historyBreakdown: state.historyBreakdown,
                     durationBreakdown: state.durationBreakdown,
                     durationInterval: state.durationInterval,
-                    panelBreakdown: state.panelBreakdown
+                    panelBreakdown: state.panelBreakdown,
+                    showExtraLines: state.showExtraLines
                 },
                 history: state.inputHistory
             };
