@@ -102,6 +102,7 @@
         canvasHistory: q('chartHistory'),
         historyGroup: q('historyGroup'),
         historyBreakdown: q('historyBreakdown'),
+        togglePercentMode: q('togglePercentMode'),
         toggleExtraLines: q('toggleExtraLines'),
         canvasStatus: q('chartStatus'),
         canvasTopPanels: q('chartTopPanels'),
@@ -170,6 +171,7 @@
 
         historyGrouping: 'day',
         historyBreakdown: 'none',
+        historyPercentMode: false,
         showExtraLines: false,
         durationBreakdown: 'none',
         durationInterval: '2s',
@@ -377,8 +379,10 @@
                     groups[timeKey]._extra = {
                         webhookSuccess: 0,
                         webhookFail: 0,
+                        webhookNo: 0,
                         pushDomaSuccess: 0,
-                        pushDomaFail: 0
+                        pushDomaFail: 0,
+                        pushDomaNo: 0,
                     };
                 }
                 
@@ -386,12 +390,16 @@
                 if (pushes.length > 0) {
                     if (pushes.some(x => x?.meta?.success)) groups[timeKey]._extra.webhookSuccess++;
                     else groups[timeKey]._extra.webhookFail++;
+                } else {
+                    groups[timeKey]._extra.webhookNo++;
                 }
 
                 const pushesDoma = d.events.filter(x => x.event_type === 'push_sent_worker' && x?.meta?.type === 'VOIP_INCOMING_CALL_MESSAGE');
                 if (pushesDoma.length > 0) {
                     if (pushesDoma.some(x => x?.meta?.success)) groups[timeKey]._extra.pushDomaSuccess++;
                     else groups[timeKey]._extra.pushDomaFail++;
+                } else {
+                    groups[timeKey]._extra.pushDomaNo++;
                 }
             });
 
@@ -427,9 +435,20 @@
                 });
 
                 sortedKeysForStatus.forEach(breakKey => {
+                    const data = labels.map(l => {
+                        const val = (groups[l][statusKey] && groups[l][statusKey][breakKey]) || 0;
+                        if (state.historyPercentMode) {
+                            const totalInBucket = Object.values(groups[l])
+                                .filter(v => typeof v === 'object' && v._total !== undefined)
+                                .reduce((sum, v) => sum + v._total, 0);
+                            return totalInBucket > 0 ? (val / totalInBucket * 100) : 0;
+                        }
+                        return val;
+                    });
+
                     const dataset = {
                         label: breakdownMode === 'none' ? statusCfg.label : `${statusCfg.label} (${breakKey})`,
-                        data: labels.map(l => (groups[l][statusKey] && groups[l][statusKey][breakKey]) || 0),
+                        data: data,
                         backgroundColor: statusCfg.color,
                         stack: 'stack0',
                         stacked: true,
@@ -451,16 +470,29 @@
             if (state.showExtraLines) {
                 const extraConfigs = [
                     { label: 'Вебхуки успешно', key: 'webhookSuccess', color: STATUS_COLORS.opened, dashed: false },
-                    { label: 'Вебхуки неуспешно', key: 'webhookFail', color: STATUS_COLORS.fail, dashed: true },
+                    { label: 'Вебхуки неуспешно', key: 'webhookFail', color: STATUS_COLORS.missed, dashed: true },
+                    { label: 'Вебхуки пропущен', key: 'webhookNo', color: STATUS_COLORS.fail, dashed: true },
                     { label: 'Пуши Дома успешно', key: 'pushDomaSuccess', color: STATUS_COLORS.opened, dashed: false },
-                    { label: 'Пуши Дома неуспешно', key: 'pushDomaFail', color: STATUS_COLORS.fail, dashed: true }
+                    { label: 'Пуши Дома неуспешно', key: 'pushDomaFail', color: STATUS_COLORS.missed, dashed: true },
+                    { label: 'Пуши Дома пропущен', key: 'pushDomaNo', color: STATUS_COLORS.fail, dashed: true },
                 ];
 
                 extraConfigs.forEach(cfg => {
+                    const data = labels.map(l => {
+                        const val = (groups[l]._extra && groups[l]._extra[cfg.key]) || 0;
+                        if (state.historyPercentMode) {
+                            const totalInBucket = Object.values(groups[l])
+                                .filter(v => typeof v === 'object' && v._total !== undefined)
+                                .reduce((sum, v) => sum + v._total, 0);
+                            return totalInBucket > 0 ? (val / totalInBucket * 100) : 0;
+                        }
+                        return val;
+                    });
+
                     const dataset = {
                         type: 'line',
                         label: cfg.label,
-                        data: labels.map(l => (groups[l]._extra && groups[l]._extra[cfg.key]) || 0),
+                        data: data,
                         borderColor: cfg.color,
                         backgroundColor: cfg.color,
                         borderWidth: 2,
@@ -490,8 +522,10 @@
                     x: { stacked: true },
                     y: { 
                         beginAtZero: true,
+                        max: state.historyPercentMode ? 100 : undefined,
                         ticks: {
                             callback: function(value) {
+                                if (state.historyPercentMode) return value + '%';
                                 if (value % 1 === 0) return value;
                             }
                         }
@@ -521,17 +555,30 @@
                                 const currentGroupLabel = dataset.groupLabel;
 
                                 if (dataset.type === 'line') {
-                                    const percent = totalInBucket > 0 ? ((val / totalInBucket) * 100).toFixed(1) : 0;
+                                    // Если state.historyPercentMode = true, то val — это уже процент (0..100)
+                                    // Если false, то val — абсолютное значение.
+                                    let absoluteVal = state.historyPercentMode ? (val * totalInBucket / 100) : val;
+                                    let percentVal = state.historyPercentMode ? val : (totalInBucket > 0 ? (val / totalInBucket * 100) : 0);
+
+                                    // Округляем для красоты, если это не целое
+                                    const absStr = Number.isInteger(absoluteVal) ? absoluteVal : absoluteVal.toFixed(1);
+                                    const percStr = percentVal.toFixed(1);
+
                                     return [
-                                        `${dataset.label}: ${val} (${percent}% от столбика)`,
+                                        `${dataset.label}: ${absStr} (${percStr}% от столбика)`,
                                         `Всего: ${totalInBucket} в столбике`,
                                     ];
                                 }
 
                                 if (breakdownMode === 'none') {
-                                    const percent = totalInBucket > 0 ? ((val / totalInBucket) * 100).toFixed(1) : 0;
+                                    let absoluteVal = state.historyPercentMode ? (val * totalInBucket / 100) : val;
+                                    let percentVal = state.historyPercentMode ? val : (totalInBucket > 0 ? (val / totalInBucket * 100) : 0);
+
+                                    const absStr = Number.isInteger(absoluteVal) ? absoluteVal : absoluteVal.toFixed(1);
+                                    const percStr = percentVal.toFixed(1);
+
                                     return [
-                                        `${currentGroupLabel}: ${val} (${percent}% от столбика)`,
+                                        `${currentGroupLabel}: ${absStr} (${percStr}% от столбика)`,
                                         `Всего: ${totalInBucket} в столбике`,
                                     ];
                                 } else {
@@ -540,12 +587,20 @@
                                         .filter(ds => ds.statusLabel === currentStatusLabel)
                                         .reduce((sum, ds) => sum + (ds.data[bucketIdx] || 0), 0);
 
-                                    const percOfTotal = totalInBucket > 0 ? ((val / totalInBucket) * 100).toFixed(1) : 0;
-                                    const percStatusOfTotal = totalInBucket > 0 ? ((totalStatusInBucket / totalInBucket) * 100).toFixed(1) : 0;
+                                    let absoluteVal = state.historyPercentMode ? (val * totalInBucket / 100) : val;
+                                    let percentVal = state.historyPercentMode ? val : (totalInBucket > 0 ? (val / totalInBucket * 100) : 0);
+                                    
+                                    let absoluteStatusVal = state.historyPercentMode ? (totalStatusInBucket * totalInBucket / 100) : totalStatusInBucket;
+                                    let percentStatusVal = state.historyPercentMode ? totalStatusInBucket : (totalInBucket > 0 ? (totalStatusInBucket / totalInBucket * 100) : 0);
+
+                                    const absStr = Number.isInteger(absoluteVal) ? absoluteVal : absoluteVal.toFixed(1);
+                                    const percStr = percentVal.toFixed(1);
+                                    const absStatusStr = Number.isInteger(absoluteStatusVal) ? absoluteStatusVal : absoluteStatusVal.toFixed(1);
+                                    const percStatusStr = percentStatusVal.toFixed(1);
 
                                     return [
-                                        `${currentGroupLabel} [${currentStatusLabel}]: ${val} (${percOfTotal}% от столбика)`,
-                                        `${currentStatusLabel}: ${totalStatusInBucket} (${percStatusOfTotal}% от столбика)`,
+                                        `${currentGroupLabel} [${currentStatusLabel}]: ${absStr} (${percStr}% от столбика)`,
+                                        `${currentStatusLabel}: ${absStatusStr} (${percStatusStr}% от столбика)`,
                                         `Всего: ${totalInBucket} в столбике`,
                                     ];
                                 }
@@ -1183,6 +1238,14 @@
                     this.saveSettings();
                 };
             }
+            if (el.togglePercentMode) {
+                el.togglePercentMode.onclick = () => {
+                    state.historyPercentMode = !state.historyPercentMode;
+                    el.togglePercentMode.classList.toggle('active', state.historyPercentMode);
+                    this.renderHistoryChart(state.filteredData);
+                    this.saveSettings();
+                };
+            }
             if (el.toggleExtraLines) {
                 el.toggleExtraLines.onclick = () => {
                     state.showExtraLines = !state.showExtraLines;
@@ -1603,6 +1666,12 @@
                         //     state.panelBreakdown = data.values.panelBreakdown;
                         //     el.panelBreakdown.value = state.panelBreakdown;
                         // }
+                        // if (data.values.historyPercentMode !== undefined) {
+                        //     state.historyPercentMode = data.values.historyPercentMode;
+                        //     if (el.togglePercentMode) {
+                        //         el.togglePercentMode.classList.toggle('active', state.historyPercentMode);
+                        //     }
+                        // }
                         // if (data.values.showExtraLines !== undefined) {
                         //     state.showExtraLines = data.values.showExtraLines;
                         //     if (el.toggleExtraLines) {
@@ -1634,6 +1703,7 @@
                     id: el.filterId.value,
                     historyGrouping: state.historyGrouping,
                     historyBreakdown: state.historyBreakdown,
+                    historyPercentMode: state.historyPercentMode,
                     durationBreakdown: state.durationBreakdown,
                     durationInterval: state.durationInterval,
                     panelBreakdown: state.panelBreakdown,
