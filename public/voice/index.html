@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Voice Memo Pro</title>
+  <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
+  <link rel="stylesheet" href="./voice-ui.css">
+</head>
+<body>
+
+<div id="app-container">
+  <div id="view-record" class="view-record">
+    <h1 style="margin-bottom: 40px; font-weight: 600;">Диктофон онлайн</h1>
+
+    <canvas id="live-visualizer" class="visualizer-canvas" width="600" height="120"></canvas>
+
+    <div class="timer-display" id="timer">00:00.0</div>
+
+    <div class="controls-row">
+      <button class="btn btn-icon" style="opacity: 0; pointer-events: none;">✖️</button>
+      <button class="btn btn-record" id="btn-record-toggle">
+        <div class="inner"></div>
+      </button>
+      <button class="btn btn-icon" id="btn-settings">⚙️</button>
+    </div>
+
+    <div id="recordings-list">
+      <!-- Записи будут здесь -->
+    </div>
+  </div>
+
+  <div id="modal-settings" class="modal-overlay hidden">
+    <div class="settings-panel">
+      <div class="settings-header">Расширенные настройки</div>
+
+      <div class="form-group">
+        <label class="form-label">Микрофон</label>
+        <select id="input-source">
+          <option value="default">Default Input</option>
+        </select>
+      </div>
+
+      <div class="checkbox-row">
+        <span>Авто-регулировка громкости (AGC)</span>
+        <input type="checkbox" id="chk-agc" checked>
+      </div>
+      <div class="checkbox-row">
+        <span>Подавление шума</span>
+        <input type="checkbox" id="chk-noise" checked>
+      </div>
+      <div class="checkbox-row">
+        <span>Подавление эха</span>
+        <input type="checkbox" id="chk-echo" checked>
+      </div>
+
+      <button class="btn btn-close" id="btn-close-settings">Готово</button>
+    </div>
+  </div>
+
+  <div id="view-editor" class="view-editor hidden">
+    <button class="btn btn-close-view" id="btn-close-editor">✖️</button>
+    <div class="editor-timeline" id="editor-timeline">
+      <canvas id="playback-visualizer" width="800" height="200"></canvas>
+      <div id="trim-start" class="trim-handle" style="left: 0;"></div>
+      <div id="trim-end" class="trim-handle" style="right: 0;"></div>
+      <div id="trim-overlay-left" class="trim-overlay" style="left: 0; width: 0;"></div>
+      <div id="trim-overlay-right" class="trim-overlay" style="right: 0; width: 0;"></div>
+      <div id="playback-cursor" class="playback-cursor" style="left: 0;"></div>
+    </div>
+
+    <div class="effects-rack">
+      <div class="effect-module">
+        <div class="module-header">
+          <span>💡 Реверберация</span>
+          <input type="checkbox" id="fx-reverb-active">
+        </div>
+        <div class="sliders-container">
+          <div class="slider-group">
+            <input type="range" id="fx-reverb-mix" min="0" max="1" step="0.01" value="0.3">
+            <span class="slider-label">Mix</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="effect-module">
+        <div class="module-header">
+          <span>📊 Эквалайзер</span>
+          <input type="checkbox" id="fx-eq-active" checked>
+        </div>
+        <div class="sliders-container">
+          <div class="slider-group">
+            <input type="range" id="fx-eq-low" min="-20" max="20" value="0">
+            <span class="slider-label">Low</span>
+          </div>
+          <div class="slider-group">
+            <input type="range" id="fx-eq-mid" min="-20" max="20" value="0">
+            <span class="slider-label">Mid</span>
+          </div>
+          <div class="slider-group">
+            <input type="range" id="fx-eq-high" min="-20" max="20" value="0">
+            <span class="slider-label">High</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="effect-module">
+        <div class="module-header">
+          <span>🌀 Эхо</span>
+          <input type="checkbox" id="fx-echo-active">
+        </div>
+        <div class="sliders-container">
+          <div class="slider-group">
+            <input type="range" id="fx-echo-time" min="0" max="1" step="0.1" value="0.3">
+            <span class="slider-label">Time</span>
+          </div>
+          <div class="slider-group">
+            <input type="range" id="fx-echo-feedback" min="0" max="0.9" step="0.1" value="0.4">
+            <span class="slider-label">Fbk</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="editor-toolbar">
+      <button class="btn btn-action btn-danger" id="btn-discard">Удалить</button>
+      <div style="display: flex; gap: 10px;">
+        <button class="btn btn-action" id="btn-play-pause">▶ Play / ⏸ Pause</button>
+      </div>
+      <div style="display: flex; gap: 10px;">
+        <button class="btn btn-action btn-primary" id="btn-save">Сохранить</button>
+        <button class="btn btn-action" id="btn-save-wav">Скачать WAV</button>
+        <button class="btn btn-action" id="btn-save-mp3">Скачать MP3</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="./voice-ui.js"></script>
+</body>
+</html>
