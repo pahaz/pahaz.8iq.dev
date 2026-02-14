@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>P2P Messenger Tests</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background: #f0f2f5; }
+        .test-suite { background: white; margin-bottom: 20px; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .suite-header { padding: 10px 20px; background: #eee; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+        .suite-header.pass { border-left: 5px solid #4caf50; }
+        .suite-header.fail { border-left: 5px solid #f44336; }
+        .suite-header.running { border-left: 5px solid #2196f3; }
+        .suite-details { padding: 20px; display: none; border-top: 1px solid #ddd; }
+        .test-case { margin-bottom: 8px; }
+        .test-case.pass { color: #2e7d32; }
+        .test-case.fail { color: #c62828; font-weight: bold; }
+        .status-badge { padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; color: white; }
+        .status-badge.pass { background: #4caf50; }
+        .status-badge.fail { background: #f44336; }
+        .status-badge.running { background: #2196f3; }
+        pre { background: #f8f8f8; padding: 10px; border-radius: 4px; overflow-x: auto; }
+    </style>
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+</head>
+<body>
+    <h1>Test Runner <small id="total-stats"></small></h1>
+    <div id="results"></div>
+
+    <!-- Hidden elements for UI tests -->
+    <div id="ui-test-container" style="display: none;">
+        <ul id="peer-list"></ul>
+        <div id="chat-messages"></div>
+        <form id="chat-form">
+            <input type="text" id="message-input">
+        </form>
+    </div>
+
+    <script>window.__TEST__ = true;</script>
+    <script src="transport.js"></script>
+    <script src="crypto.js"></script>
+    <script src="keys.js"></script>
+    <script src="client.js"></script>
+    <script src="app.js"></script>
+    
+    <script>
+        // Micro-framework
+        const resultsDiv = document.getElementById('results');
+        const totalStats = document.getElementById('total-stats');
+        const suites = [];
+        let currentSuite = null;
+
+        function describe(name, fn) {
+            const suite = {
+                name,
+                tests: [],
+                cases: [],
+                passed: 0,
+                failed: 0,
+                element: null
+            };
+            suites.push(suite);
+            currentSuite = suite;
+            fn();
+        }
+
+        function it(name, fn) {
+            currentSuite.tests.push({ name, fn });
+        }
+
+        function assert(condition, message) {
+            if (!condition) throw new Error(message || "Assertion failed");
+        }
+
+        async function runTests() {
+            let totalTests = 0;
+            suites.forEach(s => totalTests += s.tests.length);
+            let finishedTests = 0;
+            let totalPassed = 0;
+            let totalFailed = 0;
+
+            const updateGlobalStats = () => {
+                const isFinished = finishedTests === totalTests;
+                const status = totalFailed > 0 ? 'fail' : (isFinished && totalTests > 0 ? 'pass' : (finishedTests > 0 ? 'running' : ''));
+                const color = status === 'fail' ? '#f44336' : (status === 'pass' ? '#4caf50' : (status === 'running' ? '#2196f3' : '#666'));
+                totalStats.innerHTML = `<span style="color: ${color}">(${totalPassed}/${totalTests} passed)</span>`;
+            };
+            updateGlobalStats();
+
+            for (const suite of suites) {
+                renderSuite(suite);
+                for (const test of suite.tests) {
+                    try {
+                        await test.fn();
+                        suite.cases.push({ name: test.name, status: 'pass' });
+                        suite.passed++;
+                        totalPassed++;
+                    } catch (e) {
+                        console.error(e);
+                        suite.cases.push({ name: test.name, status: 'fail', error: e.message });
+                        suite.failed++;
+                        totalFailed++;
+                    }
+                    finishedTests++;
+                    updateSuiteUI(suite);
+                    updateGlobalStats();
+                }
+            }
+        }
+
+        function renderSuite(suite) {
+            const div = document.createElement('div');
+            div.className = 'test-suite';
+            div.innerHTML = `
+                <div class="suite-header" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'block' ? 'none' : 'block'">
+                    <strong>${suite.name}</strong>
+                    <span class="suite-summary"></span>
+                </div>
+                <div class="suite-details"></div>
+            `;
+            suite.element = div;
+            resultsDiv.appendChild(div);
+            updateSuiteUI(suite);
+        }
+
+        function updateSuiteUI(suite) {
+            const header = suite.element.querySelector('.suite-header');
+            const summary = suite.element.querySelector('.suite-summary');
+            const details = suite.element.querySelector('.suite-details');
+            
+            const totalInSuite = suite.tests.length;
+            const finishedInSuite = suite.passed + suite.failed;
+            
+            let status = '';
+            if (suite.failed > 0) {
+                status = 'fail';
+            } else if (finishedInSuite === totalInSuite && totalInSuite > 0) {
+                status = 'pass';
+            } else if (finishedInSuite > 0) {
+                status = 'running';
+            }
+
+            summary.innerHTML = `<span class="status-badge ${status}">${suite.passed}/${totalInSuite} passed</span>`;
+            header.className = `suite-header ${status}`;
+            
+            details.innerHTML = suite.cases.map(c => {
+                const safeName = c.name.replace(/[&<>"']/g, m => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'}[m]));
+                const safeError = c.error ? c.error.replace(/[&<>"']/g, m => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'}[m])) : '';
+                return `
+                    <div class="test-case ${c.status}">
+                        ${c.status === 'pass' ? '✅' : '❌'} ${safeName}
+                        ${c.error ? `<pre>${safeError}</pre>` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+    </script>
+
+    <script src="crypto.test.js"></script>
+    <script src="keys.test.js"></script>
+    <script src="transport.test.js"></script>
+    <script src="client.test.js"></script>
+    <script src="integration.test.js"></script>
+    <script src="xss.test.js"></script>
+    <script>
+        window.addEventListener('load', () => {
+            runTests().catch(console.error);
+        });
+    </script>
+</body>
+</html>

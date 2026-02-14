@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P2P Messenger</title>
+    <link rel="stylesheet" href="./style.css">
+    <script src="https://unpkg.com/mqtt@5.15.0/dist/mqtt.min.js"></script>
+</head>
+<body>
+    <div id="app">
+        <!-- Error Modal -->
+        <div id="modal-error" class="modal-overlay hidden">
+            <div class="modal-card">
+                <div class="modal-header">
+                    <span class="modal-icon">⚠️</span>
+                    <h3>Connection Error</h3>
+                </div>
+                <div class="modal-body">
+                    <p id="error-message">Failed to connect to the server.</p>
+                </div>
+                <div class="modal-footer">
+                    <button id="btn-error-close" class="primary">OK</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Screen 1: Registration -->
+        <section id="screen-registration" class="screen">
+            <div class="card">
+                <h2>Passport Office</h2>
+                <div class="form-group">
+                    <label for="username">Your Nickname</label>
+                    <input type="text" id="username" placeholder="Enter nickname...">
+                </div>
+                <div class="sas-display">
+                    <span id="reg-sas"></span>
+                    <button id="btn-regenerate" title="Generate another">🎲</button>
+                </div>
+                <button id="btn-continue" class="primary">Continue</button>
+            </div>
+        </section>
+
+        <!-- Screen 2: Discovery -->
+        <section id="screen-discovery" class="screen hidden">
+            <div class="card">
+                <h2>Discovery</h2>
+                <div class="form-group">
+                    <label for="mqtt-server">MQTT Server</label>
+                    <input type="text" id="mqtt-server" placeholder="wss://mqtt.8iq.dev/mqtt">
+                </div>
+                <div class="form-group">
+                    <label for="room-id">Room Name</label>
+                    <input type="text" id="room-id" placeholder="e.g. matrix">
+                </div>
+                <button id="btn-join" class="primary">Join Chat</button>
+            </div>
+        </section>
+
+        <!-- Screen 3: Chat -->
+        <section id="screen-chat" class="screen hidden">
+            <div class="chat-container">
+                <aside class="sidebar" id="sidebar">
+                    <div class="sidebar-header">
+                        <div class="sidebar-header-top">
+                            <div class="my-info">
+                                <span id="my-name"></span>
+                                <span id="my-sas"></span>
+                            </div>
+                            <div class="header-actions">
+                                <button id="btn-logout" title="Logout">Logout</button>
+                                <button id="btn-mobile-close" class="mobile-only">✕</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="participants-title">
+                        <h3>Participants</h3>
+                    </div>
+                    <ul id="peer-list">
+                        <!-- Peers will be injected here -->
+                    </ul>
+                </aside>
+                <main class="chat-main">
+                    <header class="chat-header">
+                        <button id="btn-hamburger" class="mobile-only">☰</button>
+                        <h2 id="current-room-name">Room: ...</h2>
+                        <button id="btn-leave" title="Leave room">Leave</button>
+                    </header>
+                    <div id="chat-messages" class="messages-area">
+                        <!-- Messages will be injected here -->
+                    </div>
+                    <form id="chat-form" class="input-area">
+                        <input type="text" id="message-input" placeholder="Write a message..." autocomplete="off">
+                        <button type="submit">Send</button>
+                    </form>
+                </main>
+            </div>
+        </section>
+
+        <!-- Screen: Unavailable -->
+        <section id="screen-unavailable" class="screen hidden">
+            <div class="card">
+                <div class="unavailable-icon">🚧</div>
+                <h2>Сервис недоступен</h2>
+                <p>Сервис недоступен, вам придется разработать что-то самостоятельно!</p>
+                <button onclick="location.reload()" class="primary">Попробовать снова</button>
+            </div>
+        </section>
+    </div>
+
+    <script src="./transport.js"></script>
+    <script src="./crypto.js"></script>
+    <script src="./keys.js"></script>
+    <script src="./client.js"></script>
+    <script src="./app.js"></script>
+</body>
+</html>
