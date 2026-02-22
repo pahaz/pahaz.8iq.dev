@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Life Calendar Generator</title>
+    <link rel="stylesheet" href="./tailwind.css">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        #preview-container { 
+            aspect-ratio: var(--ratio, 9/16); 
+            max-height: 85vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            max-width: 100%;
+            margin: 0 auto;
+            border-radius: 4px;
+            position: relative;
+            overflow: hidden;
+        }
+        canvas { 
+            background-color: #000; 
+            max-width: 100%; 
+            max-height: 100%; 
+            width: auto; 
+            height: auto; 
+            display: block;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-bottom-right-radius: 0.5rem;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        #res-preset option {
+            padding: 8px;
+            border-radius: 4px;
+            margin-bottom: 2px;
+        }
+        #res-preset option:checked {
+            background-color: #000 !important;
+            color: #fff;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900 min-h-screen flex flex-col">
+    <header class="py-12 px-4 text-center">
+        <h1 class="text-4xl font-bold tracking-tight sm:text-6xl mb-4">Life Calendar</h1>
+        <p class="text-lg text-gray-600 max-w-2xl mx-auto">
+            Локальная генерация набора изображений для вашего календаря жизни.
+            Данные никуда не отправляются.
+        </p>
+    </header>
+
+    <main class="flex-grow container mx-auto max-w-5xl px-4 pb-24 grid grid-cols-1 lg:grid-cols-2 gap-12">
+        <div class="space-y-8">
+            <section>
+                <h2 class="text-xl font-semibold mb-4 text-gray-400 uppercase tracking-widest text-xs">1. Выберите шаблон</h2>
+                <div id="template-picker" class="grid grid-cols-2 gap-4">
+                    <!-- Будет заполнено динамически из main.js -->
+                </div>
+            </section>
+
+            <section>
+                <h2 class="text-xl font-semibold mb-4 text-gray-400 uppercase tracking-widest text-xs">2. Разрешение</h2>
+                <div class="space-y-4">
+                    <div class="relative">
+                        <input type="text" id="res-search" placeholder="Поиск модели..." class="w-full p-3 pl-10 bg-white border border-gray-300 rounded-t-lg shadow-sm focus:ring-2 focus:ring-black outline-none border-b-0">
+                        <div class="absolute left-3 top-3.5 text-gray-400">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                        </div>
+                        <select id="res-preset" size="6" class="w-full p-2 bg-white border border-gray-300 rounded-b-lg shadow-sm focus:ring-2 focus:ring-black outline-none overflow-y-auto custom-scrollbar">
+                        </select>
+                    </div>
+                    
+                    <div id="custom-res-block" class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">Ширина (px)</label>
+                            <input type="number" id="res-width" min="320" max="6000" class="w-full p-3 border border-gray-300 rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">Высота (px)</label>
+                            <input type="number" id="res-height" min="320" max="6000" class="w-full p-3 border border-gray-300 rounded-lg">
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h2 class="text-xl font-semibold mb-4 text-gray-400 uppercase tracking-widest text-xs">3. Данные и предпросмотр</h2>
+                <div class="space-y-6">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Дата рождения</label>
+                        <input type="date" id="birth-date" class="w-full p-3 border border-gray-300 rounded-lg">
+                    </div>
+                    
+                    <div>
+                        <div class="flex justify-between items-center mb-2">
+                            <label class="text-sm font-medium">Неделя для превью</label>
+                            <span id="preview-week-label" class="text-sm text-gray-500 font-mono">1 / 4368</span>
+                        </div>
+                        <input type="range" id="time-travel" min="0" max="4367" value="0" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-black">
+                    </div>
+                </div>
+            </section>
+
+            <section class="p-6 bg-white border border-gray-200 rounded-2xl shadow-sm">
+                <div class="mb-4">
+                    <h2 class="text-xl font-semibold">Экспорт</h2>
+                    <p id="est-size" class="text-sm text-gray-500">Оценка размера: ~150 MB (ZIP)</p>
+                </div>
+                
+                <button id="btn-generate" class="w-full bg-black text-white py-4 rounded-xl font-bold hover:bg-gray-800 transition-colors disabled:bg-gray-300">
+                    Сгенерировать ZIP
+                </button>
+                <p id="gen-info" class="text-[10px] text-gray-400 mt-2 text-center uppercase tracking-tight">Будут сгенерированы только будущие недели</p>
+                
+                <div id="progress-container" class="hidden mt-6 space-y-3">
+                    <div class="flex justify-between text-sm">
+                        <span id="progress-text" class="font-medium text-gray-700">Генерация 0 / 4368</span>
+                        <span id="progress-percent" class="font-bold">0%</span>
+                    </div>
+                    <div class="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                        <div id="progress-bar" class="bg-black h-2.5 rounded-full transition-all duration-300 ease-out" style="width: 0%"></div>
+                    </div>
+                    <button id="btn-cancel" class="w-full text-red-500 text-sm font-medium hover:underline py-2">
+                        Отмена
+                    </button>
+                </div>
+            </section>
+        </div>
+
+        <div class="flex flex-col items-center">
+            <div id="preview-container" class="sticky top-8 w-full">
+                <canvas id="preview-canvas"></canvas>
+            </div>
+        </div>
+    </main>
+
+    <footer class="py-12 text-center text-xs text-gray-400 border-t border-gray-100 mt-24">
+        &copy; 2026 Life Calendar. Создано локально в вашем браузере.
+    </footer>
+
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
