@@ -8,12 +8,13 @@ export interface Template {
 
 const getGridParams = (config: RenderConfig) => {
   const { width, height } = config;
-  const gridPadding = 0.05;
-  const topOffset = 0.20;
+  const gridPadding = 0.10; // Increased from 0.05
+  const topOffset = 0.23;    // Increased from 0.20 to move dots down ~5mm
+  const bottomOffset = 0.02; // Decreased from 0.05 to compensate for topOffset increase
 
   const sidePadding = width * gridPadding;
   const topPadding = height * topOffset;
-  const bottomPadding = height * gridPadding;
+  const bottomPadding = height * bottomOffset;
   
   const availableWidth = width - sidePadding * 2;
   const availableHeight = height - topPadding - bottomPadding;
@@ -44,7 +45,6 @@ export const defectTemplate: Template = {
     const radius = Math.max(0.5, stepX * dotRadius);
     const row30 = 30 - START_AGE;
     const row60 = 60 - START_AGE;
-    const textColor = 'rgba(255, 255, 255, 0.5)';
     const fontSize = Math.floor(height * 0.012);
     const progressFontSize = Math.floor(height * 0.015);
 
@@ -72,10 +72,15 @@ export const defectTemplate: Template = {
 
     // Lines
     const drawLine = (ageRow: number, label: string, gapOffset: number) => {
+      const ageThreshold = (START_AGE + ageRow) * WEEKS_PER_YEAR;
+      const isPassed = weekIndex >= ageThreshold;
+      const currentColor = isPassed ? '#444444' : '#ffffff';
+      const currentOpacity = 0.5;
+
       const y = gridY + ageRow * stepY + gapOffset - gapSize / 2;
-      svg += `<line x1="${gridX}" y1="${y}" x2="${gridX + stepX * 24}" y2="${y}" stroke="${textColor}" stroke-width="4" />`;
-      svg += `<text x="${gridX + stepX * 26}" y="${y}" dy="${fontSize * 0.35}" fill="white" fill-opacity="0.5" font-size="${fontSize}" font-family="Inter, sans-serif" font-weight="bold" text-anchor="middle">${label}</text>`;
-      svg += `<line x1="${gridX + stepX * 28}" y1="${y}" x2="${gridX + stepX * 52}" y2="${y}" stroke="${textColor}" stroke-width="4" />`;
+      svg += `<line x1="${gridX}" y1="${y}" x2="${gridX + stepX * 24}" y2="${y}" stroke="${currentColor}" stroke-opacity="${currentOpacity}" stroke-width="4" />`;
+      svg += `<text x="${gridX + stepX * 26}" y="${y}" dy="${fontSize * 0.35}" fill="${currentColor}" fill-opacity="${currentOpacity}" font-size="${fontSize}" font-family="Inter, sans-serif" font-weight="bold" text-anchor="middle">${label}</text>`;
+      svg += `<line x1="${gridX + stepX * 28}" y1="${y}" x2="${gridX + stepX * 52}" y2="${y}" stroke="${currentColor}" stroke-opacity="${currentOpacity}" stroke-width="4" />`;
     };
     drawLine(row30, '30', gapSize);
     drawLine(row60, '60', gapSize * 2);
@@ -83,7 +88,7 @@ export const defectTemplate: Template = {
     // Progress
     const progress = ((weekIndex + 1) / TOTAL_WEEKS * 100).toFixed(1);
     const bottomAreaStart = gridY + gridHeight;
-    const textY = bottomAreaStart + (height - bottomAreaStart) / 2;
+    const textY = bottomAreaStart + (height - bottomAreaStart) * 0.25;
     svg += `<text x="${width / 2}" y="${textY}" dy="${progressFontSize * 0.35}" fill="white" fill-opacity="0.5" font-size="${progressFontSize}" font-family="Inter, sans-serif" font-weight="bold" text-anchor="middle">${progress}% to 90</text>`;
     svg += `</svg>`;
     return svg;
@@ -127,10 +132,19 @@ export const defectTemplate: Template = {
     ctx.textBaseline = 'middle';
 
     const drawYearLine = (ageRow: number, label: string, gapOffset: number) => {
+      const ageThreshold = (START_AGE + ageRow) * WEEKS_PER_YEAR;
+      const isPassed = weekIndex >= ageThreshold;
+      const currentColor = isPassed ? '#444444' : '#ffffff';
+
       const y = gridY + ageRow * stepY + gapOffset - gapSize / 2;
+      ctx.strokeStyle = currentColor;
+      ctx.fillStyle = currentColor;
+      ctx.globalAlpha = 0.5;
+
       ctx.beginPath(); ctx.moveTo(gridX, y); ctx.lineTo(gridX + stepX * 24, y); ctx.stroke();
       ctx.fillText(label, gridX + stepX * 26, y);
       ctx.beginPath(); ctx.moveTo(gridX + stepX * 28, y); ctx.lineTo(gridX + stepX * 52, y); ctx.stroke();
+      ctx.globalAlpha = 1.0;
     };
     drawYearLine(row30, '30', gapSize);
     drawYearLine(row60, '60', gapSize * 2);
@@ -168,7 +182,7 @@ export const defectTemplate: Template = {
     ctx.font = `${progressFontSize}px sans-serif`;
     ctx.textAlign = 'center';
     const bottomAreaStart = gridY + gridHeight;
-    const textY = bottomAreaStart + (height - bottomAreaStart) / 2 + progressFontSize / 2;
+    const textY = bottomAreaStart + (height - bottomAreaStart) * 0.25 + progressFontSize / 2;
     ctx.fillText(`${progress}% to 90`, width / 2, textY);
   }
 };
@@ -189,7 +203,6 @@ export const coloredTemplate: Template = {
     const radius = Math.max(0.5, stepX * dotRadius);
     const row30 = 30 - START_AGE;
     const row60 = 60 - START_AGE;
-    const textColor = 'rgba(255, 255, 255, 0.5)';
     const fontSize = Math.floor(height * 0.012);
     const progressFontSize = Math.floor(height * 0.015);
 
@@ -213,7 +226,7 @@ export const coloredTemplate: Template = {
       if (i < weekIndex) {
         fill = '#444444';
       } else if (i === weekIndex) {
-        fill = '#ffffff';
+        fill = '#ff8c00';
         r = radius * 1.2;
       } else {
         const age = START_AGE + row;
@@ -226,17 +239,30 @@ export const coloredTemplate: Template = {
     }
 
     const drawLine = (ageRow: number, label: string, gapOffset: number) => {
+      const ageThreshold = (START_AGE + ageRow) * WEEKS_PER_YEAR;
+      const isPassed = weekIndex >= ageThreshold;
+
+      let currentColor = '#ffffff';
+      if (isPassed) {
+        currentColor = '#444444';
+      } else {
+        const age = START_AGE + ageRow;
+        const colorObj = ageColors.find(c => age < c.maxAge) || ageColors[ageColors.length-1];
+        currentColor = colorObj.color;
+      }
+      const currentOpacity = 0.5;
+
       const y = gridY + ageRow * stepY + gapOffset - gapSize / 2;
-      svg += `<line x1="${gridX}" y1="${y}" x2="${gridX + stepX * 24}" y2="${y}" stroke="${textColor}" stroke-width="4" />`;
-      svg += `<text x="${gridX + stepX * 26}" y="${y}" dy="${fontSize * 0.35}" fill="white" fill-opacity="0.5" font-size="${fontSize}" font-family="Inter, sans-serif" font-weight="bold" text-anchor="middle">${label}</text>`;
-      svg += `<line x1="${gridX + stepX * 28}" y1="${y}" x2="${gridX + stepX * 52}" y2="${y}" stroke="${textColor}" stroke-width="4" />`;
+      svg += `<line x1="${gridX}" y1="${y}" x2="${gridX + stepX * 24}" y2="${y}" stroke="${currentColor}" stroke-opacity="${currentOpacity}" stroke-width="4" />`;
+      svg += `<text x="${gridX + stepX * 26}" y="${y}" dy="${fontSize * 0.35}" fill="${currentColor}" fill-opacity="${currentOpacity}" font-size="${fontSize}" font-family="Inter, sans-serif" font-weight="bold" text-anchor="middle">${label}</text>`;
+      svg += `<line x1="${gridX + stepX * 28}" y1="${y}" x2="${gridX + stepX * 52}" y2="${y}" stroke="${currentColor}" stroke-opacity="${currentOpacity}" stroke-width="4" />`;
     };
     drawLine(row30, '30', gapSize);
     drawLine(row60, '60', gapSize * 2);
 
     const progress = ((weekIndex + 1) / TOTAL_WEEKS * 100).toFixed(1);
     const bottomAreaStart = gridY + gridHeight;
-    const textY = bottomAreaStart + (height - bottomAreaStart) / 2;
+    const textY = bottomAreaStart + (height - bottomAreaStart) * 0.25;
     svg += `<text x="${width / 2}" y="${textY}" dy="${progressFontSize * 0.35}" fill="white" fill-opacity="0.5" font-size="${progressFontSize}" font-family="Inter, sans-serif" font-weight="bold" text-anchor="middle">${progress}% to 90</text>`;
     svg += `</svg>`;
     return svg;
@@ -278,10 +304,27 @@ export const coloredTemplate: Template = {
     const fontSize = Math.floor(height * 0.012);
     ctx.font = `${fontSize}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     const drawYearLine = (ageRow: number, label: string, gapOffset: number) => {
+      const ageThreshold = (START_AGE + ageRow) * WEEKS_PER_YEAR;
+      const isPassed = weekIndex >= ageThreshold;
+
+      let currentColor = '#ffffff';
+      if (isPassed) {
+        currentColor = '#444444';
+      } else {
+        const age = START_AGE + ageRow;
+        const colorObj = ageColors.find(c => age < c.maxAge) || ageColors[ageColors.length-1];
+        currentColor = colorObj.color;
+      }
+
       const y = gridY + ageRow * stepY + gapOffset - gapSize / 2;
+      ctx.strokeStyle = currentColor;
+      ctx.fillStyle = currentColor;
+      ctx.globalAlpha = 0.5;
+
       ctx.beginPath(); ctx.moveTo(gridX, y); ctx.lineTo(gridX + stepX * 24, y); ctx.stroke();
       ctx.fillText(label, gridX + stepX * 26, y);
       ctx.beginPath(); ctx.moveTo(gridX + stepX * 28, y); ctx.lineTo(gridX + stepX * 52, y); ctx.stroke();
+      ctx.globalAlpha = 1.0;
     };
     drawYearLine(row30, '30', gapSize);
     drawYearLine(row60, '60', gapSize * 2);
@@ -308,7 +351,7 @@ export const coloredTemplate: Template = {
       if (row >= row60) offsetY += gapSize;
       const x = gridX + col * stepX + stepX / 2;
       const y = gridY + row * stepY + stepY / 2 + offsetY;
-      ctx.fillStyle = '#ffffff';
+      ctx.fillStyle = '#ff8c00';
       ctx.beginPath(); ctx.arc(x, y, radius * 1.2, 0, Math.PI * 2); ctx.fill();
     }
 
@@ -319,7 +362,7 @@ export const coloredTemplate: Template = {
     ctx.font = `${progressFontSize}px sans-serif`;
     ctx.textAlign = 'center';
     const bottomAreaStart = gridY + gridHeight;
-    const textY = bottomAreaStart + (height - bottomAreaStart) / 2 + progressFontSize / 2;
+    const textY = bottomAreaStart + (height - bottomAreaStart) * 0.25 + progressFontSize / 2;
     ctx.fillText(`${progress}% to 90`, width / 2, textY);
   }
 };

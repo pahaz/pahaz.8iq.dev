@@ -19,7 +19,7 @@
             position: relative;
             overflow: hidden;
         }
-        canvas { 
+        #preview-image { 
             background-color: #000; 
             max-width: 100%; 
             max-height: 100%; 
@@ -56,8 +56,8 @@
     <header class="py-12 px-4 text-center">
         <h1 class="text-4xl font-bold tracking-tight sm:text-6xl mb-4">Life Calendar</h1>
         <p class="text-lg text-gray-600 max-w-2xl mx-auto">
-            Локальная генерация набора изображений для вашего календаря жизни.
-            Данные никуда не отправляются.
+            Изображение обновляется автоматически каждый день.
+            Используйте API для настройки автоматической смены обоев.
         </p>
     </header>
 
@@ -117,41 +117,51 @@
 
             <section class="p-6 bg-white border border-gray-200 rounded-2xl shadow-sm">
                 <div class="mb-4">
-                    <h2 class="text-xl font-semibold">Экспорт</h2>
-                    <p id="est-size" class="text-sm text-gray-500">Оценка размера: ~150 MB (ZIP)</p>
+                    <h2 class="text-xl font-semibold">Настройка автоматизации</h2>
+                    <p class="text-sm text-gray-500 mt-2">
+                        Используйте эту ссылку в Apple Shortcuts или других приложениях для автоматической смены обоев каждый день.
+                    </p>
                 </div>
                 
-                <button id="btn-generate" class="w-full bg-black text-white py-4 rounded-xl font-bold hover:bg-gray-800 transition-colors disabled:bg-gray-300">
-                    Сгенерировать ZIP
-                </button>
-                <p id="gen-info" class="text-[10px] text-gray-400 mt-2 text-center uppercase tracking-tight">Будут сгенерированы только будущие недели</p>
-                
-                <div id="progress-container" class="hidden mt-6 space-y-3">
-                    <div class="flex justify-between text-sm">
-                        <span id="progress-text" class="font-medium text-gray-700">Генерация 0 / 4368</span>
-                        <span id="progress-percent" class="font-bold">0%</span>
+                <div class="space-y-4">
+                    <div class="relative">
+                        <input type="text" id="automation-url" readonly class="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg text-xs font-mono pr-20" value="https://...">
+                        <button id="btn-copy" class="absolute right-2 top-2 px-3 py-1 bg-black text-white text-xs rounded hover:bg-gray-800 transition-colors">
+                            Copy
+                        </button>
                     </div>
-                    <div class="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
-                        <div id="progress-bar" class="bg-black h-2.5 rounded-full transition-all duration-300 ease-out" style="width: 0%"></div>
+                    
+                    <div class="bg-gray-50 p-4 rounded-xl">
+                        <h3 class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">Инструкция (iOS)</h3>
+                        <ol class="text-xs text-gray-600 list-decimal pl-4 space-y-2">
+                            <li>Откройте приложение "Команды" (Shortcuts).</li>
+                            <li>Создайте новую команду:
+                                <ul class="list-disc pl-4 mt-1 space-y-1">
+                                    <li>Добавьте действие: <b>Получить содержимое URL</b> (Get contents of URL). Вставьте скопированную выше ссылку.</li>
+                                    <li>Добавьте действие: <b>Установить обои</b> (Set Wallpaper). Используйте результат предыдущего шага.</li>
+                                </ul>
+                            </li>
+                            <li>Настройте автоматизацию: запуск каждый день в выбранное время.</li>
+                        </ol>
                     </div>
-                    <button id="btn-cancel" class="w-full text-red-500 text-sm font-medium hover:underline py-2">
-                        Отмена
-                    </button>
                 </div>
             </section>
         </div>
 
         <div class="flex flex-col items-center">
-            <div id="preview-container" class="sticky top-8 w-full">
-                <canvas id="preview-canvas"></canvas>
+            <div id="preview-container" class="sticky top-8 w-full bg-black rounded-lg overflow-hidden flex items-center justify-center">
+                <img id="preview-image" src="" alt="Life Calendar Preview" class="max-w-full max-h-full">
             </div>
         </div>
     </main>
 
     <footer class="py-12 text-center text-xs text-gray-400 border-t border-gray-100 mt-24">
-        &copy; 2026 Life Calendar. Создано локально в вашем браузере.
+        &copy; 2026 Life Calendar.
     </footer>
 
+    <script>
+        window.LIFE_CALENDAR_API_URL = 'https://api-gules-psi-57.vercel.app/life-calendar/png';
+    </script>
     <script type="module" src="js/main.js"></script>
 </body>
 </html>
