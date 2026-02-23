@@ -15,15 +15,15 @@ export default {
             dotAlpha: 1.0,
             colorDimmer: 0.6,
             ageColors: [
-                { maxAge: 6, color: '#A0C4FF' }, // 1-6 лет (пастельный синий)
-                { maxAge: 11, color: '#2D5A27' }, // 7-11 лет (приглушенный темно-зеленый)
-                { maxAge: 15, color: '#4B7B43' }, // 12-15 лет (приглушенный зеленый)
-                { maxAge: 18, color: '#9DCC9D' }, // 16-18 лет (пастельный зеленый)
-                { maxAge: 22, color: '#E9E9BE' }, // 19-22 лет (приглушенный желтый)
-                { maxAge: 26, color: '#F0B67F' }, // 23-26 лет (пастельный оранжевый)
-                { maxAge: 30, color: '#D96C6C' }, // 26-30 лет (приглушенный красный)
-                { maxAge: 60, color: '#C04040' }, // 30-60 лет (глубокий приглушенный красный)
-                { maxAge: 90, color: '#916BBF' }, // 60-90 лет (пастельный фиолетовый)
+                { maxAge: 6, color: '#A0C4FF' }, // 1-6 years (pastel blue)
+                { maxAge: 11, color: '#2D5A27' }, // 7-11 years (muted dark green)
+                { maxAge: 15, color: '#4B7B43' }, // 12-15 years (muted green)
+                { maxAge: 18, color: '#9DCC9D' }, // 16-18 years (pastel green)
+                { maxAge: 22, color: '#E9E9BE' }, // 19-22 years (muted yellow)
+                { maxAge: 26, color: '#F0B67F' }, // 23-26 years (pastel orange)
+                { maxAge: 30, color: '#D96C6C' }, // 26-30 years (muted red)
+                { maxAge: 60, color: '#C04040' }, // 30-60 years (deep muted red)
+                { maxAge: 90, color: '#916BBF' }, // 60-90 years (pastel purple)
             ]
         };
     },
@@ -49,12 +49,12 @@ export default {
 
         for (let row = 0; row < rows; row++) {
             let offsetY = 0;
-            if (row >= row30) offsetY += gapSize; // После 30 лет
-            if (row >= row60) offsetY += gapSize; // После 60 лет
+            if (row >= row30) offsetY += gapSize; // After 30 years
+            if (row >= row60) offsetY += gapSize; // After 60 years
 
             const y = gridY + row * stepY + stepY / 2 + offsetY;
             
-            // Получаем цвет для всей строки (года), так как в рамках одного года цвет не меняется по заданию
+            // Get color for the entire row (year), since the color doesn't change within a year according to the task
             const firstWeekOfYear = row * WEEKS_PER_YEAR;
             ctx.globalAlpha = options.dotAlpha * options.colorDimmer;
             ctx.fillStyle = this._getDotColor(firstWeekOfYear, options);
@@ -69,7 +69,7 @@ export default {
             ctx.globalAlpha = 1.0;
         }
 
-        // Рисуем линии и подписи 30/60 лет
+        // Draw lines and labels for 30/60 years
         ctx.strokeStyle = options.textColor;
         ctx.fillStyle = options.textColor;
         ctx.lineWidth = 4;
@@ -102,7 +102,7 @@ export default {
         const row30 = 30 - START_AGE;
         const row60 = 60 - START_AGE;
 
-        // Рисуем прошедшие недели (затемняем их)
+        // Draw past weeks (dim them)
         ctx.fillStyle = options.dotColorPast;
         for (let i = 0; i < weekIndex; i++) {
             const row = Math.floor(i / WEEKS_PER_YEAR);
@@ -120,7 +120,7 @@ export default {
             ctx.fill();
         }
 
-        // Текущая неделя
+        // Current week
         if (weekIndex >= 0 && weekIndex < totalWeeks) {
             const row = Math.floor(weekIndex / WEEKS_PER_YEAR);
             const col = weekIndex % WEEKS_PER_YEAR;
@@ -138,7 +138,7 @@ export default {
             ctx.fill();
         }
 
-        // Текст прогресса
+        // Progress text
         const progress = ((weekIndex + 1) / totalWeeks * 100).toFixed(1);
         ctx.fillStyle = options.textColor;
         const fontSize = Math.floor(config.height * 0.015);

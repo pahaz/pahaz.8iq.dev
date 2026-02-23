@@ -10,9 +10,9 @@ export default {
             dotColorPast: '#444444',
             dotColorCurrent: '#ff8c00',
             textColor: 'rgba(255, 255, 255, 0.5)',
-            dotRadius: 0.4, // Относительно шага сетки
-            gridPadding: 0.05, // Минимальный боковой и нижний отступ (5% от меньшей стороны)
-            topOffset: 0.20, // Отступ сверху для часов (20% от высоты)
+            dotRadius: 0.4, // Relative to grid step
+            gridPadding: 0.05, // Minimum side and bottom padding (5% of smaller side)
+            topOffset: 0.20, // Top offset for clocks (20% of height)
         };
     },
 
@@ -32,8 +32,8 @@ export default {
 
         for (let row = 0; row < rows; row++) {
             let offsetY = 0;
-            if (row >= row30) offsetY += gapSize; // После 30 лет
-            if (row >= row60) offsetY += gapSize; // После 60 лет
+            if (row >= row30) offsetY += gapSize; // After 30 years
+            if (row >= row60) offsetY += gapSize; // After 60 years
 
             const y = gridY + row * stepY + stepY / 2 + offsetY;
             for (let col = 0; col < WEEKS_PER_YEAR; col++) {
@@ -45,7 +45,7 @@ export default {
             }
         }
 
-        // Рисуем линии и подписи 30/60 лет
+        // Draw lines and labels for 30/60 years
         ctx.strokeStyle = options.textColor;
         ctx.fillStyle = options.textColor;
         ctx.lineWidth = 4;
@@ -57,16 +57,16 @@ export default {
         const drawYearLine = (ageRow, label, gapOffset) => {
             const y = gridY + ageRow * stepY + gapOffset - gapSize / 2;
             
-            // Линия слева
+            // Left line
             ctx.beginPath();
             ctx.moveTo(gridX, y);
             ctx.lineTo(gridX + stepX * 24, y);
             ctx.stroke();
 
-            // Текст
+            // Text
             ctx.fillText(label, gridX + stepX * 26, y);
 
-            // Линия справа
+            // Right line
             ctx.beginPath();
             ctx.moveTo(gridX + stepX * 28, y);
             ctx.lineTo(gridX + stepX * 52, y);
@@ -84,7 +84,7 @@ export default {
         const row30 = 30 - START_AGE;
         const row60 = 60 - START_AGE;
 
-        // Рисуем прошедшие недели
+        // Draw past weeks
         ctx.fillStyle = options.dotColorPast;
         for (let i = 0; i < weekIndex; i++) {
             const row = Math.floor(i / WEEKS_PER_YEAR);
@@ -102,7 +102,7 @@ export default {
             ctx.fill();
         }
 
-        // Текущая неделя
+        // Current week
         if (weekIndex >= 0 && weekIndex < totalWeeks) {
             const row = Math.floor(weekIndex / WEEKS_PER_YEAR);
             const col = weekIndex % WEEKS_PER_YEAR;
@@ -120,14 +120,14 @@ export default {
             ctx.fill();
         }
 
-        // Текст прогресса
+        // Progress text
         const progress = ((weekIndex + 1) / totalWeeks * 100).toFixed(1);
         ctx.fillStyle = options.textColor;
         const fontSize = Math.floor(config.height * 0.015);
         ctx.font = `${fontSize}px sans-serif`;
         ctx.textAlign = 'center';
         
-        // Рисуем текст посередине нижнего отступа
+        // Draw text in the middle of the bottom padding
         const bottomAreaStart = gridY + gridHeight;
         const bottomAreaHeight = config.height - bottomAreaStart;
         const textY = bottomAreaStart + bottomAreaHeight / 2 + fontSize / 2;
@@ -145,17 +145,17 @@ export default {
         
         const rows = TOTAL_WEEKS / WEEKS_PER_YEAR;
         
-        // Добавляем пространство для двух линий (на 30 и 60 годах)
-        // Каждая линия "занимает" высоту примерно одного шага сетки
+        // Add space for two lines (at 30 and 60 years)
+        // Each line "occupies" height approximately equal to one grid step
         const gapRows = 2; 
         const totalEffectiveRows = rows + gapRows;
 
-        // Чтобы ячейки были строго квадратными
+        // Ensure cells are strictly square
         const step = Math.floor(Math.min(availableWidth / WEEKS_PER_YEAR, availableHeight / totalEffectiveRows));
         
         const stepX = step;
         const stepY = step;
-        const gapSize = step; // Расстояние между блоками
+        const gapSize = step; // Distance between blocks
         
         const gridWidth = stepX * WEEKS_PER_YEAR;
         const gridHeight = stepY * rows + gapSize * 2;

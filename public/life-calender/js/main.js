@@ -94,12 +94,12 @@ function updateEstimatedSize() {
     const currentWeekIndex = calculateWeekIndex(currentConfig.birthDate);
     const totalToGenerate = TOTAL_WEEKS - currentWeekIndex;
     
-    // Получаем текущие размеры из канваса или конфига
+    // Get current dimensions from canvas or config
     const w = previewCanvas.width;
     const h = previewCanvas.height;
     
-    // Базовая оценка: ~0.15 байт на пиксель для PNG (эмпирически для данного шаблона при высокой детализации)
-    // Минимум 20KB на файл (метаданные + простая сетка)
+    // Base estimate: ~0.15 bytes per pixel for PNG (empirical for this template at high detail)
+    // Minimum 20KB per file (metadata + simple grid)
     const bytesPerFile = Math.max(20480, (w * h) * 0.15);
     const estSizeMb = Math.max(1, Math.round((totalToGenerate * bytesPerFile) / (1024 * 1024)));
     
@@ -165,7 +165,7 @@ function populatePresets(filter = '') {
     if ('custom'.includes(searchTerm) || searchTerm === '') {
         const customOption = document.createElement('option');
         customOption.value = 'custom';
-        customOption.textContent = 'Custom / Свой размер';
+        customOption.textContent = 'Custom / Own size';
         resPresetSelect.appendChild(customOption);
     }
 
@@ -243,7 +243,7 @@ function startGeneration() {
 
     const filename = `LifeCalendar_${currentConfig.templateId}_${currentConfig.birthDate}_${previewCanvas.width}x${previewCanvas.height}_${currentWeekIndex + 1}-${TOTAL_WEEKS}.zip`;
     
-    // Создаем стрим для скачивания
+    // Create download stream
     let streamController;
     const readableStream = new ReadableStream({
         start(controller) {
@@ -254,16 +254,16 @@ function startGeneration() {
         }
     });
 
-    // Запускаем скачивание через showSaveFilePicker или накапливаем чанки
+    // Start download via showSaveFilePicker or accumulate chunks
     let writableStream;
     let useFileSystemAPI = false;
 
     async function setupStreaming() {
         if ('showSaveFilePicker' in window) {
             try {
-                // Пытаемся получить дескриптор файла. 
-                // Важно: на некоторых мобильных устройствах или в WebView это может быть недоступно 
-                // или вызывать ошибки даже при наличии метода.
+                // Try to get file handle.
+                // Note: on some mobile devices or in WebView this might be unavailable
+                // or throw errors even if method exists.
                 const handle = await window.showSaveFilePicker({
                     suggestedName: filename,
                     types: [{
@@ -276,9 +276,9 @@ function startGeneration() {
                 return true;
             } catch (e) {
                 console.warn('File System Access API failed, falling back to Blob accumulation', e);
-                // Если пользователь нажал отмену (AbortError), прерываем процесс
+                // If user pressed cancel (AbortError), abort process
                 if (e.name === 'AbortError') return false;
-                // В остальных случаях (SecurityError и др.) продолжаем с использованием Blob
+                // In other cases (SecurityError etc.) continue using Blob
                 useFileSystemAPI = false;
             }
         } else {
@@ -335,7 +335,7 @@ function startGeneration() {
                         alert('Error: ZIP generation failed - no data collected');
                     }
                 } else if (writableStream) {
-                    // На случай если final чанк не пришел или не закрылся
+                    // In case final chunk didn't arrive or wasn't closed
                     try { await writableStream.close(); } catch(e) {}
                     writableStream = null;
                 }

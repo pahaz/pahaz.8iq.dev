@@ -47,12 +47,12 @@ async function generateZip(config) {
         throw new Error('Could not get 2D context from base OffscreenCanvas');
     }
 
-    // Рендерим базу один раз
+    // Render base layer once
     template.renderBase(baseCtx, { width, height }, options);
 
     const zip = new fflate.Zip();
     
-    // Обработка данных из ZIP-стрима
+    // Handle data from ZIP stream
     zip.ondata = (err, chunk, final) => {
         if (err) {
             self.postMessage({ type: 'error', error: err.message });
@@ -67,16 +67,16 @@ async function generateZip(config) {
             return;
         }
 
-        // Клонируем чанк перед отправкой, чтобы иметь доступ к его буферу
-        // fflate может возвращать View на тот же массив, поэтому копируем
+        // Clone chunk before sending to have access to its buffer
+        // fflate might return a View on the same array, so we copy it
         const chunkCopy = new Uint8Array(chunk);
 
-        // Отправляем чанк в основной поток
+        // Send chunk to main thread
         self.postMessage({ 
             type: 'zip-chunk', 
             chunk: chunkCopy, 
             final: final 
-        }, [chunkCopy.buffer]); // Передаем владение буфером для экономии памяти
+        }, [chunkCopy.buffer]); // Transfer buffer ownership to save memory
 
         if (final) {
             self.postMessage({ type: 'done' });
@@ -110,13 +110,13 @@ async function generateZip(config) {
             return;
         }
 
-        // Очистка и отрисовка кадра
+        // Clear and draw frame
         ctx.clearRect(0, 0, width, height);
         ctx.drawImage(baseCanvas, 0, 0);
         template.renderOverlay(ctx, { width, height }, options, i, TOTAL_WEEKS);
 
-        // Получаем PNG (стандартный 8-bit RGBA, но без альфа-канала в контексте)
-        // Для максимальной совместимости и четкости используем PNG.
+        // Get PNG (standard 8-bit RGBA, but without alpha channel in context)
+        // Use PNG for maximum compatibility and clarity.
         const blob = await canvas.convertToBlob({ 
             type: 'image/png'
         });
@@ -145,8 +145,8 @@ async function generateZip(config) {
 
     zip.end();
     
-    // final: true придет через zip.ondata, когда fflate закончит сжатие всех файлов
-    // Мы не вызываем self.postMessage({ type: 'done' }) здесь сразу, 
-    // чтобы быть уверенными, что все чанки ZIP были отправлены.
-    // zip.end() синхронно (или почти синхронно для fflate) вызывает последние zip.ondata
+    // final: true will come via zip.ondata when fflate finishes compressing all files.
+    // We don't call self.postMessage({ type: 'done' }) here immediately
+    // to ensure all ZIP chunks have been sent.
+    // zip.end() synchronously (or almost synchronously for fflate) calls last zip.ondata.
 }
