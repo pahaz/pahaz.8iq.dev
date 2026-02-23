@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SVG to PNG Converter</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
             --primary-color: #2563eb;
@@ -17,7 +20,7 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             background-color: var(--bg-color);
             color: var(--text-color);
             line-height: 1.5;
@@ -64,22 +67,42 @@
             gap: 20px;
         }
 
+        .preview-container {
+            display: flex;
+            flex-direction: column;
+        }
+
         .preview-box {
             border: 1px solid var(--border-color);
             border-radius: 4px;
             padding: 10px;
             background: #fff;
             min-height: 200px;
+            flex: 1;
             display: flex;
             align-items: center;
             justify-content: center;
             overflow: auto;
+            font-family: 'Inter', sans-serif;
         }
 
         .preview-box img, .preview-box svg {
-            max-width: 100%;
+            width: 100%;
             height: auto;
             display: block;
+            font-family: inherit;
+        }
+
+        .preview-box svg text, 
+        .preview-box svg tspan, 
+        .preview-box svg textPath {
+            font-family: 'Inter', sans-serif;
+        }
+
+        #png-placeholder {
+            margin: 0;
+            color: #64748b;
+            text-align: center;
         }
 
         .curl-block {
@@ -265,9 +288,8 @@
         }
 
         .preview-img {
-            max-width: 100%;
+            width: 100%;
             height: auto;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
 
         .error-panel {
@@ -301,7 +323,7 @@
             to { transform: rotate(360deg); }
         }
 
-        .hidden { display: none; }
+        .hidden { display: none !important; }
     </style>
 </head>
 <body>
@@ -461,7 +483,7 @@
         const STORAGE_KEY = 'svg2png_settings';
         const EXAMPLE_SVG = `<svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
   <circle cx="50" cy="50" r="40" stroke="black" stroke-width="3" fill="red" />
-  <text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="20" fill="white">SVG</text>
+  <text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-family="" font-size="20" fill="white">SVG</text>
 </svg>`;
 
         let lastPngBlob = null;

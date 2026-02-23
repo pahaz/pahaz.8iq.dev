@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { Resvg, initWasm } from '@resvg/resvg-wasm';
+import { extractFontFamilies, loadFont, getDefaultFont } from './font-utils';
 
 const svg2png = new Hono();
 
@@ -94,7 +95,24 @@ svg2png.post('/render', async (c) => {
         // opts.dpi = dpi; // check if resvg-wasm supports this
     }
 
-    const resvg = new Resvg(svg, opts);
+    // Font handling
+    const fontNames = extractFontFamilies(svg);
+    const fontPromises = fontNames.map(name => loadFont(name));
+    const fontBuffers = (await Promise.all(fontPromises)).filter((b): b is Uint8Array => b !== null);
+    
+    const defaultFont = await getDefaultFont();
+    if (defaultFont) {
+      fontBuffers.push(defaultFont);
+    }
+
+    const resvg = new Resvg(svg, {
+      ...opts,
+      font: {
+        fontBuffers,
+        defaultFontFamily: 'Inter',
+        loadSystemFonts: false,
+      }
+    });
     const pngData = resvg.render();
     const pngBuffer = pngData.asPng();
     
