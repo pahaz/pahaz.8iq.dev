@@ -4,6 +4,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "wrangler dev",
+    "deploy": "npx wrangler deploy && npx vercel --prod",
     "test": "vitest run"
   },
   "keywords": [],
