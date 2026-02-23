@@ -3,18 +3,23 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "wrangler dev",
+    "test": "vitest run"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@resvg/resvg-js": "^2.6.2",
+    "@resvg/resvg-wasm": "^2.6.2",
     "hono": "^4.12.1"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260228.0",
+    "@types/node": "^25.3.0",
     "typescript": "^5.9.3",
+    "vitest": "^4.0.18",
     "wrangler": "^4.67.0"
   }
 }
