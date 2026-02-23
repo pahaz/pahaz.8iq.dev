@@ -66,7 +66,7 @@ describe('Font Rendering Verification', () => {
 
     // Letter 'A' sized 80px on 200x100 canvas should occupy a significant number of pixels.
     // Usually hundreds or thousands of pixels. If text didn't render, it will be 0.
-    console.log(`Detected ${nonBlackPixels} non-black pixels for character 'A'`);
+    // console.log(`Detected ${nonBlackPixels} non-black pixels for character 'A'`);
     expect(nonBlackPixels).toBeGreaterThan(100);
   });
 
@@ -101,7 +101,7 @@ describe('Font Rendering Verification', () => {
       }
     }
 
-    console.log(`Detected ${nonBlackPixels} non-black pixels for label "30"`);
+    // console.log(`Detected ${nonBlackPixels} non-black pixels for label "30"`);
     expect(nonBlackPixels).toBeGreaterThan(10);
   });
 });
