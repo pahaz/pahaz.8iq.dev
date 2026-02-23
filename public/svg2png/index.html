@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SVG to PNG Converter</title>
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --primary-hover: #1d4ed8;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --border-color: #e2e8f0;
+            --text-color: #1e293b;
+            --error-color: #ef4444;
+            --success-color: #22c55e;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.5;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        header {
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        section {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        h2 {
+            margin-top: 0;
+            font-size: 1.25rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .grid-preview {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .preview-box {
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 10px;
+            background: #fff;
+            min-height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: auto;
+        }
+
+        .preview-box img, .preview-box svg {
+            max-width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .curl-block {
+            background: #1e293b;
+            color: #f8fafc;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 13px;
+            position: relative;
+            margin-top: 10px;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .curl-copy-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            padding: 4px 8px;
+            font-size: 11px;
+            border-radius: 3px;
+        }
+
+        .curl-copy-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        @media (max-width: 768px) {
+            .grid, .grid-preview {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 5px;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+
+        textarea {
+            font-family: monospace;
+            resize: vertical;
+            min-height: 200px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 8px 16px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            background: #fff;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            background: #f1f5f9;
+        }
+
+        button.primary {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        button.primary:hover {
+            background: var(--primary-hover);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.875rem;
+            margin-left: 10px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #94a3b8;
+        }
+
+        .status-dot.connected { background: var(--success-color); }
+        .status-dot.error { background: var(--error-color); }
+
+        #drop-zone {
+            border: 2px dashed var(--border-color);
+            padding: 20px;
+            text-align: center;
+            border-radius: 8px;
+            margin-top: 10px;
+            color: #64748b;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        #drop-zone:hover {
+            background-color: #f1f5f9;
+            border-color: var(--primary-color);
+        }
+
+        #drop-zone.dragover {
+            border-color: var(--primary-color);
+            background: #eff6ff;
+        }
+
+        .presets {
+            display: flex;
+            gap: 5px;
+            margin-top: 10px;
+        }
+
+        .preset-btn {
+            font-size: 12px;
+            padding: 4px 8px;
+        }
+
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 15px;
+        }
+
+        .tab {
+            padding: 8px 16px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -1px;
+        }
+
+        .tab.active {
+            border-bottom-color: var(--primary-color);
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        .tab-content {
+            display: none;
+            overflow: auto;
+            max-height: 500px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 10px;
+            background: #f1f5f9;
+            text-align: center;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .preview-img {
+            max-width: 100%;
+            height: auto;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .error-panel {
+            background: #fef2f2;
+            border: 1px solid #fee2e2;
+            color: #991b1b;
+            padding: 12px;
+            border-radius: 4px;
+            margin-top: 15px;
+            display: none;
+        }
+
+        .error-panel summary {
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>SVG → PNG Converter</h1>
+        </header>
+
+        <!-- Connection -->
+        <section id="connection">
+            <h2>1. Connection</h2>
+            <div class="form-group">
+                <label for="api-base-url">API Base URL</label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="api-base-url" placeholder="https://api.example.com" value="https://api-gules-psi-57.vercel.app/svg2png">
+                    <button id="test-connection">Test</button>
+                    <div class="status-indicator">
+                        <div id="status-dot" class="status-dot"></div>
+                        <span id="status-text">Not tested</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="grid">
+            <div class="left-col">
+                <!-- SVG Input -->
+                <section id="svg-input-section">
+                    <h2>2. SVG Input</h2>
+                    <div class="form-group">
+                        <textarea id="svg-input" placeholder="Paste your <svg> here..."></textarea>
+                    </div>
+                    <div class="button-group">
+                        <button id="load-example">Load example</button>
+                        <button id="upload-svg">Upload from file</button>
+                        <button id="clear-svg">Clear</button>
+                    </div>
+                    <input type="file" id="svg-file-input" accept=".svg" class="hidden">
+                    <div id="drop-zone">
+                        Drag & drop .svg file here
+                    </div>
+                </section>
+            </div>
+
+            <div class="right-col">
+                <!-- Render Settings -->
+                <section id="settings">
+                    <h2>3. Render Settings</h2>
+                    <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div class="form-group">
+                            <label for="width">Width</label>
+                            <input type="number" id="width" value="1200" min="1">
+                        </div>
+                        <div class="form-group">
+                            <label for="height">Height (optional)</label>
+                            <input type="number" id="height" placeholder="Auto" min="1">
+                        </div>
+                    </div>
+
+                    <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div class="form-group">
+                            <label for="fit">Fit</label>
+                            <select id="fit">
+                                <option value="width">Width</option>
+                                <option value="height">Height</option>
+                                <option value="contain">Contain</option>
+                                <option value="cover">Cover</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="scale">Scale</label>
+                            <input type="number" id="scale" value="1" step="0.1" min="0.1">
+                        </div>
+                    </div>
+
+                    <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div class="form-group">
+                            <label for="background">Background</label>
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                <input type="text" id="bg-color-input" value="#ffffff" style="flex: 1;">
+                                <label style="display: flex; align-items: center; gap: 4px; font-size: 12px; white-space: nowrap;">
+                                    <input type="checkbox" id="bg-transparent" checked> Transparent
+                                </label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="dpi">DPI (optional)</label>
+                            <input type="number" id="dpi" placeholder="96" min="1">
+                        </div>
+                    </div>
+
+                    <label>Presets</label>
+                    <div class="presets" style="margin-bottom: 20px;">
+                        <button class="preset-btn" data-w="1200" data-h="630">1200x630</button>
+                        <button class="preset-btn" data-w="800" data-h="800">800x800</button>
+                        <button class="preset-btn" data-w="1920" data-h="1080">1920x1080</button>
+                    </div>
+
+                    <div class="form-group" style="margin-top: 20px;">
+                        <button id="render-btn" class="primary" style="width: 100%;">
+                            <span id="render-spinner" class="spinner hidden"></span>
+                            Render (POST)
+                        </button>
+                    </div>
+                </section>
+            </div>
+        </div>
+
+        <!-- Preview -->
+        <section id="preview-section">
+            <h2>4. Preview</h2>
+            <div class="grid-preview">
+                <div class="preview-container">
+                    <label>SVG Preview</label>
+                    <div id="svg-preview-container" class="preview-box"></div>
+                </div>
+                <div class="preview-container">
+                    <label>PNG Preview</label>
+                    <div class="preview-box">
+                        <img id="png-preview" class="preview-img hidden">
+                        <p id="png-placeholder">Render to see PNG preview</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="result-metadata" class="hidden" style="margin-top: 10px; font-size: 0.875rem; color: #64748b;">
+                PNG size: <span id="png-size">-</span> bytes
+                <span id="render-time-container" class="hidden">| Render time: <span id="render-time">-</span></span>
+            </div>
+
+            <details id="error-details" class="error-panel">
+                <summary>Error Details</summary>
+                <pre id="error-message" style="white-space: pre-wrap; margin-top: 10px; font-size: 12px;"></pre>
+            </details>
+        </section>
+
+        <!-- Actions -->
+        <section id="post-render-actions" class="hidden">
+            <h2>5. Actions & API</h2>
+            <div class="button-group" style="margin-bottom: 20px;">
+                <button id="download-btn" class="primary">Download PNG</button>
+                <button id="copy-data-url-btn">Copy PNG as Data URL</button>
+            </div>
+
+            <div class="form-group">
+                <label>API Request (curl)</label>
+                <div class="curl-block">
+                    <code id="curl-code"></code>
+                    <button id="copy-curl-btn" class="curl-copy-btn">Copy</button>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        // Constants & State
+        const STORAGE_KEY = 'svg2png_settings';
+        const EXAMPLE_SVG = `<svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="50" cy="50" r="40" stroke="black" stroke-width="3" fill="red" />
+  <text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="20" fill="white">SVG</text>
+</svg>`;
+
+        let lastPngBlob = null;
+        let lastPngDataUrl = null;
+
+        // Elements
+        const apiBaseUrlInput = document.getElementById('api-base-url');
+        const testConnBtn = document.getElementById('test-connection');
+        const statusDot = document.getElementById('status-dot');
+        const statusText = document.getElementById('status-text');
+
+        const svgInput = document.getElementById('svg-input');
+        const loadExampleBtn = document.getElementById('load-example');
+        const clearSvgBtn = document.getElementById('clear-svg');
+        const uploadSvgBtn = document.getElementById('upload-svg');
+        const svgFileInput = document.getElementById('svg-file-input');
+        const dropZone = document.getElementById('drop-zone');
+
+        const widthInput = document.getElementById('width');
+        const heightInput = document.getElementById('height');
+        const fitSelect = document.getElementById('fit');
+        const scaleInput = document.getElementById('scale');
+        const bgColorInput = document.getElementById('bg-color-input');
+        const bgTransparentCheckbox = document.getElementById('bg-transparent');
+        const dpiInput = document.getElementById('dpi');
+        const presetBtns = document.querySelectorAll('.preset-btn');
+
+        const renderBtn = document.getElementById('render-btn');
+        const renderSpinner = document.getElementById('render-spinner');
+        const postRenderActions = document.getElementById('post-render-actions');
+        const downloadBtn = document.getElementById('download-btn');
+        const copyDataUrlBtn = document.getElementById('copy-data-url-btn');
+        const curlCode = document.getElementById('curl-code');
+        const copyCurlBtn = document.getElementById('copy-curl-btn');
+
+        const svgPreviewContainer = document.getElementById('svg-preview-container');
+        const pngPreview = document.getElementById('png-preview');
+        const pngPlaceholder = document.getElementById('png-placeholder');
+        const resultMetadata = document.getElementById('result-metadata');
+        const pngSizeSpan = document.getElementById('png-size');
+        const renderTimeContainer = document.getElementById('render-time-container');
+        const renderTimeSpan = document.getElementById('render-time');
+        const errorDetails = document.getElementById('error-details');
+        const errorMessage = document.getElementById('error-message');
+
+        // Initialization
+        window.addEventListener('load', () => {
+            loadSettings();
+            updateSvgPreview();
+        });
+
+        // 1. Connection Logic
+        testConnBtn.addEventListener('click', async () => {
+            const baseUrl = apiBaseUrlInput.value.trim().replace(/\/$/, '');
+            statusText.textContent = 'Testing...';
+            statusDot.className = 'status-dot';
+
+            try {
+                const resp = await fetch(`${baseUrl}/health`, { 
+                    method: 'GET',
+                    mode: 'cors',
+                    cache: 'no-cache'
+                });
+                
+                if (!resp.ok) {
+                    const errorText = await resp.text().catch(() => '');
+                    let errorMessage = `HTTP ${resp.status}`;
+                    try {
+                        const errorJson = JSON.parse(errorText);
+                        if (errorJson.error) errorMessage = errorJson.error;
+                    } catch(e) {}
+                    throw new Error(errorMessage);
+                }
+
+                const data = await resp.json();
+                if (data.ok) {
+                    statusDot.classList.add('connected');
+                    statusText.textContent = 'Connected';
+                    saveSettings();
+                } else {
+                    throw new Error(data.error || 'Invalid response');
+                }
+            } catch (err) {
+                console.error('Connection test failed:', err);
+                statusDot.classList.add('error');
+                
+                let msg = err.message;
+                if (err.name === 'TypeError' && err.message === 'Failed to fetch') {
+                    msg = 'Network error or CORS issue. Check if API is running and CORS is enabled.';
+                }
+                
+                statusText.textContent = 'Error: ' + msg;
+            }
+        });
+
+        // 2. SVG Input Logic
+        loadExampleBtn.addEventListener('click', () => {
+            svgInput.value = EXAMPLE_SVG;
+            updateSvgPreview();
+            saveSettings();
+        });
+
+        clearSvgBtn.addEventListener('click', () => {
+            svgInput.value = '';
+            updateSvgPreview();
+            saveSettings();
+        });
+
+        uploadSvgBtn.addEventListener('click', () => {
+            svgFileInput.click();
+        });
+
+        svgFileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    svgInput.value = ev.target.result;
+                    updateSvgPreview();
+                    saveSettings();
+                    svgFileInput.value = ''; // Reset for same file selection
+                };
+                reader.readAsText(file);
+            }
+        });
+
+        svgInput.addEventListener('input', () => {
+            updateSvgPreview();
+            saveSettings();
+        });
+
+        function updateSvgPreview() {
+            const svgText = svgInput.value.trim();
+            if (svgText) {
+                svgPreviewContainer.innerHTML = svgText;
+                // Basic validation: check if it starts with <svg
+                if (!svgText.toLowerCase().startsWith('<svg')) {
+                    svgPreviewContainer.innerHTML = '<p style="color:red">Invalid SVG (must start with &lt;svg&gt;)</p>';
+                }
+            } else {
+                svgPreviewContainer.innerHTML = '<p>No SVG input</p>';
+            }
+        }
+
+        // Drag & Drop
+        dropZone.addEventListener('click', () => {
+            svgFileInput.click();
+        });
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file && file.type === 'image/svg+xml') {
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    svgInput.value = ev.target.result;
+                    updateSvgPreview();
+                    saveSettings();
+                };
+                reader.readAsText(file);
+            } else {
+                alert('Please drop a valid .svg file');
+            }
+        });
+
+        // 3. Render Settings Logic
+        bgTransparentCheckbox.addEventListener('change', () => {
+            bgColorInput.disabled = bgTransparentCheckbox.checked;
+            saveSettings();
+        });
+
+        presetBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                widthInput.value = btn.dataset.w;
+                heightInput.value = btn.dataset.h;
+                saveSettings();
+            });
+        });
+
+        [widthInput, heightInput, fitSelect, scaleInput, bgColorInput, dpiInput].forEach(el => {
+            el.addEventListener('input', saveSettings);
+        });
+
+        // 4. Actions Logic
+        function updateCurlCommand() {
+            const baseUrl = apiBaseUrlInput.value.trim().replace(/\/$/, '');
+            const body = {
+                svg: svgInput.value.trim(),
+                width: parseInt(widthInput.value) || 1200,
+                fit: fitSelect.value,
+                scale: parseFloat(scaleInput.value) || 1,
+                background: bgTransparentCheckbox.checked ? 'transparent' : bgColorInput.value
+            };
+
+            if (heightInput.value) body.height = parseInt(heightInput.value);
+            if (dpiInput.value) body.dpi = parseInt(dpiInput.value);
+
+            curlCode.textContent = `\ncurl -X POST "${baseUrl}/render" \\
+  -H "Content-Type: application/json" \\
+  -d '${JSON.stringify(body, null, 2).replace(/'/g, "'\\''")}' \\
+  --output result.png`;
+        }
+
+        renderBtn.addEventListener('click', async () => {
+            const svg = svgInput.value.trim();
+            if (!svg) {
+                showError('SVG input is empty');
+                return;
+            }
+
+            if (svg.length > 1024 * 1024 * 2) { // 2MB limit check
+                showError('SVG is too large (max 2MB)');
+                return;
+            }
+
+            hideError();
+            setLoading(true);
+            updateCurlCommand();
+
+            const baseUrl = apiBaseUrlInput.value.trim().replace(/\/$/, '');
+            const body = {
+                svg: svg,
+                width: parseInt(widthInput.value) || 1200,
+                fit: fitSelect.value,
+                scale: parseFloat(scaleInput.value) || 1,
+                background: bgTransparentCheckbox.checked ? 'transparent' : bgColorInput.value
+            };
+
+            if (heightInput.value) body.height = parseInt(heightInput.value);
+            if (dpiInput.value) body.dpi = parseInt(dpiInput.value);
+
+            try {
+                const startTime = performance.now();
+                const resp = await fetch(`${baseUrl}/render`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+
+                if (!resp.ok) {
+                    const errorData = await resp.json().catch(() => ({ error: 'Unknown server error' }));
+                    throw new Error(errorData.error || `Server returned ${resp.status}`);
+                }
+
+                const blob = await resp.blob();
+                const endTime = performance.now();
+                
+                lastPngBlob = blob;
+                lastPngDataUrl = await blobToDataUrl(blob);
+                
+                // Update UI
+                pngPreview.src = lastPngDataUrl;
+                pngPreview.classList.remove('hidden');
+                pngPlaceholder.classList.add('hidden');
+                
+                resultMetadata.classList.remove('hidden');
+                pngSizeSpan.textContent = blob.size.toLocaleString();
+                
+                const renderTimeHeader = resp.headers.get('x-render-time');
+                if (renderTimeHeader) {
+                    renderTimeContainer.classList.remove('hidden');
+                    renderTimeSpan.textContent = renderTimeHeader + 'ms';
+                } else {
+                    const localTime = ((endTime - startTime) / 1000).toFixed(2);
+                    renderTimeContainer.classList.remove('hidden');
+                    renderTimeSpan.textContent = `~${localTime}s (total)`;
+                }
+
+                postRenderActions.classList.remove('hidden');
+
+            } catch (err) {
+                console.error(err);
+                showError(`Failed to render PNG. ${err.message}. Check API URL and CORS settings.`);
+            } finally {
+                setLoading(false);
+            }
+        });
+
+        downloadBtn.addEventListener('click', () => {
+            if (!lastPngDataUrl) return;
+            const a = document.createElement('a');
+            a.href = lastPngDataUrl;
+            a.download = 'converted.png';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        });
+
+        copyDataUrlBtn.addEventListener('click', () => {
+            if (!lastPngDataUrl) return;
+            copyToClipboard(lastPngDataUrl);
+        });
+
+        copyCurlBtn.addEventListener('click', () => {
+            const text = curlCode.textContent.trim();
+            navigator.clipboard.writeText(text)
+              .then(() => {
+                const originalText = copyCurlBtn.textContent;
+                copyCurlBtn.textContent = 'Copied!';
+                setTimeout(() => copyCurlBtn.textContent = originalText, 2000);
+              })
+              .catch(err => {
+                console.error('Failed to copy: ', err);
+                alert('Failed to copy to clipboard');
+              });
+        });
+
+        // Helpers
+        function setLoading(loading) {
+            renderBtn.disabled = loading;
+            renderSpinner.classList.toggle('hidden', !loading);
+        }
+
+        function showError(msg) {
+            errorDetails.style.display = 'block';
+            errorMessage.textContent = msg;
+            errorDetails.open = true;
+            postRenderActions.classList.add('hidden');
+        }
+
+        function hideError() {
+            errorDetails.style.display = 'none';
+        }
+
+        function blobToDataUrl(blob) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+        }
+
+        async function copyToClipboard(text) {
+            try {
+                await navigator.clipboard.writeText(text);
+                alert('Copied to clipboard!');
+            } catch (err) {
+                // Fallback
+                const textArea = document.createElement("textarea");
+                textArea.value = text;
+                textArea.style.position = "fixed";
+                textArea.style.left = "-999999px";
+                textArea.style.top = "-999999px";
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    alert('Copied to clipboard (fallback)!');
+                } catch (err) {
+                    alert('Could not copy text. Please select and copy manually: \n\n' + text.substring(0, 100) + '...');
+                }
+                document.body.removeChild(textArea);
+            }
+        }
+
+        function saveSettings() {
+            const settings = {
+                apiBaseUrl: apiBaseUrlInput.value,
+                svg: svgInput.value,
+                width: widthInput.value,
+                height: heightInput.value,
+                fit: fitSelect.value,
+                scale: scaleInput.value,
+                bgColor: bgColorInput.value,
+                bgTransparent: bgTransparentCheckbox.checked,
+                dpi: dpiInput.value
+            };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+        }
+
+        function loadSettings() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (!saved) return;
+            try {
+                const settings = JSON.parse(saved);
+                apiBaseUrlInput.value = settings.apiBaseUrl || 'https://api-gules-psi-57.vercel.app/svg2png';
+                widthInput.value = settings.width || 1200;
+                heightInput.value = settings.height || '';
+                fitSelect.value = settings.fit || 'width';
+                scaleInput.value = settings.scale || 1;
+                bgColorInput.value = settings.bgColor || '#ffffff';
+                bgTransparentCheckbox.checked = settings.bgTransparent !== false;
+                bgColorInput.disabled = bgTransparentCheckbox.checked;
+                dpiInput.value = settings.dpi || '';
+                
+                if (settings.svg) {
+                    svgInput.value = settings.svg;
+                }
+            } catch (e) {
+                console.warn('Failed to load settings', e);
+            }
+        }
+    </script>
+</body>
+</html>
