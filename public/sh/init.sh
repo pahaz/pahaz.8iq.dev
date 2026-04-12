@@ -56,6 +56,65 @@ write_file() {
   rm -f "${tmp}"
 }
 
+set_config_value() {
+  local file="$1"
+  local key="$2"
+  local value="$3"
+
+  if grep -Eq "^[[:space:]]*${key}[[:space:]]*=" "${file}"; then
+    sed -i -E "s|^[[:space:]]*${key}[[:space:]]*=.*|${key} = ${value}|" "${file}"
+  else
+    printf '%s = %s\n' "${key}" "${value}" >> "${file}"
+  fi
+}
+
+install_audit_example_rule() {
+  local src_dir="/usr/share/doc/auditd/examples/rules"
+  local rule_name="$1"
+  local src_plain="${src_dir}/${rule_name}"
+  local src_gz="${src_plain}.gz"
+  local dst="/etc/audit/rules.d/${rule_name}"
+  local tmp
+
+  if [[ ! -d "${src_dir}" ]]; then
+    warn "auditd examples directory is missing: ${src_dir}"
+    return 1
+  fi
+
+  tmp="$(mktemp)"
+  if [[ -f "${src_plain}" ]]; then
+    cp "${src_plain}" "${tmp}"
+  elif [[ -f "${src_gz}" ]]; then
+    gzip -dc "${src_gz}" > "${tmp}"
+  else
+    rm -f "${tmp}"
+    return 1
+  fi
+
+  if [[ ! -f "${dst}" ]] || ! cmp -s "${tmp}" "${dst}"; then
+    install -D -m 0640 -o root -g root "${tmp}" "${dst}"
+    log "Installed audit sample rule ${rule_name}"
+  else
+    log "Audit sample rule already up to date: ${rule_name}"
+  fi
+  rm -f "${tmp}"
+}
+
+install_any_audit_example_rule() {
+  local label="$1"
+  shift
+  local candidate
+
+  for candidate in "$@"; do
+    if install_audit_example_rule "${candidate}"; then
+      log "Using audit sample for ${label}: ${candidate}"
+      return 0
+    fi
+  done
+  warn "Could not find a suitable audit sample for ${label}"
+  return 1
+}
+
 fetch_primary_ssh_key() {
   local key
   key="$(curl -fsSL "${SSH_KEY_URL}" | sed '/^\s*$/d' | head -n 1)"
@@ -381,6 +440,70 @@ EOF
   fi
 }
 
+configure_auditd_web_profile() {
+  # Use distro-provided sample rules (low-noise oriented selection).
+  install_any_audit_example_rule "baseline config" \
+    "10-base-config.rules"
+
+  install_any_audit_example_rule "loginuid tracking" \
+    "11-loginuid.rules" \
+    "10-loginuid.rules"
+
+  install_any_audit_example_rule "safe failure mode" \
+    "12-cont-fail.rules"
+
+  # Ignore noisy chrony time-sync events.
+  if ! install_audit_example_rule "22-ignore-chrony.rules"; then
+    log "Optional audit rule 22-ignore-chrony.rules not found; skipping"
+  fi
+
+  # Focused examples for privilege escalation and module loading.
+  install_any_audit_example_rule "privilege escalation monitoring" \
+    "31-privileged.rules"
+
+  install_any_audit_example_rule "kernel module monitoring" \
+    "43-module-load.rules"
+
+  # Useful low-noise extras for server operations.
+  if ! install_audit_example_rule "32-power-abuse.rules"; then
+    log "Optional audit rule 32-power-abuse.rules not found; skipping"
+  fi
+  if ! install_audit_example_rule "44-installers.rules"; then
+    log "Optional audit rule 44-installers.rules not found; skipping"
+  fi
+
+  if [[ -f /etc/audit/auditd.conf ]]; then
+    set_config_value "/etc/audit/auditd.conf" "max_log_file" "32"
+    set_config_value "/etc/audit/auditd.conf" "num_logs" "10"
+    set_config_value "/etc/audit/auditd.conf" "max_log_file_action" "ROTATE"
+    set_config_value "/etc/audit/auditd.conf" "space_left" "25%"
+    set_config_value "/etc/audit/auditd.conf" "space_left_action" "SYSLOG"
+    set_config_value "/etc/audit/auditd.conf" "admin_space_left" "10%"
+    set_config_value "/etc/audit/auditd.conf" "admin_space_left_action" "SUSPEND"
+    set_config_value "/etc/audit/auditd.conf" "disk_full_action" "SUSPEND"
+    set_config_value "/etc/audit/auditd.conf" "disk_error_action" "SUSPEND"
+    set_config_value "/etc/audit/auditd.conf" "flush" "INCREMENTAL_ASYNC"
+    set_config_value "/etc/audit/auditd.conf" "freq" "50"
+    set_config_value "/etc/audit/auditd.conf" "name_format" "HOSTNAME"
+    set_config_value "/etc/audit/auditd.conf" "write_logs" "yes"
+    set_config_value "/etc/audit/auditd.conf" "priority_boost" "4"
+    set_config_value "/etc/audit/auditd.conf" "overflow_action" "SYSLOG"
+  else
+    warn "auditd.conf is missing; skipping daemon hardening options"
+  fi
+
+  systemctl enable --now auditd
+  if augenrules --load >/dev/null 2>&1; then
+    log "auditd rules loaded"
+  else
+    warn "Failed to load auditd rules via augenrules"
+  fi
+  if auditctl -l 2>/dev/null | grep -q '^-e 2$'; then
+    warn "auditd rules are immutable (-e 2); future automated rule updates require reboot"
+  fi
+  systemctl restart auditd
+}
+
 health_summary() {
   log "Health summary:"
 
@@ -431,6 +554,31 @@ health_summary() {
   else
     warn " - unattended-upgrades: not enabled"
   fi
+
+  if systemctl is-active --quiet auditd; then
+    log " - auditd service: active"
+  else
+    warn " - auditd service: not active"
+  fi
+
+  if auditctl -s 2>/dev/null | awk '/^enabled/ { exit ($2 >= 1 ? 0 : 1) } END { if (NR == 0) exit 1 }'; then
+    log " - auditd ruleset: enabled"
+  else
+    warn " - auditd ruleset: disabled or unavailable"
+  fi
+
+  if auditctl -l 2>/dev/null | grep -Eq '(init_module|finit_module|delete_module|/sbin/modprobe|/usr/sbin/modprobe|kernel_modules)'; then
+    log " - auditd kernel module monitoring: loaded"
+  else
+    warn " - auditd kernel module monitoring: missing"
+  fi
+
+  if auditctl -l 2>/dev/null | grep -Eq '(/usr/bin/sudo|/usr/bin/su|/usr/sbin/useradd|/usr/sbin/usermod|/usr/sbin/userdel|priv_esc|privileged)'; then
+    log " - auditd privilege escalation monitoring: loaded"
+  else
+    warn " - auditd privilege escalation monitoring: missing"
+  fi
+
 }
 
 main() {
@@ -449,6 +597,8 @@ main() {
     ca-certificates \
     certbot \
     curl \
+    auditd \
+    audispd-plugins \
     fail2ban \
     ufw \
     etckeeper \
@@ -486,6 +636,7 @@ main() {
   configure_fail2ban
   configure_unattended_upgrades
   configure_shell_history
+  configure_auditd_web_profile
   configure_etckeeper
   health_summary
 
