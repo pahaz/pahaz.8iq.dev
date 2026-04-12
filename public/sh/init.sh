@@ -45,10 +45,6 @@ fi
 
 export DEBIAN_FRONTEND=noninteractive
 SSH_KEY_URL="${SSH_KEY_URL:-https://github.com/pahaz.keys}"
-AUDIT_EXAMPLE_DIRS=(
-  "/usr/share/doc/auditd/examples/rules"
-  "/usr/share/audit/sample-rules"
-)
 
 log() {
   if [[ -t 1 ]]; then
@@ -121,76 +117,128 @@ set_config_value() {
   fi
 }
 
-install_audit_example_rule() {
-  local rule_name="$1"
-  local src_dir
-  local src_plain
-  local src_gz
-  local dst="/etc/audit/rules.d/${rule_name##*/}"
-  local tmp
+audit_rule_has_active_entries() {
+  local rule_path="$1"
+  [[ -f "${rule_path}" ]] || return 1
+  awk '
+    /^[[:space:]]*$/ { next }
+    /^[[:space:]]*#/ { next }
+    { found=1; exit 0 }
+    END { exit(found ? 0 : 1) }
+  ' "${rule_path}"
+}
 
-  for src_dir in "${AUDIT_EXAMPLE_DIRS[@]}"; do
-    [[ -d "${src_dir}" ]] || continue
-    src_plain="${src_dir}/${rule_name}"
-    src_gz="${src_plain}.gz"
-    tmp="$(mktemp)"
-    if [[ -f "${src_plain}" ]]; then
-      cp "${src_plain}" "${tmp}"
-    elif [[ -f "${src_gz}" ]]; then
-      gzip -dc "${src_gz}" > "${tmp}"
-    else
-      rm -f "${tmp}"
-      continue
+audit_ruleset_has_active_entries() {
+  local rule_file
+  for rule_file in /etc/audit/rules.d/*.rules; do
+    [[ -f "${rule_file}" ]] || continue
+    if audit_rule_has_active_entries "${rule_file}"; then
+      return 0
     fi
-
-    if [[ ! -f "${dst}" ]] || ! cmp -s "${tmp}" "${dst}"; then
-      install -D -m 0640 -o root -g root "${tmp}" "${dst}"
-      log "Installed audit sample rule ${rule_name} from ${src_dir}"
-    else
-      log "Audit sample rule already up to date: ${rule_name}"
-    fi
-    rm -f "${tmp}"
-    return 0
   done
-
-  warn "auditd examples directory/rule missing for ${rule_name}"
   return 1
 }
 
-install_any_audit_example_rule() {
-  local label="$1"
-  shift
-  local candidate
-  local selected=""
-  local src_dir
+generate_privileged_audit_rules() {
+  local dst="/etc/audit/rules.d/31-privileged.rules"
+  local tmp
+  local scan_dir
+  local binary_path
+  local rule_count
+  tmp="$(mktemp)"
 
-  for candidate in "$@"; do
-    for src_dir in "${AUDIT_EXAMPLE_DIRS[@]}"; do
-      [[ -d "${src_dir}" ]] || continue
-      if [[ -f "${src_dir}/${candidate}" || -f "${src_dir}/${candidate}.gz" ]]; then
-        selected="${candidate}"
-        break 2
-      fi
-    done
+  {
+    echo "# Managed by public/sh/init.sh"
+    echo "# Generated from local setuid binaries."
+  } > "${tmp}"
+
+  for scan_dir in /bin /sbin /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin; do
+    [[ -d "${scan_dir}" ]] || continue
+    while IFS= read -r binary_path; do
+      [[ -n "${binary_path}" ]] || continue
+      printf '%s\n' "-a always,exit -F path=${binary_path} -F perm=x -F auid>=1000 -F auid!=unset -F key=privileged" >> "${tmp}"
+    done < <(find "${scan_dir}" -xdev -type f -perm -04000 2>/dev/null | sort -u)
   done
 
-  for candidate in "$@"; do
-    if [[ "${candidate}" != "${selected}" ]]; then
-      local dst="/etc/audit/rules.d/${candidate##*/}"
-      if [[ -f "${dst}" ]]; then
-        rm -f "${dst}"
-        log "Removed obsolete audit rule candidate: ${dst}"
-      fi
-    fi
+  rule_count="$(
+    awk '
+      /^[[:space:]]*$/ { next }
+      /^[[:space:]]*#/ { next }
+      { c++ }
+      END { print c + 0 }
+    ' "${tmp}"
+  )"
+
+  if [[ "${rule_count}" -eq 0 ]]; then
+    rm -f "${tmp}"
+    warn "Could not generate privileged audit rules: no setuid binaries found"
+    return 1
+  fi
+
+  if [[ ! -f "${dst}" ]] || ! cmp -s "${tmp}" "${dst}"; then
+    install -D -m 0640 -o root -g root "${tmp}" "${dst}"
+    log "Generated ${dst} with ${rule_count} privileged command rules"
+  else
+    log "Privileged audit rules already up to date: ${dst}"
+  fi
+  rm -f "${tmp}"
+}
+
+generate_software_installer_audit_rules() {
+  local dst="/etc/audit/rules.d/50-software-installers.rules"
+  local tmp
+  local binary_path
+  local rule_count
+  local -a binaries=(
+    /usr/bin/apt
+    /usr/bin/apt-get
+    /usr/bin/aptitude
+    /usr/bin/dpkg
+    /usr/bin/snap
+    /usr/bin/pip
+    /usr/bin/pip3
+    /usr/bin/npm
+    /usr/bin/yarn
+    /usr/bin/gem
+    /usr/bin/cpan
+    /usr/bin/luarocks
+    /usr/bin/dnf
+    /usr/bin/yum
+    /usr/bin/zypper
+  )
+  tmp="$(mktemp)"
+
+  {
+    echo "# Managed by public/sh/init.sh"
+    echo "# Watch software installation tooling execution."
+  } > "${tmp}"
+
+  for binary_path in "${binaries[@]}"; do
+    [[ -x "${binary_path}" ]] || continue
+    printf '%s\n' "-w ${binary_path} -p x -k software-installer" >> "${tmp}"
   done
 
-  if [[ -n "${selected}" ]] && install_audit_example_rule "${selected}"; then
-    log "Using audit sample for ${label}: ${selected}"
+  rule_count="$(
+    awk '
+      /^[[:space:]]*$/ { next }
+      /^[[:space:]]*#/ { next }
+      { c++ }
+      END { print c + 0 }
+    ' "${tmp}"
+  )"
+  if [[ "${rule_count}" -eq 0 ]]; then
+    rm -f "${tmp}"
+    warn "No software installer binaries found for audit watches"
     return 0
   fi
 
-  warn "Could not find a suitable audit sample for ${label}"
-  return 1
+  if [[ ! -f "${dst}" ]] || ! cmp -s "${tmp}" "${dst}"; then
+    install -D -m 0640 -o root -g root "${tmp}" "${dst}"
+    log "Generated ${dst} with ${rule_count} installer watch rules"
+  else
+    log "Software installer audit rules already up to date: ${dst}"
+  fi
+  rm -f "${tmp}"
 }
 
 fetch_primary_ssh_key() {
@@ -375,9 +423,19 @@ warn_if_other_ssh_login_users_exist() {
 
 configure_ssh() {
   local ssh_unit
+  local ssh_enable_unit
+  local enable_err
+  local sshd_effective
   ssh_unit="$(pick_unit_name "ssh" "sshd")"
+  ssh_enable_unit="$(systemctl show -p Id --value "${ssh_unit}.service" 2>/dev/null || true)"
+  ssh_enable_unit="${ssh_enable_unit%.service}"
+  if [[ -z "${ssh_enable_unit}" ]]; then
+    ssh_enable_unit="${ssh_unit}"
+  fi
 
-  write_file "/etc/ssh/sshd_config.d/99-hardening.conf" "0644" "root" "root" <<EOF
+  # OpenSSH uses the first value it reads for many directives.
+  # Keep hardening in an early include file so cloud-init defaults do not override it.
+  write_file "/etc/ssh/sshd_config.d/00-hardening.conf" "0644" "root" "root" <<EOF
 # Managed by public/sh/init.sh
 PermitRootLogin prohibit-password
 PasswordAuthentication no
@@ -392,18 +450,35 @@ ClientAliveInterval 300
 ClientAliveCountMax 2
 EOF
 
+  # Cleanup old filename used by earlier script versions.
+  if [[ -f "/etc/ssh/sshd_config.d/99-hardening.conf" ]]; then
+    rm -f "/etc/ssh/sshd_config.d/99-hardening.conf"
+    log "Removed legacy /etc/ssh/sshd_config.d/99-hardening.conf"
+  fi
+
   sshd -t
   # Evaluate effective root login policy with and without connection context
   # to avoid false negatives when Match blocks are present.
-  if ! (
-    sshd -T -C user=root -C host=localhost -C addr=127.0.0.1 2>/dev/null ||
-    sshd -T 2>/dev/null
-  ) | grep -Eq '^permitrootlogin[[:space:]]+(prohibit-password|without-password|yes)$'; then
+  if ! sshd_effective="$(sshd -T -C user=root -C host=localhost -C addr=127.0.0.1 2>/dev/null)"; then
+    sshd_effective="$(sshd -T 2>/dev/null || true)"
+  fi
+  if ! awk '
+    /^permitrootlogin[[:space:]]+(prohibit-password|without-password|yes)$/ { found=1 }
+    END { exit(found ? 0 : 1) }
+  ' <<< "${sshd_effective}"; then
     echo "Refusing to apply SSH config: effective root key-based login is not enabled." >&2
     return 1
   fi
-  systemctl enable --now "${ssh_unit}"
-  systemctl restart "${ssh_unit}"
+  if ! enable_err="$(systemctl enable --now "${ssh_enable_unit}" 2>&1)"; then
+    if [[ "${enable_err}" == *"Refusing to operate on alias name or linked unit file"* ]]; then
+      warn "Cannot enable ${ssh_enable_unit}.service directly; starting without enable."
+      systemctl start "${ssh_enable_unit}"
+    else
+      printf '%s\n' "${enable_err}" >&2
+      return 1
+    fi
+  fi
+  systemctl restart "${ssh_enable_unit}"
 }
 
 configure_nginx() {
@@ -566,36 +641,65 @@ EOF
 }
 
 configure_auditd_web_profile() {
-  # Use distro-provided sample rules (low-noise oriented selection).
-  install_any_audit_example_rule "baseline config" \
-    "10-base-config.rules"
+  local legacy_rule
+  local -a legacy_rules=(
+    /etc/audit/rules.d/10-base-config.rules
+    /etc/audit/rules.d/10-loginuid.rules
+    /etc/audit/rules.d/11-loginuid.rules
+    /etc/audit/rules.d/12-cont-fail.rules
+    /etc/audit/rules.d/22-ignore-chrony.rules
+    /etc/audit/rules.d/31-privileged.rules
+    /etc/audit/rules.d/32-power-abuse.rules
+    /etc/audit/rules.d/43-module-load.rules
+    /etc/audit/rules.d/44-installers.rules
+  )
 
-  install_any_audit_example_rule "loginuid tracking" \
-    "11-loginuid.rules" \
-    "10-loginuid.rules"
+  for legacy_rule in "${legacy_rules[@]}"; do
+    if [[ -f "${legacy_rule}" ]]; then
+      rm -f "${legacy_rule}"
+      log "Removed legacy audit rule ${legacy_rule}"
+    fi
+  done
 
-  install_any_audit_example_rule "safe failure mode" \
-    "12-cont-fail.rules"
+  write_file "/etc/audit/rules.d/10-base.rules" "0640" "root" "root" <<'EOF'
+# Managed by public/sh/init.sh
+-D
+-b 8192
+-f 1
+EOF
 
-  # Ignore noisy chrony time-sync events.
-  if ! install_audit_example_rule "22-ignore-chrony.rules"; then
-    log "Optional audit rule 22-ignore-chrony.rules not found; skipping"
-  fi
+  write_file "/etc/audit/rules.d/20-identity.rules" "0640" "root" "root" <<'EOF'
+# Managed by public/sh/init.sh
+-w /etc/passwd -p wa -k identity
+-w /etc/group -p wa -k identity
+-w /etc/shadow -p wa -k identity
+-w /etc/gshadow -p wa -k identity
+-w /usr/sbin/useradd -p x -k identity
+-w /usr/sbin/usermod -p x -k identity
+-w /usr/sbin/userdel -p x -k identity
+-w /usr/sbin/groupadd -p x -k identity
+-w /usr/sbin/groupmod -p x -k identity
+-w /usr/sbin/groupdel -p x -k identity
+EOF
 
-  # Focused examples for privilege escalation and module loading.
-  install_any_audit_example_rule "privilege escalation monitoring" \
-    "31-privileged.rules"
+  write_file "/etc/audit/rules.d/40-kernel-modules.rules" "0640" "root" "root" <<'EOF'
+# Managed by public/sh/init.sh
+-a always,exit -F arch=b32 -S init_module,finit_module -F key=kernel_modules
+-a always,exit -F arch=b64 -S init_module,finit_module -F key=kernel_modules
+-a always,exit -F arch=b32 -S delete_module -F key=kernel_modules
+-a always,exit -F arch=b64 -S delete_module -F key=kernel_modules
+-w /usr/sbin/insmod -p x -k kernel_modules
+-w /usr/sbin/rmmod -p x -k kernel_modules
+-w /usr/sbin/modprobe -p x -k kernel_modules
+EOF
 
-  install_any_audit_example_rule "kernel module monitoring" \
-    "43-module-load.rules"
+  write_file "/etc/audit/rules.d/45-power-abuse.rules" "0640" "root" "root" <<'EOF'
+# Managed by public/sh/init.sh
+-a always,exit -F dir=/home -F uid=0 -F auid>=1000 -F auid!=-1 -C auid!=obj_uid -F key=power-abuse
+EOF
 
-  # Useful low-noise extras for server operations.
-  if ! install_audit_example_rule "32-power-abuse.rules"; then
-    log "Optional audit rule 32-power-abuse.rules not found; skipping"
-  fi
-  if ! install_audit_example_rule "44-installers.rules"; then
-    log "Optional audit rule 44-installers.rules not found; skipping"
-  fi
+  generate_privileged_audit_rules
+  generate_software_installer_audit_rules
 
   if [[ -f /etc/audit/auditd.conf ]]; then
     set_config_value "/etc/audit/auditd.conf" "max_log_file" "32"
@@ -618,10 +722,24 @@ configure_auditd_web_profile() {
   fi
 
   systemctl enable --now auditd
-  if augenrules --load >/dev/null 2>&1; then
+  local audit_enabled_state
+  local augenrules_output
+  audit_enabled_state="$(
+    auditctl -s 2>/dev/null | awk '$1 == "enabled" { print $2; exit }'
+  )"
+  if [[ "${audit_enabled_state}" == "2" ]]; then
+    warn "auditd rules are immutable (-e 2); skipping augenrules --load until reboot"
+  elif augenrules_output="$(augenrules --load 2>&1)"; then
     log "auditd rules loaded"
   else
-    warn "Failed to load auditd rules via augenrules"
+    if [[ "${augenrules_output}" == *"No rules"* ]] && audit_ruleset_has_active_entries; then
+      log "augenrules reported 'No rules', but active files exist in /etc/audit/rules.d; continuing"
+    else
+      warn "Failed to load auditd rules via augenrules"
+      if [[ -n "${augenrules_output}" ]]; then
+        warn "augenrules output: ${augenrules_output}"
+      fi
+    fi
   fi
   if auditctl -l 2>/dev/null | grep -q '^-e 2$'; then
     warn "auditd rules are immutable (-e 2); future automated rule updates require reboot"
@@ -641,6 +759,7 @@ print_certbot_hint() {
 
 health_summary() {
   local ssh_unit
+  local sshd_effective
   ssh_unit="$(pick_unit_name "ssh" "sshd")"
 
   log "Health summary:"
@@ -651,7 +770,11 @@ health_summary() {
     warn " - sshd config: FAIL"
   fi
 
-  if sshd -T 2>/dev/null | grep -Eq '^permitrootlogin[[:space:]]+(prohibit-password|without-password|yes)$'; then
+  sshd_effective="$(sshd -T 2>/dev/null || true)"
+  if awk '
+    /^permitrootlogin[[:space:]]+(prohibit-password|without-password|yes)$/ { found=1 }
+    END { exit(found ? 0 : 1) }
+  ' <<< "${sshd_effective}"; then
     log " - root SSH key login: OK"
   else
     warn " - root SSH key login: FAIL"
