@@ -22,13 +22,33 @@ if [[ "${ID:-}" != "ubuntu" ]]; then
   echo "This script supports Ubuntu only." >&2
   exit 1
 fi
-if [[ "${VERSION_ID:-}" != "24.04" ]]; then
-  echo "Expected Ubuntu 24.04 LTS, got ${PRETTY_NAME:-unknown}." >&2
+if [[ -z "${VERSION_ID:-}" ]]; then
+  echo "Cannot detect Ubuntu version from /etc/os-release." >&2
   exit 1
+fi
+UBUNTU_MAJOR="${VERSION_ID%%.*}"
+UBUNTU_MINOR="${VERSION_ID#*.}"
+if [[ ! "${UBUNTU_MAJOR}" =~ ^[0-9]+$ ]]; then
+  echo "Unsupported Ubuntu version format: ${VERSION_ID}" >&2
+  exit 1
+fi
+if (( UBUNTU_MAJOR < 22 )); then
+  echo "Ubuntu ${VERSION_ID} is too old. Use Ubuntu 22.04+." >&2
+  exit 1
+fi
+if [[ "${UBUNTU_MINOR}" != "04" ]]; then
+  echo "Warning: ${PRETTY_NAME:-unknown} is not an LTS .04 release; continuing." >&2
+fi
+if [[ "${VERSION_ID}" != "24.04" ]]; then
+  echo "Warning: script is tested primarily on Ubuntu 24.04 LTS (detected ${PRETTY_NAME:-unknown})." >&2
 fi
 
 export DEBIAN_FRONTEND=noninteractive
 SSH_KEY_URL="${SSH_KEY_URL:-https://github.com/pahaz.keys}"
+AUDIT_EXAMPLE_DIRS=(
+  "/usr/share/doc/auditd/examples/rules"
+  "/usr/share/audit/sample-rules"
+)
 
 log() {
   printf '[init] %s\n' "$*"
@@ -36,6 +56,26 @@ log() {
 
 warn() {
   printf '[init][warn] %s\n' "$*" >&2
+}
+
+has_deb_installed() {
+  local package="$1"
+  dpkg-query -W -f='${db:Status-Abbrev}' "${package}" 2>/dev/null | grep -q '^ii'
+}
+
+pick_unit_name() {
+  local preferred="$1"
+  local fallback="$2"
+
+  if systemctl list-unit-files --type=service --no-legend 2>/dev/null | awk '{print $1}' | grep -qx "${preferred}.service"; then
+    printf '%s\n' "${preferred}"
+    return 0
+  fi
+  if systemctl list-unit-files --type=service --no-legend 2>/dev/null | awk '{print $1}' | grep -qx "${fallback}.service"; then
+    printf '%s\n' "${fallback}"
+    return 0
+  fi
+  printf '%s\n' "${preferred}"
 }
 
 write_file() {
@@ -69,48 +109,73 @@ set_config_value() {
 }
 
 install_audit_example_rule() {
-  local src_dir="/usr/share/doc/auditd/examples/rules"
   local rule_name="$1"
-  local src_plain="${src_dir}/${rule_name}"
-  local src_gz="${src_plain}.gz"
-  local dst="/etc/audit/rules.d/${rule_name}"
+  local src_dir
+  local src_plain
+  local src_gz
+  local dst="/etc/audit/rules.d/${rule_name##*/}"
   local tmp
 
-  if [[ ! -d "${src_dir}" ]]; then
-    warn "auditd examples directory is missing: ${src_dir}"
-    return 1
-  fi
+  for src_dir in "${AUDIT_EXAMPLE_DIRS[@]}"; do
+    [[ -d "${src_dir}" ]] || continue
+    src_plain="${src_dir}/${rule_name}"
+    src_gz="${src_plain}.gz"
+    tmp="$(mktemp)"
+    if [[ -f "${src_plain}" ]]; then
+      cp "${src_plain}" "${tmp}"
+    elif [[ -f "${src_gz}" ]]; then
+      gzip -dc "${src_gz}" > "${tmp}"
+    else
+      rm -f "${tmp}"
+      continue
+    fi
 
-  tmp="$(mktemp)"
-  if [[ -f "${src_plain}" ]]; then
-    cp "${src_plain}" "${tmp}"
-  elif [[ -f "${src_gz}" ]]; then
-    gzip -dc "${src_gz}" > "${tmp}"
-  else
+    if [[ ! -f "${dst}" ]] || ! cmp -s "${tmp}" "${dst}"; then
+      install -D -m 0640 -o root -g root "${tmp}" "${dst}"
+      log "Installed audit sample rule ${rule_name} from ${src_dir}"
+    else
+      log "Audit sample rule already up to date: ${rule_name}"
+    fi
     rm -f "${tmp}"
-    return 1
-  fi
+    return 0
+  done
 
-  if [[ ! -f "${dst}" ]] || ! cmp -s "${tmp}" "${dst}"; then
-    install -D -m 0640 -o root -g root "${tmp}" "${dst}"
-    log "Installed audit sample rule ${rule_name}"
-  else
-    log "Audit sample rule already up to date: ${rule_name}"
-  fi
-  rm -f "${tmp}"
+  warn "auditd examples directory/rule missing for ${rule_name}"
+  return 1
 }
 
 install_any_audit_example_rule() {
   local label="$1"
   shift
   local candidate
+  local selected=""
+  local src_dir
 
   for candidate in "$@"; do
-    if install_audit_example_rule "${candidate}"; then
-      log "Using audit sample for ${label}: ${candidate}"
-      return 0
+    for src_dir in "${AUDIT_EXAMPLE_DIRS[@]}"; do
+      [[ -d "${src_dir}" ]] || continue
+      if [[ -f "${src_dir}/${candidate}" || -f "${src_dir}/${candidate}.gz" ]]; then
+        selected="${candidate}"
+        break 2
+      fi
+    done
+  done
+
+  for candidate in "$@"; do
+    if [[ "${candidate}" != "${selected}" ]]; then
+      local dst="/etc/audit/rules.d/${candidate##*/}"
+      if [[ -f "${dst}" ]]; then
+        rm -f "${dst}"
+        log "Removed obsolete audit rule candidate: ${dst}"
+      fi
     fi
   done
+
+  if [[ -n "${selected}" ]] && install_audit_example_rule "${selected}"; then
+    log "Using audit sample for ${label}: ${selected}"
+    return 0
+  fi
+
   warn "Could not find a suitable audit sample for ${label}"
   return 1
 }
@@ -268,6 +333,9 @@ warn_if_other_ssh_login_users_exist() {
 }
 
 configure_ssh() {
+  local ssh_unit
+  ssh_unit="$(pick_unit_name "ssh" "sshd")"
+
   write_file "/etc/ssh/sshd_config.d/99-hardening.conf" "0644" "root" "root" <<EOF
 # Managed by public/sh/init.sh
 PermitRootLogin prohibit-password
@@ -288,8 +356,8 @@ EOF
     echo "Refusing to apply SSH config: root key-based login is not enabled." >&2
     return 1
   fi
-  systemctl enable --now ssh
-  systemctl restart ssh
+  systemctl enable --now "${ssh_unit}"
+  systemctl restart "${ssh_unit}"
 }
 
 configure_nginx() {
@@ -315,16 +383,21 @@ configure_ufw() {
   ufw default deny incoming
   ufw default allow outgoing
 
+  # Allow SSH traffic
   if [[ -n "${ssh_ports}" ]]; then
     while IFS= read -r port; do
       [[ -z "${port}" ]] && continue
       ufw allow "${port}/tcp"
     done <<< "${ssh_ports}"
   else
-    ufw allow OpenSSH
+    warn "Could not detect SSH port from sshd -T; defaulting to 22/tcp."
+    ufw allow 22/tcp
   fi
 
-  ufw allow 'Nginx Full'
+  # Allow HTTP(S) traffic
+  ufw allow 80/tcp
+  ufw allow 443/tcp
+
   ufw --force enable
 }
 
@@ -335,7 +408,6 @@ configure_fail2ban() {
 bantime = 1h
 findtime = 10m
 maxretry = 5
-banaction = iptables-multiport
 
 [sshd]
 enabled = true
@@ -435,6 +507,13 @@ EOF
     else
       warn "certbot.timer is present but not enabled"
     fi
+  elif systemctl list-unit-files --type=timer --no-legend 2>/dev/null | awk '{print $1}' | grep -qx 'snap.certbot.renew.timer'; then
+    systemctl enable --now snap.certbot.renew.timer
+    if systemctl is-enabled --quiet snap.certbot.renew.timer; then
+      log "snap.certbot.renew.timer is enabled for automatic certificate renewals"
+    else
+      warn "snap.certbot.renew.timer is present but not enabled"
+    fi
   else
     warn "certbot.timer was not found; check certbot package installation"
   fi
@@ -504,7 +583,20 @@ configure_auditd_web_profile() {
   systemctl restart auditd
 }
 
+print_certbot_hint() {
+  if has_deb_installed "python3-certbot-nginx"; then
+    log "Run certbot when DNS is ready:"
+    log "certbot --nginx --agree-tos -m admin@example.com --redirect -d example.com -d www.example.com"
+  else
+    warn "python3-certbot-nginx is not installed; use webroot mode for initial certificate issuance."
+    log "certbot certonly --webroot -w /var/www/html --agree-tos -m admin@example.com -d example.com -d www.example.com"
+  fi
+}
+
 health_summary() {
+  local ssh_unit
+  ssh_unit="$(pick_unit_name "ssh" "sshd")"
+
   log "Health summary:"
 
   if sshd -t >/dev/null 2>&1; then
@@ -519,10 +611,10 @@ health_summary() {
     warn " - root SSH key login: FAIL"
   fi
 
-  if systemctl is-active --quiet ssh; then
-    log " - ssh service: active"
+  if systemctl is-active --quiet "${ssh_unit}"; then
+    log " - ${ssh_unit} service: active"
   else
-    warn " - ssh service: not active"
+    warn " - ${ssh_unit} service: not active"
   fi
 
   if systemctl is-active --quiet nginx; then
@@ -543,7 +635,8 @@ health_summary() {
     warn " - ufw: not active"
   fi
 
-  if systemctl is-enabled --quiet certbot.timer && systemctl is-active --quiet certbot.timer; then
+  if (systemctl is-enabled --quiet certbot.timer 2>/dev/null && systemctl is-active --quiet certbot.timer 2>/dev/null) || \
+     (systemctl is-enabled --quiet snap.certbot.renew.timer 2>/dev/null && systemctl is-active --quiet snap.certbot.renew.timer 2>/dev/null); then
     log " - certbot.timer: enabled and active"
   else
     warn " - certbot.timer: not enabled/active"
@@ -583,48 +676,72 @@ health_summary() {
 
 main() {
   local root_key
-  root_key="$(fetch_primary_ssh_key)"
+  local pkg
 
+  # Required packages for baseline server setup.
+  local base_packages=(
+    ca-certificates
+    certbot
+    curl
+    auditd
+    audispd-plugins
+    fail2ban
+    ufw
+    etckeeper
+    gnupg
+    htop
+    ncdu
+    nginx
+    openssh-server
+    software-properties-common
+    unattended-upgrades
+    git
+  )
+
+  # Optional packages: useful for diagnostics and incident response.
+  local optional_packages=(
+    needrestart
+    iproute2
+    dnsutils
+    mtr-tiny
+    netcat-openbsd
+    tcpdump
+    lsof
+    sysstat
+    dstat
+    jq
+    rsync
+    iotop
+    atop
+    python3-certbot-nginx
+  )
+
+  # 1) Update system package metadata and installed packages.
   log "Updating package index"
   apt-get update -y
 
   log "Upgrading packages"
   apt-get upgrade -y
 
+  # 2) Install baseline and optional tooling.
   log "Installing base packages"
-  apt-get install -y \
-    apt-transport-https \
-    ca-certificates \
-    certbot \
-    curl \
-    auditd \
-    audispd-plugins \
-    fail2ban \
-    ufw \
-    etckeeper \
-    gnupg \
-    htop \
-    iotop \
-    atop \
-    ncdu \
-    nginx \
-    openssh-server \
-    python3-certbot-nginx \
-    software-properties-common \
-    unattended-upgrades \
-    needrestart \
-    iproute2 \
-    dnsutils \
-    mtr-tiny \
-    netcat-openbsd \
-    tcpdump \
-    lsof \
-    sysstat \
-    dstat \
-    jq \
-    rsync \
-    git
+  apt-get install -y "${base_packages[@]}"
 
+  log "Installing optional diagnostic/security packages"
+  for pkg in "${optional_packages[@]}"; do
+    if apt-cache show "${pkg}" >/dev/null 2>&1; then
+      if apt-get install -y "${pkg}"; then
+        log "Installed optional package: ${pkg}"
+      else
+        warn "Failed to install optional package: ${pkg}"
+      fi
+    else
+      warn "Optional package not found in apt repo: ${pkg}"
+    fi
+  done
+
+  # 3) Configure security controls and core services.
+  root_key="$(fetch_primary_ssh_key)"
   configure_root_ssh_key "${root_key}"
   assert_root_ssh_access_preflight "${root_key}"
   warn_if_other_ssh_login_users_exist
@@ -638,11 +755,12 @@ main() {
   configure_shell_history
   configure_auditd_web_profile
   configure_etckeeper
+
+  # 4) Run post-configuration checks and print operator hints.
   health_summary
 
   log "Bootstrap complete."
-  log "Run certbot when DNS is ready:"
-  log "certbot --nginx --agree-tos -m admin@example.com --redirect -d example.com -d www.example.com"
+  print_certbot_hint
 }
 
 main "$@"
