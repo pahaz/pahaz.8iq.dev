@@ -2,7 +2,7 @@
 # Ubuntu 24.04 LTS server bootstrap script.
 #
 # One-liner (download + apply):
-#   curl -fsSL "http://pahaz.8iq.dev/sh/init.sh" | sudo bash
+#   curl -fsSL "https://pahaz.8iq.dev/sh/init.sh" | sudo bash
 
 set -Eeuo pipefail
 
@@ -56,6 +56,10 @@ log() {
 
 warn() {
   printf '[init][warn] %s\n' "$*" >&2
+}
+
+secure_curl() {
+  curl --proto '=https' -fsSL "$@"
 }
 
 has_deb_installed() {
@@ -182,7 +186,11 @@ install_any_audit_example_rule() {
 
 fetch_primary_ssh_key() {
   local key
-  key="$(curl -fsSL "${SSH_KEY_URL}" | sed '/^\s*$/d' | head -n 1)"
+  if [[ ! "${SSH_KEY_URL}" =~ ^https:// ]]; then
+    echo "SSH_KEY_URL must use https:// (got: ${SSH_KEY_URL})" >&2
+    return 1
+  fi
+  key="$(secure_curl "${SSH_KEY_URL}" | sed '/^\s*$/d' | head -n 1)"
   if [[ -z "${key}" ]]; then
     echo "Failed to fetch SSH key from ${SSH_KEY_URL}" >&2
     return 1
