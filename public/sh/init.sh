@@ -381,6 +381,58 @@ EOF
   fi
 }
 
+health_summary() {
+  log "Health summary:"
+
+  if sshd -t >/dev/null 2>&1; then
+    log " - sshd config: OK"
+  else
+    warn " - sshd config: FAIL"
+  fi
+
+  if sshd -T 2>/dev/null | grep -Eq '^permitrootlogin[[:space:]]+(prohibit-password|without-password|yes)$'; then
+    log " - root SSH key login: OK"
+  else
+    warn " - root SSH key login: FAIL"
+  fi
+
+  if systemctl is-active --quiet ssh; then
+    log " - ssh service: active"
+  else
+    warn " - ssh service: not active"
+  fi
+
+  if systemctl is-active --quiet nginx; then
+    log " - nginx service: active"
+  else
+    warn " - nginx service: not active"
+  fi
+
+  if systemctl is-active --quiet fail2ban; then
+    log " - fail2ban service: active"
+  else
+    warn " - fail2ban service: not active"
+  fi
+
+  if ufw status 2>/dev/null | grep -Eq '^Status: active'; then
+    log " - ufw: active"
+  else
+    warn " - ufw: not active"
+  fi
+
+  if systemctl is-enabled --quiet certbot.timer && systemctl is-active --quiet certbot.timer; then
+    log " - certbot.timer: enabled and active"
+  else
+    warn " - certbot.timer: not enabled/active"
+  fi
+
+  if systemctl is-enabled --quiet unattended-upgrades; then
+    log " - unattended-upgrades: enabled"
+  else
+    warn " - unattended-upgrades: not enabled"
+  fi
+}
+
 main() {
   local root_key
   root_key="$(fetch_primary_ssh_key)"
@@ -435,6 +487,7 @@ main() {
   configure_unattended_upgrades
   configure_shell_history
   configure_etckeeper
+  health_summary
 
   log "Bootstrap complete."
   log "Run certbot when DNS is ready:"
