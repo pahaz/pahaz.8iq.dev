@@ -276,10 +276,29 @@ force_time_sync() {
   local synced="no"
   local attempt=0
   local max_attempts=20
+  local ntp_unit=""
 
-  timedatectl set-ntp true
-  systemctl enable --now systemd-timesyncd
-  systemctl restart systemd-timesyncd
+  # Prefer distro-default timesyncd, but fall back to chrony when present.
+  if systemctl list-unit-files --type=service --no-legend 2>/dev/null | awk '{print $1}' | grep -qx 'systemd-timesyncd.service'; then
+    ntp_unit="systemd-timesyncd"
+  elif systemctl list-unit-files --type=service --no-legend 2>/dev/null | awk '{print $1}' | grep -qx 'chrony.service'; then
+    ntp_unit="chrony"
+  fi
+
+  if ! timedatectl set-ntp true 2>/dev/null; then
+    warn "Failed to enable NTP via timedatectl; trying service-level start"
+  fi
+
+  if [[ -n "${ntp_unit}" ]]; then
+    if ! systemctl enable --now "${ntp_unit}" 2>/dev/null; then
+      warn "Failed to enable/start ${ntp_unit}.service"
+    fi
+    if ! systemctl restart "${ntp_unit}" 2>/dev/null; then
+      warn "Failed to restart ${ntp_unit}.service"
+    fi
+  else
+    warn "No known NTP service unit found (systemd-timesyncd/chrony)"
+  fi
 
   while [[ "${attempt}" -lt "${max_attempts}" ]]; do
     if [[ "$(timedatectl show -p NTPSynchronized --value 2>/dev/null || true)" == "yes" ]]; then
