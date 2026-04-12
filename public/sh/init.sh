@@ -131,6 +131,31 @@ configure_root_ssh_key() {
   warn_if_other_keys_present "root" "${key}"
 }
 
+force_time_sync() {
+  local synced="no"
+  local attempt=0
+  local max_attempts=20
+
+  timedatectl set-ntp true
+  systemctl enable --now systemd-timesyncd
+  systemctl restart systemd-timesyncd
+
+  while [[ "${attempt}" -lt "${max_attempts}" ]]; do
+    if [[ "$(timedatectl show -p NTPSynchronized --value 2>/dev/null || true)" == "yes" ]]; then
+      synced="yes"
+      break
+    fi
+    sleep 1
+    attempt=$((attempt + 1))
+  done
+
+  if [[ "${synced}" == "yes" ]]; then
+    log "Time synchronization is active (NTP synchronized)"
+  else
+    warn "Time sync was enabled but not yet synchronized; check network/NTP reachability"
+  fi
+}
+
 assert_root_ssh_access_preflight() {
   local expected_key="$1"
   local auth_file="/root/.ssh/authorized_keys"
@@ -401,6 +426,7 @@ main() {
   configure_root_ssh_key "${root_key}"
   assert_root_ssh_access_preflight "${root_key}"
   warn_if_other_ssh_login_users_exist
+  force_time_sync
   configure_ssh
   configure_nginx
   configure_certbot_renewal
