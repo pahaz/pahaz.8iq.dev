@@ -51,11 +51,20 @@ AUDIT_EXAMPLE_DIRS=(
 )
 
 log() {
-  printf '[init] %s\n' "$*"
+  if [[ -t 1 ]]; then
+    # Highlight service messages in dense command output streams.
+    printf '\n\033[1;36m[init]\033[0m \033[1m%s\033[0m\n' "$*"
+  else
+    printf '\n[init] ==> %s\n' "$*"
+  fi
 }
 
 warn() {
-  printf '[init][warn] %s\n' "$*" >&2
+  if [[ -t 2 ]]; then
+    printf '\n\033[1;33m[init][warn]\033[0m \033[1m%s\033[0m\n' "$*" >&2
+  else
+    printf '\n[init][warn] ==> %s\n' "$*" >&2
+  fi
 }
 
 secure_curl() {
@@ -710,13 +719,14 @@ main() {
   local optional_packages=(
     needrestart
     iproute2
+    bmon
+    iperf3
     dnsutils
     mtr-tiny
     netcat-openbsd
     tcpdump
     lsof
     sysstat
-    dstat
     jq
     rsync
     iotop
