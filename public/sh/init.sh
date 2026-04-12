@@ -277,6 +277,7 @@ force_time_sync() {
   local attempt=0
   local max_attempts=20
   local ntp_unit=""
+  local ntp_issues=()
 
   # Prefer distro-default timesyncd, but fall back to chrony when present.
   if systemctl list-unit-files --type=service --no-legend 2>/dev/null | awk '{print $1}' | grep -qx 'systemd-timesyncd.service'; then
@@ -286,18 +287,18 @@ force_time_sync() {
   fi
 
   if ! timedatectl set-ntp true 2>/dev/null; then
-    warn "Failed to enable NTP via timedatectl; trying service-level start"
+    ntp_issues+=("timedatectl set-ntp failed")
   fi
 
   if [[ -n "${ntp_unit}" ]]; then
     if ! systemctl enable --now "${ntp_unit}" 2>/dev/null; then
-      warn "Failed to enable/start ${ntp_unit}.service"
+      ntp_issues+=("failed to enable/start ${ntp_unit}.service")
     fi
     if ! systemctl restart "${ntp_unit}" 2>/dev/null; then
-      warn "Failed to restart ${ntp_unit}.service"
+      ntp_issues+=("failed to restart ${ntp_unit}.service")
     fi
   else
-    warn "No known NTP service unit found (systemd-timesyncd/chrony)"
+    ntp_issues+=("no known NTP service unit found (systemd-timesyncd/chrony)")
   fi
 
   while [[ "${attempt}" -lt "${max_attempts}" ]]; do
@@ -312,7 +313,11 @@ force_time_sync() {
   if [[ "${synced}" == "yes" ]]; then
     log "Time synchronization is active (NTP synchronized)"
   else
-    warn "Time sync was enabled but not yet synchronized; check network/NTP reachability"
+    if [[ "${#ntp_issues[@]}" -gt 0 ]]; then
+      warn "Time sync was enabled but not yet synchronized (${ntp_issues[*]}); check network/NTP reachability"
+    else
+      warn "Time sync was enabled but not yet synchronized; check network/NTP reachability"
+    fi
   fi
 }
 
@@ -388,8 +393,13 @@ ClientAliveCountMax 2
 EOF
 
   sshd -t
-  if ! sshd -T | grep -Eq '^permitrootlogin[[:space:]]+(prohibit-password|without-password|yes)$'; then
-    echo "Refusing to apply SSH config: root key-based login is not enabled." >&2
+  # Evaluate effective root login policy with and without connection context
+  # to avoid false negatives when Match blocks are present.
+  if ! (
+    sshd -T -C user=root -C host=localhost -C addr=127.0.0.1 2>/dev/null ||
+    sshd -T 2>/dev/null
+  ) | grep -Eq '^permitrootlogin[[:space:]]+(prohibit-password|without-password|yes)$'; then
+    echo "Refusing to apply SSH config: effective root key-based login is not enabled." >&2
     return 1
   fi
   systemctl enable --now "${ssh_unit}"
