@@ -3,8 +3,77 @@
 #
 # One-liner (download + apply):
 #   curl -fsSL "https://pahaz.8iq.dev/sh/init.sh" | sudo bash
+# Debug mode:
+#   curl -fsSL "https://pahaz.8iq.dev/sh/init.sh" | sudo bash -s -- --debug
+#   sudo INIT_DEBUG=1 bash ./init.sh
 
 set -Eeuo pipefail
+
+DEBUG_MODE="${INIT_DEBUG:-0}"
+SHOW_HELP=0
+
+usage() {
+  cat <<'EOF'
+Usage: init.sh [OPTIONS]
+
+Options:
+  --debug, -x   Enable shell command tracing (set -x)
+  --help, -h    Show this help message and exit
+
+Environment:
+  INIT_DEBUG=1  Enable debug mode (same as --debug)
+EOF
+}
+
+parse_args() {
+  local arg
+  local -a unknown_args=()
+
+  for arg in "$@"; do
+    case "${arg}" in
+      --debug|-x)
+        DEBUG_MODE=1
+        ;;
+      --help|-h)
+        SHOW_HELP=1
+        ;;
+      *)
+        unknown_args+=("${arg}")
+        ;;
+    esac
+  done
+
+  if [[ "${#unknown_args[@]}" -gt 0 ]]; then
+    printf 'Unknown argument(s): %s\n' "${unknown_args[*]}" >&2
+    usage >&2
+    exit 1
+  fi
+}
+
+normalize_debug_mode() {
+  local normalized
+  normalized="$(printf '%s' "${DEBUG_MODE}" | tr '[:upper:]' '[:lower:]')"
+  case "${normalized}" in
+    1|true|yes|on)
+      DEBUG_MODE=1
+      ;;
+    0|false|no|off|'')
+      DEBUG_MODE=0
+      ;;
+    *)
+      printf 'Invalid INIT_DEBUG value: %s\n' "${DEBUG_MODE}" >&2
+      printf 'Use one of: 1,0,true,false,yes,no,on,off\n' >&2
+      exit 1
+      ;;
+  esac
+}
+
+parse_args "$@"
+normalize_debug_mode
+if [[ "${SHOW_HELP}" -eq 1 ]]; then
+  usage
+  exit 0
+fi
 
 if [[ "${EUID}" -ne 0 ]]; then
   echo "Run as root (sudo)." >&2
@@ -61,6 +130,17 @@ warn() {
   else
     printf '\n[init][warn] ==> %s\n' "$*" >&2
   fi
+}
+
+enable_debug_mode() {
+  if [[ "${DEBUG_MODE}" -ne 1 ]]; then
+    return 0
+  fi
+
+  # Tracing can include command arguments and variable values.
+  export PS4='+ [${BASH_SOURCE##*/}:${LINENO}:${FUNCNAME[0]:-main}] '
+  set -x
+  log "Debug mode enabled (command tracing)"
 }
 
 secure_curl() {
@@ -449,12 +529,6 @@ AllowAgentForwarding no
 ClientAliveInterval 300
 ClientAliveCountMax 2
 EOF
-
-  # Cleanup old filename used by earlier script versions.
-  if [[ -f "/etc/ssh/sshd_config.d/99-hardening.conf" ]]; then
-    rm -f "/etc/ssh/sshd_config.d/99-hardening.conf"
-    log "Removed legacy /etc/ssh/sshd_config.d/99-hardening.conf"
-  fi
 
   sshd -t
   # Evaluate effective root login policy with and without connection context
@@ -847,6 +921,8 @@ main() {
   local root_key
   local pkg
 
+  enable_debug_mode
+
   # Required packages for baseline server setup.
   local base_packages=(
     ca-certificates
@@ -871,7 +947,9 @@ main() {
   local optional_packages=(
     needrestart
     iproute2
+    net-tools
     bmon
+    iftop
     iperf3
     dnsutils
     mtr-tiny
@@ -880,6 +958,7 @@ main() {
     lsof
     sysstat
     jq
+    ripgrep
     rsync
     iotop
     atop
