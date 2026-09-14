@@ -1,0 +1,7238 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Text Diff Editor</title>
+<style>
+  :root{
+    --bg:#f6f7f9;
+    --panel:#fff;
+    --line:#d9dde5;
+    --line-soft:#eef0f3;
+    --text:#1f2328;
+    --muted:#747b86;
+    --add:#cfeecb;
+    --del:#ffd3d3;
+    --soft:#fff0a8;
+    --gutter:#f7f8fa;
+  }
+
+  *{box-sizing:border-box}
+
+  body{
+    margin:0;
+    font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    background:var(--bg);
+    color:var(--text);
+  }
+
+
+
+  main{
+    padding:12px 16px 16px;
+    max-width:1900px;
+    margin:auto;
+  }
+
+  .toolbar{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    gap:10px;
+    margin-bottom:10px;
+  }
+
+  .tool-group{
+    display:flex;
+    align-items:center;
+    gap:4px;
+    padding:3px;
+    border:1px solid var(--line);
+    border-radius:10px;
+    background:#fff;
+  }
+
+  .tool-separator{
+    width:1px;
+    height:20px;
+    margin:0 2px;
+    background:var(--line);
+  }
+
+  .weak-options{
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px;
+    align-items:center;
+  }
+
+  button,label.switch{
+    border:1px solid var(--line);
+    background:#fff;
+    border-radius:8px;
+    padding:7px 11px;
+  }
+
+  button{cursor:pointer}
+  button:disabled{opacity:.35;cursor:not-allowed}
+
+
+  .icon-btn{
+    position:relative;
+    display:inline-grid;
+    place-items:center;
+    width:32px;
+    height:32px;
+    min-width:32px;
+    padding:0;
+    border:0;
+    border-radius:7px;
+    background:transparent;
+    color:#59616d;
+    cursor:pointer;
+    transition:
+      background-color .16s ease,
+      color .16s ease,
+      transform .14s ease,
+      box-shadow .16s ease;
+  }
+
+  .icon-btn svg{
+    width:18px;
+    height:18px;
+    fill:none;
+    stroke:currentColor;
+    stroke-width:1.8;
+    stroke-linecap:round;
+    stroke-linejoin:round;
+    transition:
+      transform .18s ease,
+      opacity .15s ease;
+  }
+
+  .icon-btn:hover:not(:disabled){
+    background:#eef1f5;
+    color:#242a32;
+    transform:translateY(-1px);
+  }
+
+  .icon-btn:active:not(:disabled){
+    transform:translateY(0) scale(.91);
+  }
+
+  .icon-btn:focus-visible{
+    outline:2px solid rgba(37,99,235,.38);
+    outline-offset:1px;
+  }
+
+  .icon-btn.icon-pop svg{
+    animation:iconPop .28s ease;
+  }
+
+  @keyframes iconPop{
+    0%{transform:scale(1)}
+    42%{transform:scale(.72)}
+    75%{transform:scale(1.14)}
+    100%{transform:scale(1)}
+  }
+
+  .fold-btn .fold-icon{
+    position:absolute;
+  }
+
+  .fold-collapse{
+    opacity:0;
+    transform:scale(.65);
+  }
+
+  .fold-btn.is-expanded .fold-expand{
+    opacity:0;
+    transform:scale(.65);
+  }
+
+  .fold-btn.is-expanded .fold-collapse{
+    opacity:1;
+    transform:scale(1);
+  }
+
+  .copy-btn{
+    width:30px;
+    height:30px;
+    min-width:30px;
+  }
+
+  .copy-btn .copy-check{
+    position:absolute;
+    opacity:0;
+    transform:scale(.55);
+  }
+
+  .copy-btn.copy-ok{
+    color:#16833d;
+    background:#edf9f0;
+  }
+
+  .copy-btn.copy-ok .copy-main{
+    opacity:0;
+    transform:scale(.55);
+  }
+
+  .copy-btn.copy-ok .copy-check{
+    opacity:1;
+    transform:scale(1);
+    animation:copyCheck .32s cubic-bezier(.2,.8,.2,1.2);
+  }
+
+  @keyframes copyCheck{
+    0%{opacity:0;transform:scale(.35) rotate(-12deg)}
+    70%{opacity:1;transform:scale(1.15) rotate(2deg)}
+    100%{opacity:1;transform:scale(1) rotate(0)}
+  }
+
+  .mode-switch{
+    display:flex;
+    align-items:center;
+    gap:7px;
+    padding:4px 8px;
+    border:1px solid var(--line);
+    border-radius:10px;
+    background:#fff;
+    cursor:pointer;
+    user-select:none;
+  }
+
+  .mode-switch input{
+    position:absolute;
+    opacity:0;
+    pointer-events:none;
+  }
+
+  .mode-track{
+    position:relative;
+    width:34px;
+    height:20px;
+    border-radius:999px;
+    background:#d9dde5;
+    transition:background-color .2s ease;
+  }
+
+  .mode-thumb{
+    position:absolute;
+    left:2px;
+    top:2px;
+    width:16px;
+    height:16px;
+    border-radius:50%;
+    background:#fff;
+    box-shadow:0 1px 3px rgba(0,0,0,.20);
+    transition:transform .2s cubic-bezier(.2,.8,.2,1.1);
+  }
+
+  .mode-switch input:checked + .mode-track{
+    background:#59616d;
+  }
+
+  .mode-switch input:checked + .mode-track .mode-thumb{
+    transform:translateX(14px);
+  }
+
+  .mode-label{
+    color:#8a919b;
+    font-size:12px;
+    transition:
+      color .18s ease,
+      font-weight .18s ease;
+  }
+
+  .mode-words{
+    color:#303640;
+    font-weight:600;
+  }
+
+  .mode-switch:has(input:checked) .mode-words{
+    color:#8a919b;
+    font-weight:400;
+  }
+
+  .mode-switch:has(input:checked) .mode-lines{
+    color:#303640;
+    font-weight:600;
+  }
+
+  label.switch{
+    display:flex;
+    align-items:center;
+    gap:7px;
+    cursor:pointer;
+    user-select:none;
+  }
+
+  .editor{
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:10px;
+    overflow:hidden;
+  }
+
+  .editor-head{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) 132px minmax(0,1fr);
+    min-width:900px;
+    border-bottom:1px solid var(--line);
+    background:#fafbfc;
+  }
+
+  .side-head{
+    min-height:44px;
+    padding:7px 10px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+  }
+
+  .side-head.left{border-right:1px solid var(--line)}
+  .side-head.right{border-left:1px solid var(--line)}
+
+  .side-title{font-weight:600;font-size:13px}
+
+  .side-actions{
+    display:flex;
+    gap:9px;
+    align-items:center;
+    color:var(--muted);
+    font-size:12px;
+  }
+
+  .readonly-toggle{
+    display:flex;
+    align-items:center;
+    gap:5px;
+    cursor:pointer;
+    user-select:none;
+  }
+
+
+  .head-gutter{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color:var(--muted);
+    font-size:11px;
+  }
+
+  .result-head{
+    padding:8px 11px;
+    border-bottom:1px solid var(--line);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:12px;
+  }
+
+  .legend{
+    display:flex;
+    gap:14px;
+    flex-wrap:wrap;
+    color:var(--muted);
+    font-size:12px;
+  }
+
+  .legend span::before{
+    content:"";
+    display:inline-block;
+    width:11px;
+    height:11px;
+    margin-right:5px;
+    border-radius:3px;
+    vertical-align:-1px;
+  }
+
+  .ladd::before{background:var(--add)}
+  .ldel::before{background:var(--del)}
+  .lsoft::before{background:var(--soft)}
+
+  .stats{
+    color:var(--muted);
+    font-size:12px;
+    white-space:nowrap;
+  }
+
+  #diffStage{
+    position:relative;
+    overflow:auto;
+    max-height:calc(100vh - 190px);
+    user-select:none;
+  }
+
+  #diff{
+    min-width:900px;
+  }
+
+  .diff-row{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) 132px minmax(0,1fr);
+    border-bottom:1px solid var(--line-soft);
+  }
+
+  .side{
+    min-width:0;
+    min-height:29px;
+    padding:4px 10px;
+    white-space:pre-wrap;
+    overflow-wrap:anywhere;
+    word-break:normal;
+    cursor:text;
+    font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;
+    background:#fff;
+  }
+
+  .side.left{border-right:1px solid var(--line)}
+  .side.right{border-left:1px solid var(--line)}
+  .side.empty{
+    background:#fafafa;
+    min-height:29px;
+  }
+
+  .diff-row:has(.side.empty) .side.empty{
+    background:
+      linear-gradient(
+        to bottom,
+        #fafafa,
+        #fafafa
+      );
+  }
+  .side.deleted-line{background:#fff8f8}
+  .side.added-line{background:#f8fff8}
+  .side.readonly{cursor:text}
+
+  .gutter{
+    display:grid;
+    grid-template-columns:38px 56px 38px;
+    min-height:29px;
+    align-items:start;
+    background:var(--gutter);
+    color:#8b93a0;
+    font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;
+  }
+
+  .gnum{
+    padding-top:4px;
+    user-select:none;
+  }
+
+  .gnum.left{text-align:right;padding-right:6px}
+  .gnum.right{text-align:left;padding-left:6px}
+
+  .row-actions{
+    min-height:28px;
+    display:flex;
+    justify-content:center;
+    align-items:flex-start;
+    gap:3px;
+    padding-top:2px;
+  }
+
+  .apply-btn{
+    width:27px;
+    height:23px;
+    padding:0;
+    border:0;
+    border-radius:5px;
+    background:transparent;
+    color:#6f7782;
+    font:18px/20px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  }
+
+  .apply-btn:hover:not(:disabled){
+    background:#e7ebf0;
+    color:#2f3742;
+  }
+
+  mark{
+    padding:0;
+    border-radius:3px;
+    color:inherit;
+  }
+
+  mark.del{background:var(--del)}
+  mark.add{background:var(--add)}
+  mark.soft{background:var(--soft)}
+
+  .side.changed-left{background:#fffafa}
+  .side.changed-right{background:#fbfffb}
+
+  .newline-marker.add::after{background:var(--add);color:#267029}
+  .newline-marker.del::after{background:var(--del);color:#9f3030}
+  .newline-marker.soft::after{background:var(--soft);color:#806b00}
+
+  .reflow-line{
+    background:#fffdf6 !important;
+  }
+
+  .newline-marker{
+    display:inline;
+    width:0;
+    height:0;
+    position:relative;
+    vertical-align:baseline;
+    pointer-events:none;
+  }
+
+  .newline-marker::after{
+    content:"↵";
+    position:relative;
+    display:inline-block;
+    left:2px;
+    top:0;
+    padding:0 3px;
+    border-radius:3px;
+    background:var(--soft);
+    color:#806b00;
+    font:11px/1.35 ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;
+  }
+
+  .fold{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) 132px minmax(0,1fr);
+    background:var(--gutter);
+    color:var(--muted);
+    border-bottom:1px solid var(--line);
+    font-size:12px;
+  }
+
+  .fold-side{height:28px;background:#fafbfc}
+  .fold-center{
+    text-align:center;
+    padding:5px 8px;
+    cursor:pointer;
+    user-select:none;
+  }
+
+  .fold-center:hover{
+    background:#eef1f5;
+    color:#404854;
+  }
+
+  /* Реальный редактор. Он получает клавиатуру, clipboard, native selection,
+     но сам текст рисует diff-слой. */
+  .native-editor{
+    position:fixed;
+    left:-10000px;
+    top:0;
+    width:2px;
+    height:2px;
+    opacity:.001;
+    resize:none;
+    pointer-events:none;
+    white-space:pre;
+  }
+
+  #virtualCaret{
+    position:absolute;
+    z-index:50;
+    display:none;
+    width:1px;
+    background:#111;
+    pointer-events:none;
+  }
+
+  ::highlight(diff-selection){
+    background:rgba(73,143,238,.28);
+    color:inherit;
+  }
+
+  .copy-ok{
+    color:#15803d;
+    border-color:#b7dfbf;
+    background:#f3fff5;
+  }
+</style>
+</head>
+<body>
+<main>
+  <div class="toolbar">
+    <div class="tool-group">
+      <button class="icon-btn" id="swap" type="button" title="Поменять тексты местами" aria-label="Поменять тексты местами">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h11m0 0-3-3m3 3-3 3M17 17H6m0 0 3 3m-3-3 3-3"/></svg>
+      </button>
+
+      <button class="icon-btn" id="clear" type="button" title="Очистить" aria-label="Очистить">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13M10 11v5m4-5v5"/></svg>
+      </button>
+
+      <span class="tool-separator" aria-hidden="true"></span>
+
+      <button class="icon-btn" id="undo" type="button" title="Отменить" aria-label="Отменить">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7 4 12l5 5M5 12h8a6 6 0 1 1 0 12"/></svg>
+      </button>
+
+      <button class="icon-btn" id="redo" type="button" title="Повторить" aria-label="Повторить">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 7 5 5-5 5m4-5h-8a6 6 0 1 0 0 12"/></svg>
+      </button>
+
+      <button class="icon-btn fold-btn" id="toggleFold" type="button" title="Раскрыть общие строки" aria-label="Раскрыть общие строки">
+        <svg class="fold-icon fold-expand" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 9 4-4 4 4M8 15l4 4 4-4"/></svg>
+        <svg class="fold-icon fold-collapse" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 4 4 4-4M8 19l4-4 4 4"/></svg>
+      </button>
+    </div>
+
+    <label class="mode-switch" title="Переключить способ сопоставления текста">
+      <span class="mode-label mode-words">По словам</span>
+      <input type="checkbox" id="algorithmSwitch" aria-label="Переключить: по словам или по строкам">
+      <span class="mode-track" aria-hidden="true"><span class="mode-thumb"></span></span>
+      <span class="mode-label mode-lines">По строкам</span>
+    </label>
+
+    <div class="weak-options">
+      <label class="switch">
+        <input type="checkbox" id="caseSoft" checked>
+        Регистр — слабое
+      </label>
+
+      <label class="switch">
+        <input type="checkbox" id="punctSoft" checked>
+        Пунктуация — слабое
+      </label>
+
+      <label class="switch">
+        <input type="checkbox" id="spaceSoft" checked>
+        Пробелы — слабое
+      </label>
+    </div>
+  </div>
+
+  <section class="editor">
+    <div class="editor-head">
+      <div class="side-head left">
+        <div class="side-title">Текст A</div>
+        <div class="side-actions">
+          <label class="readonly-toggle">
+            <input type="checkbox" id="readonlyA">
+            Только чтение
+          </label>
+          <button class="icon-btn copy-btn" data-copy="a" type="button" title="Копировать текст A" aria-label="Копировать текст A">
+            <svg class="copy-main" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 9h10v10H9zM5 15H4V5h10v1"/></svg>
+            <svg class="copy-check" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="head-gutter">A ⇄ B</div>
+
+      <div class="side-head right">
+        <div class="side-title">Текст B</div>
+        <div class="side-actions">
+          <label class="readonly-toggle">
+            <input type="checkbox" id="readonlyB">
+            Только чтение
+          </label>
+          <button class="icon-btn copy-btn" data-copy="b" type="button" title="Копировать текст B" aria-label="Копировать текст B">
+            <svg class="copy-main" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 9h10v10H9zM5 15H4V5h10v1"/></svg>
+            <svg class="copy-check" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="result-head">
+      <div class="legend">
+        <span class="ldel">удалено</span>
+        <span class="ladd">добавлено</span>
+        <span class="lsoft">слабое изменение</span>
+      </div>
+      <div class="stats" id="stats"></div>
+    </div>
+
+    <div id="diffStage">
+      <div id="diff"></div>
+      <div id="virtualCaret"></div>
+    </div>
+  </section>
+</main>
+
+<textarea id="nativeA" class="native-editor" aria-label="Текст A"></textarea>
+<textarea id="nativeB" class="native-editor" aria-label="Текст B"></textarea>
+
+<script>
+const $ = s => document.querySelector(s);
+
+const esc = s => s.replace(/[&<>"]/g, c => ({
+  "&":"&amp;",
+  "<":"&lt;",
+  ">":"&gt;",
+  '"':"&quot;"
+}[c]));
+
+const state = {
+  a:`1.1. Исполнитель оказывает Заказчику консультационные, аналитические и
+экспертные услуги в роли внешнего технического руководителя, а Заказчик
+принимает и оплачивает Услуги на условиях настоящего Договора.
+
+• анализировать варианты «купить или разработать», помогать выбирать
+технологии, продукты и технические решения;
+• участвовать в техническом найме, интервью и оценке кандидатов;`,
+
+  b:`1.1. Исполнитель оказывает Заказчику консультационные, аналитические и
+экспертные услуги в роли внешнего технического руководителя (vCTO), а Заказчик
+принимает и оплачивает Услуги на условиях настоящего Договора.
+
+• анализировать варианты «купить или разработать», помогать выбирать
+технологии, продукты и технические решения ;
+• участвовать в техническом найме, интервью и оценке кандидатов.`
+};
+
+let collapsed = true;
+let algorithmMode = "myers";
+let activeSide = null;
+let drag = null;
+let renderTimer = null;
+let renderDirty = false;
+let layoutDirty = false;
+const DIFF_RENDER_DELAY = 280;
+const foldReveal = new Map();
+
+const undoStack = [];
+const redoStack = [];
+const HISTORY_LIMIT = 200;
+
+function editorFor(side){
+  return side === "a" ? $("#nativeA") : $("#nativeB");
+}
+
+function canWrite(side){
+  return side === "a"
+    ? !$("#readonlyA").checked
+    : !$("#readonlyB").checked;
+}
+
+function syncEditors(preserveSelection = true){
+  for(const side of ["a","b"]){
+    const editor = editorFor(side);
+
+    const start = editor.selectionStart || 0;
+    const end = editor.selectionEnd || 0;
+    const direction = editor.selectionDirection || "none";
+
+    if(editor.value !== state[side]){
+      editor.value = state[side];
+
+      if(preserveSelection){
+        const max = editor.value.length;
+        editor.setSelectionRange(
+          Math.min(start,max),
+          Math.min(end,max),
+          direction
+        );
+      }
+    }
+
+    editor.readOnly = !canWrite(side);
+  }
+}
+
+function currentSelection(side){
+  const editor = editorFor(side);
+
+  return {
+    start:editor.selectionStart || 0,
+    end:editor.selectionEnd || 0,
+    direction:editor.selectionDirection || "none"
+  };
+}
+
+function snapshot(){
+  return {
+    a:state.a,
+    b:state.b,
+    activeSide,
+    sa:currentSelection("a"),
+    sb:currentSelection("b")
+  };
+}
+
+function sameTextSnapshot(x,y){
+  return !!x && !!y && x.a === y.a && x.b === y.b;
+}
+
+function pushUndo(s = snapshot()){
+  const last = undoStack[undoStack.length - 1];
+
+  if(!sameTextSnapshot(last,s)){
+    undoStack.push(s);
+
+    if(undoStack.length > HISTORY_LIMIT){
+      undoStack.shift();
+    }
+  }
+
+  redoStack.length = 0;
+  updateHistoryButtons();
+}
+
+function restoreSnapshot(s){
+  state.a = s.a;
+  state.b = s.b;
+  activeSide = s.activeSide || activeSide;
+
+  syncEditors(false);
+
+  for(const [side,key] of [["a","sa"],["b","sb"]]){
+    const editor = editorFor(side);
+    const selection = s[key];
+    const max = editor.value.length;
+
+    if(selection){
+      editor.setSelectionRange(
+        Math.min(selection.start,max),
+        Math.min(selection.end,max),
+        selection.direction
+      );
+    }
+  }
+
+  if(activeSide){
+    editorFor(activeSide).focus({preventScroll:true});
+  }
+
+  render();
+}
+
+function undo(){
+  if(!undoStack.length) return;
+
+  redoStack.push(snapshot());
+  restoreSnapshot(undoStack.pop());
+}
+
+function redo(){
+  if(!redoStack.length) return;
+
+  undoStack.push(snapshot());
+  restoreSnapshot(redoStack.pop());
+}
+
+function updateHistoryButtons(){
+  $("#undo").disabled = !undoStack.length;
+  $("#redo").disabled = !redoStack.length;
+}
+
+function splitDoc(side){
+  return state[side].replace(/\r\n?/g,"\n").split("\n");
+}
+
+function lineStarts(text){
+  const starts = [0];
+
+  for(let i=0;i<text.length;i++){
+    if(text[i] === "\n"){
+      starts.push(i+1);
+    }
+  }
+
+  return starts;
+}
+
+function offsetToLineCol(text, offset){
+  const starts = lineStarts(text);
+  offset = Math.max(0,Math.min(offset,text.length));
+
+  let lo = 0;
+  let hi = starts.length - 1;
+
+  while(lo <= hi){
+    const mid = (lo + hi) >> 1;
+
+    if(starts[mid] <= offset){
+      lo = mid + 1;
+    }else{
+      hi = mid - 1;
+    }
+  }
+
+  const line = Math.max(0,hi);
+
+  return {
+    line,
+    col:offset - starts[line]
+  };
+}
+
+function lineColToOffset(text, line, col){
+  const starts = lineStarts(text);
+
+  if(line >= starts.length){
+    return text.length;
+  }
+
+  const start = starts[Math.max(0,line)];
+  const next =
+    line + 1 < starts.length
+      ? starts[line + 1] - 1
+      : text.length;
+
+  return start + Math.max(0,Math.min(col,next-start));
+}
+
+function boundaryOffset(text, lineIndex){
+  const starts = lineStarts(text);
+
+  if(lineIndex <= 0) return 0;
+  if(lineIndex >= starts.length) return text.length;
+
+  return starts[lineIndex];
+}
+
+function anchorLineKey(s){
+  let x = s;
+
+  if($("#caseSoft").checked){
+    x = x.toLocaleLowerCase("ru");
+  }
+
+  if($("#punctSoft").checked){
+    x = x.replace(/[.,!?;:()[\]{}"'«»„“”—–…\-]/g,"");
+  }
+
+  if($("#spaceSoft").checked){
+    x = x.replace(/\s+/g," ");
+  }
+
+  return x.trim();
+}
+
+function lcsMatrix(a,b,keyFn){
+  const n = a.length;
+  const m = b.length;
+  const dp = Array.from({length:n+1},()=>new Uint32Array(m+1));
+
+  for(let i=n-1;i>=0;i--){
+    for(let j=m-1;j>=0;j--){
+      dp[i][j] =
+        keyFn(a[i]) === keyFn(b[j])
+          ? dp[i+1][j+1] + 1
+          : Math.max(dp[i+1][j],dp[i][j+1]);
+    }
+  }
+
+  return dp;
+}
+
+function wordSimilarity(a,b){
+  const A = (a.match(/[\p{L}\p{N}_]+/gu) || [])
+    .map(x=>x.toLocaleLowerCase("ru"));
+
+  const B = (b.match(/[\p{L}\p{N}_]+/gu) || [])
+    .map(x=>x.toLocaleLowerCase("ru"));
+
+  if(!A.length && !B.length) return 1;
+  if(!A.length || !B.length) return 0;
+
+  const dp = lcsMatrix(A,B,x=>x);
+  return (2 * dp[0][0]) / (A.length + B.length);
+}
+
+function charSimilarity(a,b){
+  const A = Array.from(a.toLocaleLowerCase("ru"));
+  const B = Array.from(b.toLocaleLowerCase("ru"));
+
+  if(!A.length && !B.length) return 1;
+  if(!A.length || !B.length) return 0;
+
+  const dp = lcsMatrix(A,B,x=>x);
+  return (2 * dp[0][0]) / (A.length + B.length);
+}
+
+function isMajorLineChange(a,b){
+  // Whole-line highlighting is deliberately rare.
+  // If even one of the metrics says the lines are recognisably similar,
+  // show the precise inline word/character change instead.
+  return wordSimilarity(a,b) < .20 && charSimilarity(a,b) < .42;
+}
+
+function buildLineRows(a,b){
+  const dp = lcsMatrix(a,b,anchorLineKey);
+  const raw = [];
+
+  let i=0;
+  let j=0;
+
+  while(i<a.length || j<b.length){
+    if(
+      i<a.length &&
+      j<b.length &&
+      anchorLineKey(a[i]) === anchorLineKey(b[j])
+    ){
+      raw.push(
+        a[i] === b[j]
+          ? {type:"same",a:a[i],b:b[j],ai:i,bi:j}
+          : {type:"change",a:a[i],b:b[j],ai:i,bi:j,major:false}
+      );
+
+      i++;
+      j++;
+      continue;
+    }
+
+    if(j<b.length && (i===a.length || dp[i][j+1] >= dp[i+1][j])){
+      raw.push({type:"add",b:b[j],bi:j,aiPos:i});
+      j++;
+      continue;
+    }
+
+    raw.push({type:"del",a:a[i],ai:i,biPos:j});
+    i++;
+  }
+
+  return annotateRows(pairChangeBlocks(raw));
+}
+
+function annotateRows(rows){
+  let aIndex = 0;
+  let bIndex = 0;
+
+  for(const row of rows){
+    // These are positions in the final visual alignment, not stale LCS indexes.
+    row.aInsert = aIndex;
+    row.bInsert = bIndex;
+
+    if(row.type === "same" || row.type === "change" || row.type === "del"){
+      row.aIndex = aIndex;
+      aIndex++;
+    }else{
+      row.aIndex = null;
+    }
+
+    if(row.type === "same" || row.type === "change" || row.type === "add"){
+      row.bIndex = bIndex;
+      bIndex++;
+    }else{
+      row.bIndex = null;
+    }
+  }
+
+  return rows;
+}
+
+function pairChangeBlocks(rows){
+  const out = [];
+
+  for(let k=0;k<rows.length;){
+    if(rows[k].type === "same" || rows[k].type === "change"){
+      out.push(rows[k++]);
+      continue;
+    }
+
+    const block = [];
+
+    while(
+      k<rows.length &&
+      rows[k].type !== "same" &&
+      rows[k].type !== "change"
+    ){
+      block.push(rows[k++]);
+    }
+
+    const dels = block.filter(x=>x.type==="del");
+    const adds = block.filter(x=>x.type==="add");
+    const pairs = Math.min(dels.length,adds.length);
+
+    for(let n=0;n<pairs;n++){
+      out.push({
+        type:"change",
+        a:dels[n].a,
+        b:adds[n].b,
+        ai:dels[n].ai,
+        bi:adds[n].bi,
+        major:isMajorLineChange(dels[n].a,adds[n].b)
+      });
+    }
+
+    for(let n=pairs;n<dels.length;n++) out.push(dels[n]);
+    for(let n=pairs;n<adds.length;n++) out.push(adds[n]);
+  }
+
+  return out;
+}
+
+
+function globalWordTokens(lines){
+  const result=[];
+  let base=0;
+
+  for(let line=0;line<lines.length;line++){
+    const source=lines[line];
+    const re=/[\p{L}\p{N}_]+/gu;
+    let match;
+
+    while((match=re.exec(source))){
+      const raw=match[0];
+
+      result.push({
+        key:$("#caseSoft").checked
+          ? raw.toLocaleLowerCase("ru")
+          : raw,
+        text:raw,
+        line,
+        start:base+match.index,
+        end:base+match.index+raw.length
+      });
+    }
+
+    base+=source.length;
+
+    if(line<lines.length-1){
+      base+=1;
+    }
+  }
+
+  return result;
+}
+
+function fallbackAnchorMatches(a,b){
+  const countA = new Map();
+  const countB = new Map();
+  const posB = new Map();
+
+  for(const token of a){
+    countA.set(token.key,(countA.get(token.key) || 0) + 1);
+  }
+
+  for(let j=0;j<b.length;j++){
+    const key = b[j].key;
+    countB.set(key,(countB.get(key) || 0) + 1);
+    posB.set(key,j);
+  }
+
+  const candidates = [];
+
+  for(let i=0;i<a.length;i++){
+    const key = a[i].key;
+
+    if(countA.get(key) === 1 && countB.get(key) === 1){
+      candidates.push([i,posB.get(key)]);
+    }
+  }
+
+  // LIS over positions in B: stable, monotonic anchors.
+  const tails = [];
+  const tailsIndex = [];
+  const prev = new Int32Array(candidates.length);
+  prev.fill(-1);
+
+  for(let i=0;i<candidates.length;i++){
+    const value = candidates[i][1];
+
+    let lo=0;
+    let hi=tails.length;
+
+    while(lo<hi){
+      const mid=(lo+hi)>>1;
+
+      if(tails[mid] < value){
+        lo=mid+1;
+      }else{
+        hi=mid;
+      }
+    }
+
+    if(lo>0){
+      prev[i]=tailsIndex[lo-1];
+    }
+
+    tails[lo]=value;
+    tailsIndex[lo]=i;
+  }
+
+  if(!tailsIndex.length) return [];
+
+  const result = [];
+  let index = tailsIndex[tailsIndex.length-1];
+
+  while(index >= 0){
+    result.push(candidates[index]);
+    index = prev[index];
+  }
+
+  result.reverse();
+  return result;
+}
+
+function myersWordMatches(aTokens,bTokens){
+  const a = aTokens.map(x=>x.key);
+  const b = bTokens.map(x=>x.key);
+
+  const N = a.length;
+  const M = b.length;
+
+  let prefix=0;
+
+  while(
+    prefix<N &&
+    prefix<M &&
+    a[prefix] === b[prefix]
+  ){
+    prefix++;
+  }
+
+  let suffix=0;
+
+  while(
+    suffix<N-prefix &&
+    suffix<M-prefix &&
+    a[N-1-suffix] === b[M-1-suffix]
+  ){
+    suffix++;
+  }
+
+  const A = a.slice(prefix,N-suffix);
+  const B = b.slice(prefix,M-suffix);
+
+  const n=A.length;
+  const m=B.length;
+
+  const result = [];
+
+  for(let i=0;i<prefix;i++){
+    result.push([i,i]);
+  }
+
+  if(n && m){
+    const theoreticalMax = n+m;
+
+    // Exact Myers while documents are reasonably close.
+    // A hard D cap prevents pathological memory/time on unrelated documents.
+    const dLimit = Math.min(theoreticalMax,900);
+    const offset = dLimit+1;
+    const size = 2*dLimit+3;
+
+    let v = new Int32Array(size);
+    v.fill(-1);
+    v[offset+1]=0;
+
+    const trace = [];
+    let endD = -1;
+
+    outer:
+    for(let d=0;d<=dLimit;d++){
+      trace.push(v.slice());
+
+      for(let k=-d;k<=d;k+=2){
+        const ki=offset+k;
+        let x;
+
+        if(
+          k === -d ||
+          (
+            k !== d &&
+            v[ki-1] < v[ki+1]
+          )
+        ){
+          x=v[ki+1];
+        }else{
+          x=v[ki-1]+1;
+        }
+
+        let y=x-k;
+
+        while(
+          x<n &&
+          y<m &&
+          A[x] === B[y]
+        ){
+          x++;
+          y++;
+        }
+
+        v[ki]=x;
+
+        if(x>=n && y>=m){
+          endD=d;
+          break outer;
+        }
+      }
+    }
+
+    if(endD >= 0){
+      let x=n;
+      let y=m;
+      const inner=[];
+
+      for(let d=endD;d>0;d--){
+        const vv=trace[d];
+        const k=x-y;
+        const ki=offset+k;
+
+        let prevK;
+
+        if(
+          k === -d ||
+          (
+            k !== d &&
+            vv[ki-1] < vv[ki+1]
+          )
+        ){
+          prevK=k+1;
+        }else{
+          prevK=k-1;
+        }
+
+        const prevX=vv[offset+prevK];
+        const prevY=prevX-prevK;
+
+        while(x>prevX && y>prevY){
+          inner.push([
+            prefix+x-1,
+            prefix+y-1
+          ]);
+
+          x--;
+          y--;
+        }
+
+        x=prevX;
+        y=prevY;
+      }
+
+      while(x>0 && y>0){
+        inner.push([
+          prefix+x-1,
+          prefix+y-1
+        ]);
+
+        x--;
+        y--;
+      }
+
+      inner.reverse();
+      result.push(...inner);
+    }else{
+      // Very different/very large text: use stable unique-word anchors
+      // instead of freezing the browser.
+      result.push(
+        ...fallbackAnchorMatches(
+          aTokens.slice(prefix,N-suffix),
+          bTokens.slice(prefix,M-suffix)
+        ).map(([i,j])=>[
+          prefix+i,
+          prefix+j
+        ])
+      );
+    }
+  }
+
+  for(let i=0;i<suffix;i++){
+    result.push([
+      N-suffix+i,
+      M-suffix+i
+    ]);
+  }
+
+  return result;
+}
+
+
+function consecutiveMatchRuns(matches){
+  const runs=[];
+
+  if(!matches.length){
+    return runs;
+  }
+
+  let start=0;
+
+  for(let i=1;i<=matches.length;i++){
+    const previous=matches[i-1];
+    const current=matches[i];
+
+    const continues=
+      i<matches.length &&
+      current[0]===previous[0]+1 &&
+      current[1]===previous[1]+1;
+
+    if(continues){
+      continue;
+    }
+
+    runs.push({
+      start,
+      end:i,
+      length:i-start,
+      pairs:matches.slice(start,i)
+    });
+
+    start=i;
+  }
+
+  return runs;
+}
+
+function stableTokenMatches(
+  matches,
+  minRun=3
+){
+  return consecutiveMatchRuns(
+    matches
+  )
+    .filter(run=>run.length>=minRun)
+    .flatMap(run=>run.pairs);
+}
+
+function longestSnakeFromMatches(matches){
+  if(!matches.length){
+    return null;
+  }
+
+  let bestStart=0;
+  let bestLength=1;
+
+  let runStart=0;
+  let runLength=1;
+
+  for(let i=1;i<matches.length;i++){
+    const prev=matches[i-1];
+    const curr=matches[i];
+
+    if(
+      curr[0] === prev[0]+1 &&
+      curr[1] === prev[1]+1
+    ){
+      runLength++;
+    }else{
+      if(runLength > bestLength){
+        bestStart=runStart;
+        bestLength=runLength;
+      }
+
+      runStart=i;
+      runLength=1;
+    }
+  }
+
+  if(runLength > bestLength){
+    bestStart=runStart;
+    bestLength=runLength;
+  }
+
+  const first=matches[bestStart];
+
+  return {
+    aStart:first[0],
+    bStart:first[1],
+    length:bestLength,
+    matches:matches.slice(
+      bestStart,
+      bestStart+bestLength
+    )
+  };
+}
+
+function ordinaryWordMatches(
+  aTokens,
+  aStart,
+  aEnd,
+  bTokens,
+  bStart,
+  bEnd
+){
+  if(
+    aStart>=aEnd ||
+    bStart>=bEnd
+  ){
+    return [];
+  }
+
+  return myersWordMatches(
+    aTokens.slice(aStart,aEnd),
+    bTokens.slice(bStart,bEnd)
+  ).map(([a,b])=>[
+    aStart+a,
+    bStart+b
+  ]);
+}
+
+function recursiveOverlapMatches(
+  aTokens,
+  bTokens,
+  maxDepth
+){
+  const matches=[];
+
+  function walk(
+    aStart,
+    aEnd,
+    bStart,
+    bEnd,
+    depth
+  ){
+    if(
+      aStart>=aEnd ||
+      bStart>=bEnd
+    ){
+      return;
+    }
+
+    // Myers is now the only matcher used to decide the tree.
+    // It returns the matching word pairs on its chosen optimal edit path.
+    const regionMatches=ordinaryWordMatches(
+      aTokens,
+      aStart,
+      aEnd,
+      bTokens,
+      bStart,
+      bEnd
+    );
+
+    // Depth exhausted: keep the ordinary Myers result for this region.
+    if(depth<=0){
+      matches.push(...regionMatches);
+      return;
+    }
+
+    // A snake is a consecutive diagonal run in the Myers path:
+    // A[i] == B[j], A[i+1] == B[j+1], ...
+    const snake=longestSnakeFromMatches(
+      regionMatches
+    );
+
+    // If Myers cannot give us a stable phrase of at least three words,
+    // the fragments are too different for further overlap anchoring.
+    // Keep the ordinary Myers result and stop this branch early.
+    if(
+      !snake ||
+      snake.length<3
+    ){
+      matches.push(...regionMatches);
+      return;
+    }
+
+    // Re-run Myers recursively on the text before the largest snake.
+    walk(
+      aStart,
+      snake.aStart,
+      bStart,
+      snake.bStart,
+      depth-1
+    );
+
+    // The snake itself becomes the strong anchor for this tree node.
+    matches.push(...snake.matches);
+
+    // And independently search the part after it.
+    walk(
+      snake.aStart+snake.length,
+      aEnd,
+      snake.bStart+snake.length,
+      bEnd,
+      depth-1
+    );
+  }
+
+  walk(
+    0,
+    aTokens.length,
+    0,
+    bTokens.length,
+    maxDepth
+  );
+
+  matches.sort((x,y)=>
+    x[0]-y[0] ||
+    x[1]-y[1]
+  );
+
+  return matches;
+}
+
+
+function dedupeMatches(matches){
+  matches.sort((x,y)=>x[0]-y[0] || x[1]-y[1]);
+
+  const out=[];
+  let lastA=-1;
+  let lastB=-1;
+
+  for(const pair of matches){
+    if(pair[0] > lastA && pair[1] > lastB){
+      out.push(pair);
+      lastA=pair[0];
+      lastB=pair[1];
+    }
+  }
+
+  return out;
+}
+
+function lisPairs(candidates){
+  if(!candidates.length) return [];
+
+  candidates.sort((x,y)=>x[0]-y[0] || x[1]-y[1]);
+
+  const tails=[];
+  const tailsIndex=[];
+  const prev=new Int32Array(candidates.length);
+  prev.fill(-1);
+
+  for(let i=0;i<candidates.length;i++){
+    const b=candidates[i][1];
+
+    let lo=0;
+    let hi=tails.length;
+
+    while(lo<hi){
+      const mid=(lo+hi)>>1;
+
+      if(tails[mid] < b){
+        lo=mid+1;
+      }else{
+        hi=mid;
+      }
+    }
+
+    if(lo>0){
+      prev[i]=tailsIndex[lo-1];
+    }
+
+    tails[lo]=b;
+    tailsIndex[lo]=i;
+  }
+
+  const out=[];
+  let index=tailsIndex[tailsIndex.length-1];
+
+  while(index>=0){
+    out.push(candidates[index]);
+    index=prev[index];
+  }
+
+  out.reverse();
+  return out;
+}
+
+function patienceWordMatches(aTokens,bTokens){
+  const out=[];
+
+  function walk(aStart,aEnd,bStart,bEnd,depth=0){
+    if(aStart>=aEnd || bStart>=bEnd) return;
+
+    if(depth>64){
+      out.push(...ordinaryWordMatches(
+        aTokens,aStart,aEnd,
+        bTokens,bStart,bEnd
+      ));
+      return;
+    }
+
+    const countA=new Map();
+    const countB=new Map();
+    const posB=new Map();
+
+    for(let i=aStart;i<aEnd;i++){
+      const key=aTokens[i].key;
+      countA.set(key,(countA.get(key)||0)+1);
+    }
+
+    for(let j=bStart;j<bEnd;j++){
+      const key=bTokens[j].key;
+      countB.set(key,(countB.get(key)||0)+1);
+      posB.set(key,j);
+    }
+
+    const candidates=[];
+
+    for(let i=aStart;i<aEnd;i++){
+      const key=aTokens[i].key;
+
+      if(
+        countA.get(key)===1 &&
+        countB.get(key)===1
+      ){
+        candidates.push([i,posB.get(key)]);
+      }
+    }
+
+    const anchors=lisPairs(candidates);
+
+    if(!anchors.length){
+      out.push(...ordinaryWordMatches(
+        aTokens,aStart,aEnd,
+        bTokens,bStart,bEnd
+      ));
+      return;
+    }
+
+    let prevA=aStart;
+    let prevB=bStart;
+
+    for(const [ai,bi] of anchors){
+      walk(prevA,ai,prevB,bi,depth+1);
+      out.push([ai,bi]);
+      prevA=ai+1;
+      prevB=bi+1;
+    }
+
+    walk(prevA,aEnd,prevB,bEnd,depth+1);
+  }
+
+  walk(0,aTokens.length,0,bTokens.length);
+  return dedupeMatches(out);
+}
+
+function weightedLisTokenAnchors(candidates,bLength){
+  if(!candidates.length) return [];
+
+  candidates.sort((x,y)=>x.a-y.a || x.b-y.b);
+
+  const treeScore=new Float64Array(bLength+2);
+  const treeIndex=new Int32Array(bLength+2);
+  treeIndex.fill(-1);
+
+  const scores=new Float64Array(candidates.length);
+  const prev=new Int32Array(candidates.length);
+  prev.fill(-1);
+
+  function query(index){
+    let bestScore=0;
+    let bestIndex=-1;
+
+    for(let i=index;i>0;i-=i&-i){
+      if(treeScore[i] > bestScore){
+        bestScore=treeScore[i];
+        bestIndex=treeIndex[i];
+      }
+    }
+
+    return [bestScore,bestIndex];
+  }
+
+  function update(index,score,candidateIndex){
+    for(let i=index;i<treeScore.length;i+=i&-i){
+      if(score > treeScore[i]){
+        treeScore[i]=score;
+        treeIndex[i]=candidateIndex;
+      }
+    }
+  }
+
+  let start=0;
+
+  while(start<candidates.length){
+    let end=start+1;
+
+    while(
+      end<candidates.length &&
+      candidates[end].a===candidates[start].a
+    ){
+      end++;
+    }
+
+    const pending=[];
+
+    for(let i=start;i<end;i++){
+      const candidate=candidates[i];
+      const [best,bestIndex]=query(candidate.b);
+      scores[i]=best+candidate.weight;
+      prev[i]=bestIndex;
+      pending.push(i);
+    }
+
+    for(const i of pending){
+      update(
+        candidates[i].b+1,
+        scores[i],
+        i
+      );
+    }
+
+    start=end;
+  }
+
+  let bestIndex=-1;
+  let bestScore=-1;
+
+  for(let i=0;i<candidates.length;i++){
+    if(scores[i] > bestScore){
+      bestScore=scores[i];
+      bestIndex=i;
+    }
+  }
+
+  const chain=[];
+
+  while(bestIndex>=0){
+    chain.push(candidates[bestIndex]);
+    bestIndex=prev[bestIndex];
+  }
+
+  chain.reverse();
+  return chain;
+}
+
+function histogramWordMatches(aTokens,bTokens){
+  const countA=new Map();
+  const countB=new Map();
+  const posB=new Map();
+
+  for(const token of aTokens){
+    countA.set(token.key,(countA.get(token.key)||0)+1);
+  }
+
+  for(let j=0;j<bTokens.length;j++){
+    const key=bTokens[j].key;
+    countB.set(key,(countB.get(key)||0)+1);
+
+    if(!posB.has(key)) posB.set(key,[]);
+    posB.get(key).push(j);
+  }
+
+  const candidates=[];
+
+  for(let i=0;i<aTokens.length;i++){
+    const key=aTokens[i].key;
+    const ca=countA.get(key)||0;
+    const cb=countB.get(key)||0;
+
+    if(!cb || ca>8 || cb>8) continue;
+
+    const weight=
+      20/(ca+cb) +
+      (ca===1 && cb===1 ? 8 : 0);
+
+    for(const j of posB.get(key)){
+      candidates.push({
+        a:i,
+        b:j,
+        weight
+      });
+    }
+  }
+
+  if(!candidates.length){
+    return myersWordMatches(aTokens,bTokens);
+  }
+
+  // Avoid pathological candidate explosions.
+  if(candidates.length>6000){
+    candidates.sort((x,y)=>y.weight-x.weight);
+    candidates.length=6000;
+  }
+
+  const anchors=weightedLisTokenAnchors(
+    candidates,
+    bTokens.length
+  );
+
+  if(!anchors.length){
+    return myersWordMatches(aTokens,bTokens);
+  }
+
+  const out=[];
+  let aStart=0;
+  let bStart=0;
+
+  for(const anchor of anchors){
+    out.push(...ordinaryWordMatches(
+      aTokens,aStart,anchor.a,
+      bTokens,bStart,anchor.b
+    ));
+
+    out.push([anchor.a,anchor.b]);
+
+    aStart=anchor.a+1;
+    bStart=anchor.b+1;
+  }
+
+  out.push(...ordinaryWordMatches(
+    aTokens,aStart,aTokens.length,
+    bTokens,bStart,bTokens.length
+  ));
+
+  return dedupeMatches(out);
+}
+
+function longestCommonBlockDP(
+  aTokens,aStart,aEnd,
+  bTokens,bStart,bEnd,
+  cellLimit=900000
+){
+  const n=aEnd-aStart;
+  const m=bEnd-bStart;
+
+  if(!n || !m) return null;
+  if(n*m > cellLimit) return null;
+
+  let prev=new Uint32Array(m+1);
+  let curr=new Uint32Array(m+1);
+
+  let bestLength=0;
+  let bestAEnd=0;
+  let bestBEnd=0;
+
+  for(let i=1;i<=n;i++){
+    curr.fill(0);
+
+    for(let j=1;j<=m;j++){
+      if(
+        aTokens[aStart+i-1].key ===
+        bTokens[bStart+j-1].key
+      ){
+        curr[j]=prev[j-1]+1;
+
+        if(curr[j] > bestLength){
+          bestLength=curr[j];
+          bestAEnd=aStart+i;
+          bestBEnd=bStart+j;
+        }
+      }
+    }
+
+    [prev,curr]=[curr,prev];
+  }
+
+  if(!bestLength) return null;
+
+  return {
+    aStart:bestAEnd-bestLength,
+    bStart:bestBEnd-bestLength,
+    length:bestLength
+  };
+}
+
+function ratcliffWordMatches(aTokens,bTokens){
+  const out=[];
+
+  function walk(aStart,aEnd,bStart,bEnd,depth=0){
+    if(aStart>=aEnd || bStart>=bEnd) return;
+
+    if(depth>80){
+      out.push(...ordinaryWordMatches(
+        aTokens,aStart,aEnd,
+        bTokens,bStart,bEnd
+      ));
+      return;
+    }
+
+    const block=longestCommonBlockDP(
+      aTokens,aStart,aEnd,
+      bTokens,bStart,bEnd
+    );
+
+    if(!block){
+      // Large matrices fall back rather than freezing the browser.
+      if((aEnd-aStart)*(bEnd-bStart) > 900000){
+        out.push(...ordinaryWordMatches(
+          aTokens,aStart,aEnd,
+          bTokens,bStart,bEnd
+        ));
+      }
+      return;
+    }
+
+    walk(
+      aStart,block.aStart,
+      bStart,block.bStart,
+      depth+1
+    );
+
+    for(let i=0;i<block.length;i++){
+      out.push([
+        block.aStart+i,
+        block.bStart+i
+      ]);
+    }
+
+    walk(
+      block.aStart+block.length,aEnd,
+      block.bStart+block.length,bEnd,
+      depth+1
+    );
+  }
+
+  walk(0,aTokens.length,0,bTokens.length);
+  return dedupeMatches(out);
+}
+
+function commonPrefixLength(aTokens,aStart,aEnd,bTokens,bStart,bEnd){
+  let n=0;
+
+  while(
+    aStart+n<aEnd &&
+    bStart+n<bEnd &&
+    aTokens[aStart+n].key === bTokens[bStart+n].key
+  ){
+    n++;
+  }
+
+  return n;
+}
+
+function commonSuffixLength(aTokens,aStart,aEnd,bTokens,bStart,bEnd,prefix=0){
+  let n=0;
+
+  while(
+    aEnd-1-n>=aStart+prefix &&
+    bEnd-1-n>=bStart+prefix &&
+    aTokens[aEnd-1-n].key === bTokens[bEnd-1-n].key
+  ){
+    n++;
+  }
+
+  return n;
+}
+
+function dmpLikeWordMatches(aTokens,bTokens){
+  const out=[];
+
+  function walk(aStart,aEnd,bStart,bEnd,depth=0){
+    if(aStart>=aEnd || bStart>=bEnd) return;
+
+    if(depth>48){
+      out.push(...ordinaryWordMatches(
+        aTokens,aStart,aEnd,
+        bTokens,bStart,bEnd
+      ));
+      return;
+    }
+
+    const prefix=commonPrefixLength(
+      aTokens,aStart,aEnd,
+      bTokens,bStart,bEnd
+    );
+
+    for(let i=0;i<prefix;i++){
+      out.push([aStart+i,bStart+i]);
+    }
+
+    aStart+=prefix;
+    bStart+=prefix;
+
+    if(aStart>=aEnd || bStart>=bEnd) return;
+
+    const suffix=commonSuffixLength(
+      aTokens,aStart,aEnd,
+      bTokens,bStart,bEnd
+    );
+
+    const innerAEnd=aEnd-suffix;
+    const innerBEnd=bEnd-suffix;
+
+    if(aStart<innerAEnd && bStart<innerBEnd){
+      const block=longestCommonBlockDP(
+        aTokens,aStart,innerAEnd,
+        bTokens,bStart,innerBEnd,
+        600000
+      );
+
+      const longer=Math.max(
+        innerAEnd-aStart,
+        innerBEnd-bStart
+      );
+
+      // DMP-style "half match": only split around a substantial common block.
+      if(
+        block &&
+        block.length>=3 &&
+        block.length*2>=longer
+      ){
+        walk(
+          aStart,block.aStart,
+          bStart,block.bStart,
+          depth+1
+        );
+
+        for(let i=0;i<block.length;i++){
+          out.push([
+            block.aStart+i,
+            block.bStart+i
+          ]);
+        }
+
+        walk(
+          block.aStart+block.length,innerAEnd,
+          block.bStart+block.length,innerBEnd,
+          depth+1
+        );
+      }else{
+        out.push(...ordinaryWordMatches(
+          aTokens,aStart,innerAEnd,
+          bTokens,bStart,innerBEnd
+        ));
+      }
+    }
+
+    for(let i=suffix;i>0;i--){
+      out.push([
+        aEnd-i,
+        bEnd-i
+      ]);
+    }
+  }
+
+  walk(0,aTokens.length,0,bTokens.length);
+  return dedupeMatches(out);
+}
+
+function smithWatermanBlock(
+  aTokens,aStart,aEnd,
+  bTokens,bStart,bEnd,
+  cellLimit=450000
+){
+  const n=aEnd-aStart;
+  const m=bEnd-bStart;
+
+  if(!n || !m || n*m>cellLimit) return null;
+
+  const back=Array.from(
+    {length:n+1},
+    ()=>new Uint8Array(m+1)
+  );
+
+  let prev=new Int32Array(m+1);
+  let curr=new Int32Array(m+1);
+
+  let bestScore=0;
+  let bestI=0;
+  let bestJ=0;
+
+  for(let i=1;i<=n;i++){
+    curr.fill(0);
+
+    for(let j=1;j<=m;j++){
+      const equal=
+        aTokens[aStart+i-1].key ===
+        bTokens[bStart+j-1].key;
+
+      const diag=prev[j-1]+(equal ? 3 : -2);
+      const up=prev[j]-2;
+      const left=curr[j-1]-2;
+
+      let score=0;
+      let op=0;
+
+      if(diag>score){
+        score=diag;
+        op=1;
+      }
+
+      if(up>score){
+        score=up;
+        op=2;
+      }
+
+      if(left>score){
+        score=left;
+        op=3;
+      }
+
+      curr[j]=score;
+      back[i][j]=op;
+
+      if(score>bestScore){
+        bestScore=score;
+        bestI=i;
+        bestJ=j;
+      }
+    }
+
+    [prev,curr]=[curr,prev];
+  }
+
+  if(bestScore<=0) return null;
+
+  let i=bestI;
+  let j=bestJ;
+  const matches=[];
+
+  while(i>0 && j>0 && back[i][j]!==0){
+    const op=back[i][j];
+
+    if(op===1){
+      if(
+        aTokens[aStart+i-1].key ===
+        bTokens[bStart+j-1].key
+      ){
+        matches.push([
+          aStart+i-1,
+          bStart+j-1
+        ]);
+      }
+
+      i--;
+      j--;
+    }else if(op===2){
+      i--;
+    }else{
+      j--;
+    }
+  }
+
+  matches.reverse();
+
+  return {
+    aStart:aStart+i,
+    bStart:bStart+j,
+    aEnd:aStart+bestI,
+    bEnd:bStart+bestJ,
+    matches
+  };
+}
+
+function smithWatermanWordMatches(aTokens,bTokens){
+  const out=[];
+
+  function walk(aStart,aEnd,bStart,bEnd,depth=0){
+    if(aStart>=aEnd || bStart>=bEnd) return;
+
+    if(depth>32){
+      out.push(...ordinaryWordMatches(
+        aTokens,aStart,aEnd,
+        bTokens,bStart,bEnd
+      ));
+      return;
+    }
+
+    const block=smithWatermanBlock(
+      aTokens,aStart,aEnd,
+      bTokens,bStart,bEnd
+    );
+
+    if(!block){
+      out.push(...ordinaryWordMatches(
+        aTokens,aStart,aEnd,
+        bTokens,bStart,bEnd
+      ));
+      return;
+    }
+
+    if(block.matches.length<2){
+      out.push(...ordinaryWordMatches(
+        aTokens,aStart,aEnd,
+        bTokens,bStart,bEnd
+      ));
+      return;
+    }
+
+    walk(
+      aStart,block.aStart,
+      bStart,block.bStart,
+      depth+1
+    );
+
+    out.push(...block.matches);
+
+    walk(
+      block.aEnd,aEnd,
+      block.bEnd,bEnd,
+      depth+1
+    );
+  }
+
+  walk(0,aTokens.length,0,bTokens.length);
+  return dedupeMatches(out);
+}
+
+function needlemanWunschWordMatches(aTokens,bTokens){
+  const n=aTokens.length;
+  const m=bTokens.length;
+
+  if(!n || !m) return [];
+
+  if(n*m>650000){
+    return myersWordMatches(aTokens,bTokens);
+  }
+
+  const gap=-2;
+
+  const back=Array.from(
+    {length:n+1},
+    ()=>new Uint8Array(m+1)
+  );
+
+  let prev=new Int32Array(m+1);
+  let curr=new Int32Array(m+1);
+
+  for(let j=1;j<=m;j++){
+    prev[j]=prev[j-1]+gap;
+    back[0][j]=3;
+  }
+
+  for(let i=1;i<=n;i++){
+    curr[0]=prev[0]+gap;
+    back[i][0]=2;
+
+    for(let j=1;j<=m;j++){
+      const equal=
+        aTokens[i-1].key ===
+        bTokens[j-1].key;
+
+      const diag=prev[j-1]+(equal ? 3 : -1);
+      const up=prev[j]+gap;
+      const left=curr[j-1]+gap;
+
+      if(diag>=up && diag>=left){
+        curr[j]=diag;
+        back[i][j]=1;
+      }else if(up>=left){
+        curr[j]=up;
+        back[i][j]=2;
+      }else{
+        curr[j]=left;
+        back[i][j]=3;
+      }
+    }
+
+    [prev,curr]=[curr,prev];
+  }
+
+  const out=[];
+  let i=n;
+  let j=m;
+
+  while(i>0 || j>0){
+    const op=back[i][j];
+
+    if(i>0 && j>0 && op===1){
+      if(
+        aTokens[i-1].key ===
+        bTokens[j-1].key
+      ){
+        out.push([i-1,j-1]);
+      }
+
+      i--;
+      j--;
+    }else if(i>0 && (j===0 || op===2)){
+      i--;
+    }else{
+      j--;
+    }
+  }
+
+  out.reverse();
+  return out;
+}
+
+function ngramKey(tokens,start,n){
+  let key="";
+
+  for(let i=0;i<n;i++){
+    if(i) key+="\u0001";
+    key+=tokens[start+i].key;
+  }
+
+  return key;
+}
+
+function ngramAnchorWordMatches(aTokens,bTokens){
+  const candidates=[];
+
+  for(const size of [5,4,3]){
+    if(
+      aTokens.length<size ||
+      bTokens.length<size
+    ){
+      continue;
+    }
+
+    const bMap=new Map();
+
+    for(let j=0;j<=bTokens.length-size;j++){
+      const key=ngramKey(bTokens,j,size);
+
+      if(!bMap.has(key)) bMap.set(key,[]);
+      const arr=bMap.get(key);
+
+      if(arr.length<4){
+        arr.push(j);
+      }
+    }
+
+    const aCount=new Map();
+
+    for(let i=0;i<=aTokens.length-size;i++){
+      const key=ngramKey(aTokens,i,size);
+      aCount.set(key,(aCount.get(key)||0)+1);
+    }
+
+    for(let i=0;i<=aTokens.length-size;i++){
+      const key=ngramKey(aTokens,i,size);
+      const positions=bMap.get(key);
+
+      if(!positions || positions.length>3) continue;
+
+      const count=aCount.get(key)||1;
+
+      if(count>3) continue;
+
+      for(const b of positions){
+        candidates.push({
+          a:i,
+          b,
+          len:size,
+          weight:
+            size*size*10 /
+            (count+positions.length)
+        });
+      }
+    }
+  }
+
+  if(!candidates.length){
+    return myersWordMatches(aTokens,bTokens);
+  }
+
+  candidates.sort((x,y)=>y.weight-x.weight);
+
+  if(candidates.length>900){
+    candidates.length=900;
+  }
+
+  candidates.sort((x,y)=>x.a-y.a || x.b-y.b || y.len-x.len);
+
+  const count=candidates.length;
+  const score=new Float64Array(count);
+  const prev=new Int32Array(count);
+  prev.fill(-1);
+
+  let bestIndex=0;
+
+  for(let i=0;i<count;i++){
+    score[i]=candidates[i].weight;
+
+    for(let j=0;j<i;j++){
+      if(
+        candidates[j].a+candidates[j].len <= candidates[i].a &&
+        candidates[j].b+candidates[j].len <= candidates[i].b
+      ){
+        const value=score[j]+candidates[i].weight;
+
+        if(value>score[i]){
+          score[i]=value;
+          prev[i]=j;
+        }
+      }
+    }
+
+    if(score[i]>score[bestIndex]){
+      bestIndex=i;
+    }
+  }
+
+  const anchors=[];
+
+  while(bestIndex>=0){
+    anchors.push(candidates[bestIndex]);
+    bestIndex=prev[bestIndex];
+  }
+
+  anchors.reverse();
+
+  const out=[];
+  let aStart=0;
+  let bStart=0;
+
+  for(const anchor of anchors){
+    out.push(...ordinaryWordMatches(
+      aTokens,aStart,anchor.a,
+      bTokens,bStart,anchor.b
+    ));
+
+    for(let i=0;i<anchor.len;i++){
+      out.push([
+        anchor.a+i,
+        anchor.b+i
+      ]);
+    }
+
+    aStart=anchor.a+anchor.len;
+    bStart=anchor.b+anchor.len;
+  }
+
+  out.push(...ordinaryWordMatches(
+    aTokens,aStart,aTokens.length,
+    bTokens,bStart,bTokens.length
+  ));
+
+  return dedupeMatches(out);
+}
+
+function matchesForAlgorithm(
+  algorithm,
+  tokensA,
+  tokensB
+){
+  return myersWordMatches(
+    tokensA,
+    tokensB
+  );
+}
+
+
+function lineModeMatches(linesA,linesB,tokensA,tokensB){
+  const rows=buildLineRows(linesA,linesB);
+  const byA=new Map();
+  const byB=new Map();
+
+  tokensA.forEach((token,index)=>{
+    if(!byA.has(token.line)) byA.set(token.line,[]);
+    byA.get(token.line).push(index);
+  });
+
+  tokensB.forEach((token,index)=>{
+    if(!byB.has(token.line)) byB.set(token.line,[]);
+    byB.get(token.line).push(index);
+  });
+
+  const matches=[];
+
+  for(const row of rows){
+    if(row.ai==null || row.bi==null) continue;
+
+    const aIndexes=byA.get(row.ai) || [];
+    const bIndexes=byB.get(row.bi) || [];
+
+    if(!aIndexes.length || !bIndexes.length) continue;
+
+    const localA=aIndexes.map(index=>tokensA[index]);
+    const localB=bIndexes.map(index=>tokensB[index]);
+
+    for(const [aLocal,bLocal] of myersWordMatches(localA,localB)){
+      matches.push([
+        aIndexes[aLocal],
+        bIndexes[bLocal]
+      ]);
+    }
+  }
+
+  return dedupeMatches(matches);
+}
+
+function fullTokens(text,start=0,end=text.length){
+  const result=[];
+  const source=text.slice(start,end);
+  const re=/\n|[^\S\n]+|[\p{L}\p{N}_]+|[^\s\p{L}\p{N}_]+/gu;
+  let match;
+
+  while((match=re.exec(source))){
+    const raw=match[0];
+    let type;
+
+    if(raw==="\n") type="newline";
+    else if(/^\s+$/u.test(raw)) type="space";
+    else if(/^[\p{L}\p{N}_]+$/u.test(raw)) type="word";
+    else type="punct";
+
+    let key;
+
+    if(type==="word"){
+      key=$("#caseSoft").checked
+        ? raw.toLocaleLowerCase("ru")
+        : raw;
+    }else if(type==="space" || type==="newline"){
+      key=$("#spaceSoft").checked
+        ? "__WS__"
+        : type+":"+raw;
+    }else{
+      key=$("#punctSoft").checked
+        ? "__PUNCT__"
+        : raw;
+    }
+
+    result.push({
+      type,
+      text:raw,
+      key,
+      start:start+match.index,
+      end:start+match.index+raw.length
+    });
+  }
+
+  return result;
+}
+
+function tokenWeak(token){
+  if(token.type==="space" || token.type==="newline"){
+    return $("#spaceSoft").checked;
+  }
+
+  if(token.type==="punct"){
+    return $("#punctSoft").checked;
+  }
+
+  return false;
+}
+
+function appendPart(parts,part){
+  if(
+    part.aStart===part.aEnd &&
+    part.bStart===part.bEnd
+  ){
+    return;
+  }
+
+  const prev=parts[parts.length-1];
+
+  if(
+    prev &&
+    prev.op===part.op &&
+    prev.severity===part.severity &&
+    prev.aEnd===part.aStart &&
+    prev.bEnd===part.bStart
+  ){
+    prev.aEnd=part.aEnd;
+    prev.bEnd=part.bEnd;
+    return;
+  }
+
+  parts.push(part);
+}
+
+function rangeSeverity(
+  text,
+  start,
+  end
+){
+  if(start>=end){
+    return "weak";
+  }
+
+  const tokens=
+    fullTokens(
+      text,
+      start,
+      end
+    );
+
+  for(const token of tokens){
+    if(!tokenWeak(token)){
+      return "strong";
+    }
+  }
+
+  return "weak";
+}
+
+function visualTokenKey(token){
+  if(token.type==="word"){
+    return $("#caseSoft").checked
+      ? "word:"+token.text.toLocaleLowerCase("ru")
+      : "word:"+token.text;
+  }
+
+  // A newline is never interchangeable with an ordinary space for
+  // highlighting. Exact \n must survive as equal and must not become a
+  // false yellow/red marker merely because whitespace is "weak".
+  if(token.type==="newline"){
+    return "newline";
+  }
+
+  if(token.type==="space"){
+    return $("#spaceSoft").checked
+      ? "space"
+      : "space:"+token.text;
+  }
+
+  // Exact punctuation is kept equal. Different punctuation is still a weak
+  // edit, but is not allowed to steal an exact punctuation match elsewhere.
+  return "punct:"+token.text;
+}
+
+function visualTokens(
+  text,
+  start,
+  end
+){
+  return fullTokens(
+    text,
+    start,
+    end
+  ).map(token=>({
+    ...token,
+    key:visualTokenKey(token)
+  }));
+}
+
+function appendUnmatchedVisualRange(
+  parts,
+  textA,
+  aStart,
+  aEnd,
+  textB,
+  bStart,
+  bEnd
+){
+  if(
+    aStart===aEnd &&
+    bStart===bEnd
+  ){
+    return;
+  }
+
+  const rawA=
+    textA.slice(aStart,aEnd);
+
+  const rawB=
+    textB.slice(bStart,bEnd);
+
+  // Defensive exact-equality check. Repeated tokens can give Myers several
+  // equivalent paths; raw equality always wins for presentation.
+  if(rawA===rawB){
+    appendPart(parts,{
+      op:"equal",
+      severity:"equal",
+      aStart,
+      aEnd,
+      bStart,
+      bEnd
+    });
+
+    return;
+  }
+
+  if(aStart<aEnd){
+    appendPart(parts,{
+      op:"delete",
+      severity:rangeSeverity(
+        textA,
+        aStart,
+        aEnd
+      ),
+      aStart,
+      aEnd,
+      bStart,
+      bEnd:bStart
+    });
+  }
+
+  if(bStart<bEnd){
+    appendPart(parts,{
+      op:"insert",
+      severity:rangeSeverity(
+        textB,
+        bStart,
+        bEnd
+      ),
+      aStart:aEnd,
+      aEnd,
+      bStart,
+      bEnd
+    });
+  }
+}
+
+function appendRawGap(
+  parts,
+  textA,
+  aStart,
+  aEnd,
+  textB,
+  bStart,
+  bEnd
+){
+  if(
+    aStart===aEnd &&
+    bStart===bEnd
+  ){
+    return;
+  }
+
+  const rawA=
+    textA.slice(aStart,aEnd);
+
+  const rawB=
+    textB.slice(bStart,bEnd);
+
+  if(rawA===rawB){
+    appendPart(parts,{
+      op:"equal",
+      severity:"equal",
+      aStart,
+      aEnd,
+      bStart,
+      bEnd
+    });
+
+    return;
+  }
+
+  // This is deliberately a presentation-only diff. It has no effect on
+  // vertical positioning. Here we compare *all* tokens so an identical "\n",
+  // comma, semicolon or space remains equal even inside a large changed gap.
+  const tokensA=
+    visualTokens(
+      textA,
+      aStart,
+      aEnd
+    );
+
+  const tokensB=
+    visualTokens(
+      textB,
+      bStart,
+      bEnd
+    );
+
+  const matches=
+    myersWordMatches(
+      tokensA,
+      tokensB
+    );
+
+  let cursorA=aStart;
+  let cursorB=bStart;
+
+  for(const [ai,bi] of matches){
+    const tokenA=tokensA[ai];
+    const tokenB=tokensB[bi];
+
+    if(!tokenA || !tokenB){
+      continue;
+    }
+
+    appendUnmatchedVisualRange(
+      parts,
+      textA,
+      cursorA,
+      tokenA.start,
+      textB,
+      cursorB,
+      tokenB.start
+    );
+
+    const exact=
+      tokenA.text===tokenB.text;
+
+    appendPart(parts,{
+      op:exact
+        ? "equal"
+        : "pair",
+      severity:exact
+        ? "equal"
+        : "weak",
+      aStart:tokenA.start,
+      aEnd:tokenA.end,
+      bStart:tokenB.start,
+      bEnd:tokenB.end
+    });
+
+    cursorA=tokenA.end;
+    cursorB=tokenB.end;
+  }
+
+  appendUnmatchedVisualRange(
+    parts,
+    textA,
+    cursorA,
+    aEnd,
+    textB,
+    cursorB,
+    bEnd
+  );
+}
+
+function diffRawRange(
+  textA,
+  aStart,
+  aEnd,
+  textB,
+  bStart,
+  bEnd
+){
+  const parts=[];
+
+  if(
+    aStart===aEnd &&
+    bStart===bEnd
+  ){
+    return parts;
+  }
+
+  if(
+    textA.slice(aStart,aEnd)===
+    textB.slice(bStart,bEnd)
+  ){
+    appendPart(parts,{
+      op:"equal",
+      severity:"equal",
+      aStart,
+      aEnd,
+      bStart,
+      bEnd
+    });
+
+    return parts;
+  }
+
+  const wordsA=
+    fullTokens(
+      textA,
+      aStart,
+      aEnd
+    ).filter(token=>token.type==="word");
+
+  const wordsB=
+    fullTokens(
+      textB,
+      bStart,
+      bEnd
+    ).filter(token=>token.type==="word");
+
+  // Important architectural separation:
+  //
+  // - line positioning uses only strong anchors (>= 3 consecutive words);
+  // - visual diff inside an already positioned region preserves every
+  //   exact word/number match, including a single token such as "14".
+  //
+  // Otherwise isolated equal tokens get painted as delete/insert merely
+  // because they are too weak to be layout anchors.
+  const matches=
+    myersWordMatches(
+      wordsA,
+      wordsB
+    );
+
+  let cursorA=aStart;
+  let cursorB=bStart;
+
+  for(const [ai,bi] of matches){
+    const tokenA=wordsA[ai];
+    const tokenB=wordsB[bi];
+
+    if(!tokenA || !tokenB){
+      continue;
+    }
+
+    appendRawGap(
+      parts,
+      textA,
+      cursorA,
+      tokenA.start,
+      textB,
+      cursorB,
+      tokenB.start
+    );
+
+    appendPart(parts,{
+      op:tokenA.text===tokenB.text
+        ? "equal"
+        : "pair",
+      severity:tokenA.text===tokenB.text
+        ? "equal"
+        : "weak",
+      aStart:tokenA.start,
+      aEnd:tokenA.end,
+      bStart:tokenB.start,
+      bEnd:tokenB.end
+    });
+
+    cursorA=tokenA.end;
+    cursorB=tokenB.end;
+  }
+
+  appendRawGap(
+    parts,
+    textA,
+    cursorA,
+    aEnd,
+    textB,
+    cursorB,
+    bEnd
+  );
+
+  return parts;
+}
+
+function buildEditParts(textA,textB,algorithm){
+  const linesA=textA.split("\n");
+  const linesB=textB.split("\n");
+
+  const significantA=globalWordTokens(linesA);
+  const significantB=globalWordTokens(linesB);
+
+  let matches;
+
+  if(algorithm==="lines"){
+    matches=lineModeMatches(
+      linesA,
+      linesB,
+      significantA,
+      significantB
+    );
+  }else{
+    matches=stableTokenMatches(
+      matchesForAlgorithm(
+        algorithm,
+        significantA,
+        significantB
+      ) || [],
+      3
+    );
+  }
+
+  matches=dedupeMatches(matches || []);
+
+  const parts=[];
+  let aCursor=0;
+  let bCursor=0;
+
+  for(const [aIndex,bIndex] of matches){
+    const tokenA=significantA[aIndex];
+    const tokenB=significantB[bIndex];
+
+    if(!tokenA || !tokenB) continue;
+
+    for(const part of diffRawRange(
+      textA,
+      aCursor,
+      tokenA.start,
+      textB,
+      bCursor,
+      tokenB.start
+    )){
+      appendPart(parts,part);
+    }
+
+    appendPart(parts,{
+      op:tokenA.text===tokenB.text
+        ? "equal"
+        : "pair",
+      severity:tokenA.text===tokenB.text
+        ? "equal"
+        : "weak",
+      aStart:tokenA.start,
+      aEnd:tokenA.end,
+      bStart:tokenB.start,
+      bEnd:tokenB.end
+    });
+
+    aCursor=tokenA.end;
+    bCursor=tokenB.end;
+  }
+
+  for(const part of diffRawRange(
+    textA,
+    aCursor,
+    textA.length,
+    textB,
+    bCursor,
+    textB.length
+  )){
+    appendPart(parts,part);
+  }
+
+  return parts;
+}
+
+function trivialEqualPart(part,textA){
+  if(part.op!=="equal"){
+    return false;
+  }
+
+  const text=textA.slice(
+    part.aStart,
+    part.aEnd
+  );
+
+  return (
+    !text.includes("\n") &&
+    text.length<=8 &&
+    !/[\p{L}\p{N}_]/u.test(text)
+  );
+}
+
+function buildHunks(parts,textA){
+  const hunks=[];
+  let index=0;
+
+  while(index<parts.length){
+    const part=parts[index];
+
+    if(
+      part.op==="equal" &&
+      !trivialEqualPart(part,textA)
+    ){
+      hunks.push({
+        type:"equal",
+        parts:[part],
+        aStart:part.aStart,
+        aEnd:part.aEnd,
+        bStart:part.bStart,
+        bEnd:part.bEnd
+      });
+
+      index++;
+      continue;
+    }
+
+    const group=[];
+
+    while(index<parts.length){
+      const current=parts[index];
+
+      if(
+        current.op==="equal" &&
+        !trivialEqualPart(current,textA)
+      ){
+        break;
+      }
+
+      group.push(current);
+      index++;
+    }
+
+    if(!group.length){
+      continue;
+    }
+
+    hunks.push({
+      type:"change",
+      parts:group,
+      aStart:group[0].aStart,
+      aEnd:group[group.length-1].aEnd,
+      bStart:group[0].bStart,
+      bEnd:group[group.length-1].bEnd
+    });
+  }
+
+  return hunks;
+}
+
+function renderChangedText(text,className){
+  if(!text){
+    return "";
+  }
+
+  const chunks=text.split("\n");
+  let html="";
+
+  for(let index=0;index<chunks.length;index++){
+    if(chunks[index]){
+      html+=`<mark class="${className}">${esc(chunks[index])}</mark>`;
+    }
+
+    if(index<chunks.length-1){
+      html+=
+        `<span class="newline-marker ${className}" aria-hidden="true"></span>\n`;
+    }
+  }
+
+  return html;
+}
+
+function partClass(part,side){
+  if(part.op==="equal"){
+    return null;
+  }
+
+  if(part.op==="pair"){
+    return "soft";
+  }
+
+  if(
+    part.op==="delete" &&
+    side==="a"
+  ){
+    return part.severity==="weak"
+      ? "soft"
+      : "del";
+  }
+
+  if(
+    part.op==="insert" &&
+    side==="b"
+  ){
+    return part.severity==="weak"
+      ? "soft"
+      : "add";
+  }
+
+  return null;
+}
+
+function renderHunkSide(hunk,side){
+  const text=state[side];
+  const segments=[];
+
+  for(const part of hunk.parts){
+    const start=side==="a"
+      ? part.aStart
+      : part.bStart;
+
+    const end=side==="a"
+      ? part.aEnd
+      : part.bEnd;
+
+    if(end<=start){
+      continue;
+    }
+
+    segments.push({
+      text:text.slice(start,end),
+      className:partClass(part,side)
+    });
+  }
+
+  // Join adjacent changed words through ordinary spaces.
+  for(let index=1;index<segments.length-1;index++){
+    const current=segments[index];
+
+    if(
+      current.className==null &&
+      !current.text.includes("\n") &&
+      /^\s+$/u.test(current.text) &&
+      segments[index-1].className &&
+      segments[index-1].className===
+        segments[index+1].className
+    ){
+      current.className=
+        segments[index-1].className;
+    }
+  }
+
+  const merged=[];
+
+  for(const segment of segments){
+    const prev=merged[merged.length-1];
+
+    if(
+      prev &&
+      prev.className===segment.className
+    ){
+      prev.text+=segment.text;
+    }else{
+      merged.push({...segment});
+    }
+  }
+
+  const html=merged.map(segment=>
+    segment.className
+      ? renderChangedText(
+          segment.text,
+          segment.className
+        )
+      : esc(segment.text)
+  ).join("");
+
+  return html || "<br>";
+}
+
+function lineLabel(text,start,end){
+  if(end<=start){
+    return "";
+  }
+
+  const first=
+    offsetToLineCol(text,start).line+1;
+
+  const probe=Math.max(
+    start,
+    end-1
+  );
+
+  const last=
+    offsetToLineCol(text,probe).line+1;
+
+  return first===last
+    ? String(first)
+    : `${first}–${last}`;
+}
+
+function makeBlock(
+  hunk,
+  aStart=hunk.aStart,
+  aEnd=hunk.aEnd,
+  bStart=hunk.bStart,
+  bEnd=hunk.bEnd,
+  parts=hunk.parts
+){
+  const row=document.createElement("div");
+  row.className="diff-row";
+
+  const view={
+    ...hunk,
+    aStart,
+    aEnd,
+    bStart,
+    bEnd,
+    parts
+  };
+
+  const left=document.createElement("div");
+  left.className=
+    "side left" +
+    (
+      hunk.type==="change"
+        ? " changed-left"
+        : ""
+    );
+
+  left.dataset.side="a";
+  left.dataset.start=String(aStart);
+  left.dataset.end=String(aEnd);
+
+  const right=document.createElement("div");
+  right.className=
+    "side right" +
+    (
+      hunk.type==="change"
+        ? " changed-right"
+        : ""
+    );
+
+  right.dataset.side="b";
+  right.dataset.start=String(bStart);
+  right.dataset.end=String(bEnd);
+
+  if(hunk.type==="equal"){
+    left.innerHTML=
+      esc(state.a.slice(aStart,aEnd)) ||
+      "<br>";
+
+    right.innerHTML=
+      esc(state.b.slice(bStart,bEnd)) ||
+      "<br>";
+  }else{
+    left.innerHTML=
+      renderHunkSide(view,"a");
+
+    right.innerHTML=
+      renderHunkSide(view,"b");
+
+    if(aStart===aEnd){
+      left.classList.add("empty");
+    }
+
+    if(bStart===bEnd){
+      right.classList.add("empty");
+    }
+  }
+
+  const gutter=document.createElement("div");
+  gutter.className="gutter";
+
+  const leftNumber=document.createElement("div");
+  leftNumber.className="gnum left";
+  leftNumber.textContent=
+    lineLabel(
+      state.a,
+      aStart,
+      aEnd
+    );
+
+  const actions=document.createElement("div");
+  actions.className="row-actions";
+
+  if(hunk.type==="change"){
+    const toRight=document.createElement("button");
+    toRight.className="apply-btn";
+    toRight.type="button";
+    toRight.textContent="»";
+    toRight.title=
+      "Применить левый диапазон справа";
+    toRight.disabled=!canWrite("b");
+    toRight.addEventListener(
+      "pointerdown",
+      event=>event.preventDefault()
+    );
+    toRight.onclick=
+      ()=>applyHunk(view,"leftToRight");
+
+    const toLeft=document.createElement("button");
+    toLeft.className="apply-btn";
+    toLeft.type="button";
+    toLeft.textContent="«";
+    toLeft.title=
+      "Применить правый диапазон слева";
+    toLeft.disabled=!canWrite("a");
+    toLeft.addEventListener(
+      "pointerdown",
+      event=>event.preventDefault()
+    );
+    toLeft.onclick=
+      ()=>applyHunk(view,"rightToLeft");
+
+    actions.append(
+      toRight,
+      toLeft
+    );
+  }
+
+  const rightNumber=document.createElement("div");
+  rightNumber.className="gnum right";
+  rightNumber.textContent=
+    lineLabel(
+      state.b,
+      bStart,
+      bEnd
+    );
+
+  gutter.append(
+    leftNumber,
+    actions,
+    rightNumber
+  );
+
+  row.append(
+    left,
+    gutter,
+    right
+  );
+
+  return row;
+}
+
+function equalLineSlices(hunk){
+  const text=
+    state.a.slice(
+      hunk.aStart,
+      hunk.aEnd
+    );
+
+  const slices=[];
+  let relativeStart=0;
+
+  for(let index=0;index<text.length;index++){
+    if(text[index]==="\n"){
+      const relativeEnd=index+1;
+
+      slices.push([
+        relativeStart,
+        relativeEnd
+      ]);
+
+      relativeStart=
+        relativeEnd;
+    }
+  }
+
+  if(
+    relativeStart<text.length ||
+    !slices.length
+  ){
+    slices.push([
+      relativeStart,
+      text.length
+    ]);
+  }
+
+  return slices.map(
+    ([start,end])=>({
+      aStart:hunk.aStart+start,
+      aEnd:hunk.aStart+end,
+      bStart:hunk.bStart+start,
+      bEnd:hunk.bStart+end
+    })
+  );
+}
+
+function foldKey(hunk){
+  return [
+    hunk.aStart,
+    hunk.aEnd,
+    hunk.bStart,
+    hunk.bEnd
+  ].join(":");
+}
+
+function makeFold(
+  hunk,
+  hiddenSlices,
+  key
+){
+  const fold=document.createElement("div");
+  fold.className="fold";
+
+  const left=document.createElement("div");
+  left.className="fold-side";
+
+  const center=document.createElement("div");
+  center.className="fold-center";
+  center.textContent=
+    `… ${hiddenSlices.length} одинаковых строк скрыто · показать ещё 5 …`;
+
+  center.onclick=event=>{
+    event.preventDefault();
+    event.stopPropagation();
+
+    foldReveal.set(
+      key,
+      (foldReveal.get(key) || 0)+5
+    );
+
+    render();
+  };
+
+  const right=document.createElement("div");
+  right.className="fold-side";
+
+  fold.append(
+    left,
+    center,
+    right
+  );
+
+  return fold;
+}
+
+function renderEqualHunk(diff,hunk){
+  const slices=
+    equalLineSlices(hunk);
+
+  if(
+    !collapsed ||
+    slices.length<=6
+  ){
+    for(const slice of slices){
+      diff.appendChild(
+        makeBlock({
+          type:"equal",
+          parts:hunk.parts,
+          ...slice
+        })
+      );
+    }
+
+    return;
+  }
+
+  const key=foldKey(hunk);
+  const hiddenTotal=
+    slices.length-4;
+
+  const revealed=Math.min(
+    foldReveal.get(key) || 0,
+    hiddenTotal
+  );
+
+  const headCount=
+    2+revealed;
+
+  for(
+    let index=0;
+    index<headCount;
+    index++
+  ){
+    diff.appendChild(
+      makeBlock({
+        type:"equal",
+        parts:hunk.parts,
+        ...slices[index]
+      })
+    );
+  }
+
+  const hidden=slices.slice(
+    headCount,
+    slices.length-2
+  );
+
+  if(hidden.length){
+    diff.appendChild(
+      makeFold(
+        hunk,
+        hidden,
+        key
+      )
+    );
+  }
+
+  for(
+    let index=Math.max(
+      headCount,
+      slices.length-2
+    );
+    index<slices.length;
+    index++
+  ){
+    diff.appendChild(
+      makeBlock({
+        type:"equal",
+        parts:hunk.parts,
+        ...slices[index]
+      })
+    );
+  }
+}
+
+// Legacy character-range apply used only by the old non-line renderer.
+ // The active line-bound UI uses applyLineAction() below.
+function applyHunk(hunk,direction){
+  cancelScheduledRender();
+
+  const before=snapshot();
+
+  if(direction==="leftToRight"){
+    if(!canWrite("b")){
+      return;
+    }
+
+    const replacement=
+      state.a.slice(
+        hunk.aStart,
+        hunk.aEnd
+      );
+
+    state.b=
+      state.b.slice(0,hunk.bStart) +
+      replacement +
+      state.b.slice(hunk.bEnd);
+  }else{
+    if(!canWrite("a")){
+      return;
+    }
+
+    const replacement=
+      state.b.slice(
+        hunk.bStart,
+        hunk.bEnd
+      );
+
+    state.a=
+      state.a.slice(0,hunk.aStart) +
+      replacement +
+      state.a.slice(hunk.aEnd);
+  }
+
+  pushUndo(before);
+  syncEditors(false);
+  render();
+}
+
+function cancelScheduledRender(){
+  if(renderTimer!==null){
+    clearTimeout(renderTimer);
+    renderTimer=null;
+  }
+}
+
+function scheduleRender(
+  delay=DIFF_RENDER_DELAY
+){
+  cancelScheduledRender();
+
+  renderTimer=setTimeout(
+    ()=>{
+      renderTimer=null;
+      requestAnimationFrame(render);
+    },
+    delay
+  );
+}
+
+function livePatchBlock(
+  side,
+  oldText,
+  newText
+){
+  let prefix=0;
+  const minLength=Math.min(
+    oldText.length,
+    newText.length
+  );
+
+  while(
+    prefix<minLength &&
+    oldText[prefix]===newText[prefix]
+  ){
+    prefix++;
+  }
+
+  let suffix=0;
+
+  while(
+    suffix<minLength-prefix &&
+    oldText[
+      oldText.length-1-suffix
+    ]===
+    newText[
+      newText.length-1-suffix
+    ]
+  ){
+    suffix++;
+  }
+
+  const oldChangeEnd=
+    oldText.length-suffix;
+
+  const delta=
+    newText.length-oldText.length;
+
+  const blocks=[
+    ...document.querySelectorAll(
+      `.side[data-side="${side}"]`
+    )
+  ];
+
+  const candidates=
+    blocks.filter(element=>{
+      const start=
+        Number(element.dataset.start);
+
+      const end=
+        Number(element.dataset.end);
+
+      return (
+        start<=prefix &&
+        oldChangeEnd<=end
+      );
+    });
+
+  const block=
+    candidates.find(
+      element=>
+        element.dataset.realLine==="1"
+    ) ||
+    candidates[0];
+
+  if(!block){
+    return false;
+  }
+
+  const start=
+    Number(block.dataset.start);
+
+  const oldEnd=
+    Number(block.dataset.end);
+
+  const end=
+    oldEnd+delta;
+
+  block.textContent=
+    newText.slice(
+      start,
+      Math.max(start,end)
+    );
+
+  block.dataset.end=
+    String(end);
+
+  // The DOM layout is intentionally not rebuilt while typing.
+  // Keep source offsets of later physical lines valid for caret/selection.
+  if(delta!==0){
+    for(const element of blocks){
+      if(element===block){
+        continue;
+      }
+
+      const elementStart=
+        Number(
+          element.dataset.start
+        );
+
+      const elementEnd=
+        Number(
+          element.dataset.end
+        );
+
+      if(elementStart>=oldEnd){
+        element.dataset.start=
+          String(
+            elementStart+delta
+          );
+
+        element.dataset.end=
+          String(
+            elementEnd+delta
+          );
+      }
+    }
+  }
+
+  renderDirty=true;
+
+  requestAnimationFrame(
+    paintVirtualSelection
+  );
+
+  return true;
+}
+
+
+function physicalLines(text){
+  const lines=[];
+  let start=0;
+  let number=0;
+
+  for(let index=0;index<text.length;index++){
+    if(text[index]==="\n"){
+      lines.push({
+        index:number++,
+        start,
+        end:index,
+        fullEnd:index+1,
+        hasNewline:true,
+        text:text.slice(start,index),
+        fullText:text.slice(start,index+1)
+      });
+
+      start=index+1;
+    }
+  }
+
+  lines.push({
+    index:number,
+    start,
+    end:text.length,
+    fullEnd:text.length,
+    hasNewline:false,
+    text:text.slice(start),
+    fullText:text.slice(start)
+  });
+
+  return lines;
+}
+
+function lineIndexAtOffset(lines,offset,textLength){
+  if(!lines.length) return 0;
+
+  offset=Math.max(
+    0,
+    Math.min(offset,textLength)
+  );
+
+  let lo=0;
+  let hi=lines.length-1;
+
+  while(lo<=hi){
+    const mid=(lo+hi)>>1;
+    const line=lines[mid];
+
+    if(offset<line.start){
+      hi=mid-1;
+    }else if(
+      offset>=line.fullEnd &&
+      mid<lines.length-1
+    ){
+      lo=mid+1;
+    }else{
+      return mid;
+    }
+  }
+
+  return Math.max(
+    0,
+    Math.min(lo,lines.length-1)
+  );
+}
+
+function addLineScore(map,aLine,bLine,value){
+  const key=aLine+"|"+bLine;
+  map.set(
+    key,
+    (map.get(key) || 0)+value
+  );
+}
+
+const LAYOUT_STOP_WORDS=new Set([
+  "а","без","бы","был","была","были","было",
+  "в","во","вы","где","да","для","до","его",
+  "ее","её","если","же","за","и","из","или",
+  "их","к","как","ко","ли","на","над","не",
+  "но","о","об","от","по","под","при","про",
+  "с","со","так","также","то","у","уже",
+  "чем","что","это","этот","эта","эти","этом",
+  "the","a","an","and","or","of","to","in",
+  "on","for","with","by","at","from","as"
+]);
+
+function normalizedLayoutWord(word){
+  return word
+    .toLocaleLowerCase("ru")
+    .replace(/ё/g,"е");
+}
+
+function layoutTokenWeight(token){
+  const raw=
+    token?.text ??
+    token?.key ??
+    "";
+
+  const word=
+    normalizedLayoutWord(raw);
+
+  if(!word){
+    return 0;
+  }
+
+  if(/^\d+$/u.test(word)){
+    // Section numbers and dates are useful for display, but terrible
+    // positional anchors by themselves.
+    if(word.length<=2) return .08;
+    if(word.length<=4) return .25;
+    return .55;
+  }
+
+  if(LAYOUT_STOP_WORDS.has(word)){
+    return .10;
+  }
+
+  const length=
+    Array.from(word).length;
+
+  if(length<=2) return .15;
+  if(length===3) return .35;
+  if(length===4) return .70;
+  if(length<=6) return 1.10;
+  if(length<=9) return 1.55;
+  if(length<=12) return 1.90;
+  return 2.20;
+}
+
+function threeTokenInformation(
+  tokens,
+  index
+){
+  const weights=[
+    layoutTokenWeight(tokens[index]),
+    layoutTokenWeight(tokens[index+1]),
+    layoutTokenWeight(tokens[index+2])
+  ];
+
+  const total=
+    weights[0]+
+    weights[1]+
+    weights[2];
+
+  const strongCount=
+    weights.filter(
+      weight=>weight>=1
+    ).length;
+
+  const maxWeight=
+    Math.max(...weights);
+
+  return {
+    total,
+    strongCount,
+    maxWeight
+  };
+}
+
+function isUsefulThreeTokenAnchor(
+  tokens,
+  index
+){
+  const info=
+    threeTokenInformation(
+      tokens,
+      index
+    );
+
+  // "в и их", "8 3 в", etc. must never control vertical placement.
+  // Require real lexical content, not just three technically equal tokens.
+  return (
+    info.total>=2.15 &&
+    info.maxWeight>=1.10 &&
+    info.strongCount>=1
+  );
+}
+
+function threeTokenPositions(tokens){
+  const map=new Map();
+
+  for(let index=0;index<=tokens.length-3;index++){
+    const key=ngramKey(
+      tokens,
+      index,
+      3
+    );
+
+    if(!map.has(key)){
+      map.set(key,[]);
+    }
+
+    map.get(key).push(index);
+  }
+
+  return map;
+}
+
+function buildThreeTokenAnchorChain(
+  textA,
+  textB
+){
+  const tokensA=
+    globalWordTokens(
+      textA.split("\n")
+    );
+
+  const tokensB=
+    globalWordTokens(
+      textB.split("\n")
+    );
+
+  if(
+    tokensA.length<3 ||
+    tokensB.length<3
+  ){
+    return {
+      tokensA,
+      tokensB,
+      chain:[]
+    };
+  }
+
+  const positionsA=
+    threeTokenPositions(
+      tokensA
+    );
+
+  const positionsB=
+    threeTokenPositions(
+      tokensB
+    );
+
+  const candidates=[];
+
+  const denominatorA=
+    Math.max(
+      1,
+      tokensA.length-3
+    );
+
+  const denominatorB=
+    Math.max(
+      1,
+      tokensB.length-3
+    );
+
+  for(const [key,aPositions] of positionsA){
+    const bPositions=
+      positionsB.get(key);
+
+    if(!bPositions){
+      continue;
+    }
+
+    if(
+      aPositions.length>24 ||
+      bPositions.length>24 ||
+      aPositions.length*
+      bPositions.length>160
+    ){
+      continue;
+    }
+
+    const usefulA=
+      aPositions.filter(index=>
+        isUsefulThreeTokenAnchor(
+          tokensA,
+          index
+        )
+      );
+
+    const usefulB=
+      bPositions.filter(index=>
+        isUsefulThreeTokenAnchor(
+          tokensB,
+          index
+        )
+      );
+
+    if(
+      !usefulA.length ||
+      !usefulB.length
+    ){
+      continue;
+    }
+
+    const rarity=
+      1 /
+      (
+        usefulA.length+
+        usefulB.length
+      );
+
+    for(const a of usefulA){
+      const infoA=
+        threeTokenInformation(
+          tokensA,
+          a
+        );
+
+      for(const b of usefulB){
+        const infoB=
+          threeTokenInformation(
+            tokensB,
+            b
+          );
+
+        const information=
+          Math.min(
+            infoA.total,
+            infoB.total
+          );
+
+        const relativeA=
+          a/denominatorA;
+
+        const relativeB=
+          b/denominatorB;
+
+        const distance=
+          Math.abs(
+            relativeA-
+            relativeB
+          );
+
+        candidates.push({
+          a,
+          b,
+          // One trigram is still one match, but informative words make
+          // it much more valuable than "в / по / и". Repeated phrases
+          // and distant alternatives lose only as tie-breakers.
+          weight:
+            20+
+            information*12+
+            rarity*3-
+            distance*.12,
+          information
+        });
+      }
+    }
+  }
+
+  if(!candidates.length){
+    return {
+      tokensA,
+      tokensB,
+      chain:[]
+    };
+  }
+
+  const chain=
+    weightedLisTokenAnchors(
+      candidates,
+      tokensB.length+1
+    );
+
+  return {
+    tokensA,
+    tokensB,
+    chain
+  };
+}
+
+function chainToAlignmentBlocks(
+  tokensA,
+  tokensB,
+  chain
+){
+  if(!chain.length){
+    return [];
+  }
+
+  const tokenBlocks=[];
+  let current=null;
+
+  for(const anchor of chain){
+    const next={
+      aStart:anchor.a,
+      aEnd:anchor.a+3,
+      bStart:anchor.b,
+      bEnd:anchor.b+3,
+      score:1
+    };
+
+    if(!current){
+      current=next;
+      continue;
+    }
+
+    const aGap=
+      next.aStart-current.aEnd;
+
+    const bGap=
+      next.bStart-current.bEnd;
+
+    // Consecutive / overlapping shingles form one correspondence block.
+    // Up to two unmatched words inside the same phrase are tolerated so a
+    // small edit does not split one paragraph into many tiny blocks.
+    if(
+      aGap<=2 &&
+      bGap<=2
+    ){
+      current.aEnd=
+        Math.max(
+          current.aEnd,
+          next.aEnd
+        );
+
+      current.bEnd=
+        Math.max(
+          current.bEnd,
+          next.bEnd
+        );
+
+      current.score++;
+      continue;
+    }
+
+    tokenBlocks.push(current);
+    current=next;
+  }
+
+  if(current){
+    tokenBlocks.push(current);
+  }
+
+  const lineBlocks=[];
+
+  for(const block of tokenBlocks){
+    const firstA=
+      tokensA[block.aStart];
+
+    const lastA=
+      tokensA[
+        Math.min(
+          tokensA.length-1,
+          block.aEnd-1
+        )
+      ];
+
+    const firstB=
+      tokensB[block.bStart];
+
+    const lastB=
+      tokensB[
+        Math.min(
+          tokensB.length-1,
+          block.bEnd-1
+        )
+      ];
+
+    if(
+      !firstA ||
+      !lastA ||
+      !firstB ||
+      !lastB
+    ){
+      continue;
+    }
+
+    const mapped={
+      aStart:firstA.line,
+      aEnd:lastA.line+1,
+      bStart:firstB.line,
+      bEnd:lastB.line+1,
+      score:block.score
+    };
+
+    const previous=
+      lineBlocks[
+        lineBlocks.length-1
+      ];
+
+    // Several token blocks can still live in the same physical paragraph.
+    // Merge only when they overlap on both physical sides.
+    if(
+      previous &&
+      mapped.aStart<previous.aEnd &&
+      mapped.bStart<previous.bEnd
+    ){
+      previous.aEnd=
+        Math.max(
+          previous.aEnd,
+          mapped.aEnd
+        );
+
+      previous.bEnd=
+        Math.max(
+          previous.bEnd,
+          mapped.bEnd
+        );
+
+      previous.score+=
+        mapped.score;
+
+      continue;
+    }
+
+    lineBlocks.push(mapped);
+  }
+
+  return lineBlocks;
+}
+
+function buildCanonicalAlignmentBlocks(
+  textA,
+  textB
+){
+  const {
+    tokensA,
+    tokensB,
+    chain
+  }=
+    buildThreeTokenAnchorChain(
+      textA,
+      textB
+    );
+
+  return chainToAlignmentBlocks(
+    tokensA,
+    tokensB,
+    chain
+  );
+}
+
+function appendTopAlignedRows(
+  rows,
+  aStart,
+  aEnd,
+  bStart,
+  bEnd,
+  kind="gap"
+){
+  const countA=
+    Math.max(
+      0,
+      aEnd-aStart
+    );
+
+  const countB=
+    Math.max(
+      0,
+      bEnd-bStart
+    );
+
+  const paired=
+    Math.min(
+      countA,
+      countB
+    );
+
+  for(let offset=0;offset<paired;offset++){
+    rows.push({
+      aIndex:aStart+offset,
+      bIndex:bStart+offset,
+      layoutKind:kind
+    });
+  }
+
+  // Case 2 / 5: text exists only on the left -> blank on the right.
+  for(let offset=paired;offset<countA;offset++){
+    rows.push({
+      aIndex:aStart+offset,
+      bIndex:null,
+      bInsert:bStart+paired,
+      layoutKind:kind,
+      spacerFor:"b"
+    });
+  }
+
+  // Case 3 / 4: text exists only on the right -> blank on the left.
+  for(let offset=paired;offset<countB;offset++){
+    rows.push({
+      aIndex:null,
+      bIndex:bStart+offset,
+      aInsert:aStart+paired,
+      layoutKind:kind,
+      spacerFor:"a"
+    });
+  }
+}
+
+function layoutWordWeights(text){
+  const words=
+    text.match(
+      /[\p{L}\p{N}_]+/gu
+    ) || [];
+
+  const result=
+    new Map();
+
+  for(const word of words){
+    const key=
+      normalizedLayoutWord(word);
+
+    const weight=
+      layoutTokenWeight({
+        text:word
+      });
+
+    result.set(
+      key,
+      Math.max(
+        result.get(key) || 0,
+        weight
+      )
+    );
+  }
+
+  return result;
+}
+
+function totalLayoutInformation(weights){
+  let total=0;
+
+  for(const value of weights.values()){
+    total+=value;
+  }
+
+  return total;
+}
+
+function weightedLayoutDice(a,b){
+  const totalA=
+    totalLayoutInformation(a);
+
+  const totalB=
+    totalLayoutInformation(b);
+
+  if(!totalA && !totalB){
+    return 0;
+  }
+
+  if(!totalA || !totalB){
+    return 0;
+  }
+
+  let common=0;
+
+  const small=
+    a.size<=b.size
+      ? a
+      : b;
+
+  const large=
+    a.size<=b.size
+      ? b
+      : a;
+
+  for(const [key,weight] of small){
+    if(large.has(key)){
+      common+=Math.min(
+        weight,
+        large.get(key)
+      );
+    }
+  }
+
+  return (
+    2*common/
+    (totalA+totalB)
+  );
+}
+
+function localLineSimilarity(
+  lineA,
+  lineB
+){
+  const a=
+    lineA.text;
+
+  const b=
+    lineB.text;
+
+  const wordsA=
+    layoutWordWeights(a);
+
+  const wordsB=
+    layoutWordWeights(b);
+
+  const informationA=
+    totalLayoutInformation(
+      wordsA
+    );
+
+  const informationB=
+    totalLayoutInformation(
+      wordsB
+    );
+
+  // A blank line, punctuation-only line, or line made only from tiny
+  // service words is formatting, not a positional anchor.
+  if(
+    informationA<1.10 ||
+    informationB<1.10
+  ){
+    return 0;
+  }
+
+  const lexical=
+    weightedLayoutDice(
+      wordsA,
+      wordsB
+    );
+
+  // Character similarity is useful only after we have proved that both
+  // lines contain real lexical material. It cannot make a newline strong.
+  const chars=
+    charSimilarity(
+      a,
+      b
+    );
+
+  if(a===b){
+    return 1;
+  }
+
+  return Math.max(
+    lexical,
+    chars*.62
+  );
+}
+
+function findLocalLineAnchors(
+  linesA,
+  linesB,
+  aStart,
+  aEnd,
+  bStart,
+  bEnd
+){
+  const candidates=[];
+
+  for(let a=aStart;a<aEnd;a++){
+    for(let b=bStart;b<bEnd;b++){
+      const similarity=
+        localLineSimilarity(
+          linesA[a],
+          linesB[b]
+        );
+
+      // Case 6: clearly modified, but still recognisably the same line.
+      if(similarity<.58){
+        continue;
+      }
+
+      const relativeA=
+        (a-aStart)/
+        Math.max(
+          1,
+          aEnd-aStart-1
+        );
+
+      const relativeB=
+        (b-bStart)/
+        Math.max(
+          1,
+          bEnd-bStart-1
+        );
+
+      candidates.push({
+        a,
+        b,
+        // Similarity dominates; proximity is a small ambiguity tie-breaker.
+        weight:
+          similarity*100-
+          Math.abs(
+            relativeA-relativeB
+          )*.05
+      });
+    }
+  }
+
+  if(!candidates.length){
+    return [];
+  }
+
+  return weightedLisTokenAnchors(
+    candidates,
+    linesB.length+1
+  );
+}
+
+function appendGapRows(
+  rows,
+  linesA,
+  linesB,
+  aStart,
+  aEnd,
+  bStart,
+  bEnd
+){
+  if(
+    aStart>=aEnd &&
+    bStart>=bEnd
+  ){
+    return;
+  }
+
+  const localAnchors=
+    findLocalLineAnchors(
+      linesA,
+      linesB,
+      aStart,
+      aEnd,
+      bStart,
+      bEnd
+    );
+
+  if(!localAnchors.length){
+    // Case 7 fallback: unmatched right-side blocks stay as high as possible.
+    appendTopAlignedRows(
+      rows,
+      aStart,
+      aEnd,
+      bStart,
+      bEnd,
+      "unmatched"
+    );
+
+    return;
+  }
+
+  let cursorA=aStart;
+  let cursorB=bStart;
+
+  for(const anchor of localAnchors){
+    if(
+      anchor.a<cursorA ||
+      anchor.b<cursorB
+    ){
+      continue;
+    }
+
+    appendTopAlignedRows(
+      rows,
+      cursorA,
+      anchor.a,
+      cursorB,
+      anchor.b,
+      "unmatched"
+    );
+
+    rows.push({
+      aIndex:anchor.a,
+      bIndex:anchor.b,
+      layoutKind:"similar"
+    });
+
+    cursorA=anchor.a+1;
+    cursorB=anchor.b+1;
+  }
+
+  appendTopAlignedRows(
+    rows,
+    cursorA,
+    aEnd,
+    cursorB,
+    bEnd,
+    "unmatched"
+  );
+}
+
+function appendMatchedBlockRows(
+  rows,
+  block
+){
+  const countA=
+    Math.max(
+      0,
+      block.aEnd-block.aStart
+    );
+
+  const countB=
+    Math.max(
+      0,
+      block.bEnd-block.bStart
+    );
+
+  const paired=
+    Math.min(
+      countA,
+      countB
+    );
+
+  for(let offset=0;offset<paired;offset++){
+    rows.push({
+      aIndex:block.aStart+offset,
+      bIndex:block.bStart+offset,
+      layoutKind:"match",
+      alignmentBlock:block,
+      blockOffset:offset
+    });
+  }
+
+  for(let offset=paired;offset<countA;offset++){
+    rows.push({
+      aIndex:block.aStart+offset,
+      bIndex:null,
+      bInsert:block.bStart+paired,
+      layoutKind:"match",
+      alignmentBlock:block,
+      blockOffset:offset,
+      spacerFor:"b"
+    });
+  }
+
+  for(let offset=paired;offset<countB;offset++){
+    rows.push({
+      aIndex:null,
+      bIndex:block.bStart+offset,
+      aInsert:block.aStart+paired,
+      layoutKind:"match",
+      alignmentBlock:block,
+      blockOffset:offset,
+      spacerFor:"a"
+    });
+  }
+}
+
+function annotateLineLayoutRows(rows){
+  let aCursor=0;
+  let bCursor=0;
+
+  for(const row of rows){
+    row.aInsert=aCursor;
+    row.bInsert=bCursor;
+
+    if(row.aIndex!=null){
+      aCursor=row.aIndex+1;
+    }
+
+    if(row.bIndex!=null){
+      bCursor=row.bIndex+1;
+    }
+  }
+
+  return rows;
+}
+
+function fallbackLineLayout(linesA,linesB){
+  const rows=[];
+  const count=Math.max(
+    linesA.length,
+    linesB.length
+  );
+
+  for(let index=0;index<count;index++){
+    rows.push({
+      aIndex:index<linesA.length
+        ? index
+        : null,
+      bIndex:index<linesB.length
+        ? index
+        : null
+    });
+  }
+
+  return annotateLineLayoutRows(rows);
+}
+
+function buildLineLayout(
+  parts,
+  textA,
+  textB
+){
+  const linesA=
+    physicalLines(textA);
+
+  const linesB=
+    physicalLines(textB);
+
+  if(algorithmMode==="lines"){
+    const lineRows=
+      buildLineRows(
+        linesA.map(
+          line=>line.text
+        ),
+        linesB.map(
+          line=>line.text
+        )
+      );
+
+    return {
+      linesA,
+      linesB,
+      rows:lineRows.map(row=>({
+        aIndex:row.aIndex,
+        bIndex:row.bIndex,
+        aInsert:row.aInsert,
+        bInsert:row.bInsert
+      }))
+    };
+  }
+
+  const blocks=
+    buildCanonicalAlignmentBlocks(
+      textA,
+      textB
+    );
+
+  const rows=[];
+
+  let cursorA=0;
+  let cursorB=0;
+
+  for(const block of blocks){
+    if(
+      block.aStart<cursorA ||
+      block.bStart<cursorB
+    ){
+      continue;
+    }
+
+    // Everything before the next recognised block follows rules 2/3/6/7.
+    appendGapRows(
+      rows,
+      linesA,
+      linesB,
+      cursorA,
+      block.aStart,
+      cursorB,
+      block.bStart
+    );
+
+    appendMatchedBlockRows(
+      rows,
+      block
+    );
+
+    cursorA=block.aEnd;
+    cursorB=block.bEnd;
+  }
+
+  // Case 8: before/after known blocks is just ordinary empty-space padding.
+  appendGapRows(
+    rows,
+    linesA,
+    linesB,
+    cursorA,
+    linesA.length,
+    cursorB,
+    linesB.length
+  );
+
+  return {
+    linesA,
+    linesB,
+    rows:
+      annotateLineLayoutRows(
+        rows
+      )
+  };
+}
+
+function sideRange(part,side){
+  return side==="a"
+    ? [part.aStart,part.aEnd]
+    : [part.bStart,part.bEnd];
+}
+
+function partTouchesRange(
+  part,
+  side,
+  start,
+  fullEnd
+){
+  const [partStart,partEnd]=
+    sideRange(part,side);
+
+  if(partStart===partEnd){
+    return (
+      start<=partStart &&
+      partStart<=fullEnd
+    );
+  }
+
+  return (
+    partEnd>start &&
+    partStart<fullEnd
+  );
+}
+
+function visualStrongClass(side){
+  return side==="a"
+    ? "del"
+    : "add";
+}
+
+function visualBridgeText(text){
+  return (
+    text.length<=8 &&
+    /^[\s.,!?;:()[\]{}"'«»„“”—–…\-]*$/u.test(text)
+  );
+}
+
+function coalesceVisualSegments(
+  input,
+  side
+){
+  const strong=
+    visualStrongClass(side);
+
+  const segments=
+    input.map(segment=>({
+      ...segment
+    }));
+
+  // Bridge only tiny neutral separators. This turns:
+  // red + space/punctuation + red
+  // into one red interval, without swallowing real unchanged words.
+  for(
+    let index=1;
+    index<segments.length-1;
+    index++
+  ){
+    const current=
+      segments[index];
+
+    const previous=
+      segments[index-1];
+
+    const next=
+      segments[index+1];
+
+    if(
+      current.className==null &&
+      previous.className &&
+      next.className &&
+      visualBridgeText(
+        current.text
+      )
+    ){
+      current.className=
+        previous.className===strong ||
+        next.className===strong
+          ? strong
+          : "soft";
+    }
+  }
+
+  const merged=[];
+
+  for(const segment of segments){
+    const previous=
+      merged[merged.length-1];
+
+    if(
+      previous &&
+      previous.className &&
+      segment.className
+    ){
+      // Any adjacent changed fragments are one visual interval.
+      previous.text+=segment.text;
+
+      if(
+        previous.className===strong ||
+        segment.className===strong
+      ){
+        previous.className=strong;
+      }else{
+        previous.className="soft";
+      }
+
+      continue;
+    }
+
+    if(
+      previous &&
+      previous.className===
+      segment.className
+    ){
+      previous.text+=segment.text;
+      continue;
+    }
+
+    merged.push({
+      ...segment
+    });
+  }
+
+  return merged;
+}
+
+function renderLineSegments(
+  side,
+  line,
+  parts
+){
+  if(!line){
+    return "<br>";
+  }
+
+  const text=state[side];
+  const segments=[];
+
+  for(const part of parts){
+    const [partStart,partEnd]=
+      sideRange(
+        part,
+        side
+      );
+
+    const from=Math.max(
+      line.start,
+      partStart
+    );
+
+    const to=Math.min(
+      line.end,
+      partEnd
+    );
+
+    if(to<=from){
+      continue;
+    }
+
+    segments.push({
+      text:text.slice(
+        from,
+        to
+      ),
+      className:partClass(
+        part,
+        side
+      )
+    });
+  }
+
+  if(
+    !segments.length &&
+    line.end>line.start
+  ){
+    segments.push({
+      text:text.slice(
+        line.start,
+        line.end
+      ),
+      className:null
+    });
+  }
+
+  const merged=
+    coalesceVisualSegments(
+      segments,
+      side
+    );
+
+  let html=
+    merged.map(segment=>
+      segment.className
+        ? `<mark class="${segment.className}">${esc(segment.text)}</mark>`
+        : esc(segment.text)
+    ).join("");
+
+  if(line.hasNewline){
+    const newlineStart=
+      line.end;
+
+    const newlineEnd=
+      line.end+1;
+
+    const newlinePart=
+      parts.find(part=>{
+        const [start,end]=
+          sideRange(
+            part,
+            side
+          );
+
+        return (
+          start<=newlineStart &&
+          newlineEnd<=end
+        );
+      });
+
+    if(newlinePart){
+      const className=
+        partClass(
+          newlinePart,
+          side
+        );
+
+      if(className){
+        html+=
+          `<span class="newline-marker ${className}" aria-hidden="true"></span>`;
+      }
+    }
+  }
+
+  return html || "<br>";
+}
+
+function boundaryOffsetForLine(
+  lines,
+  text,
+  index
+){
+  if(index<=0){
+    return 0;
+  }
+
+  if(index>=lines.length){
+    return text.length;
+  }
+
+  return lines[index].start;
+}
+
+function lineHasChange(
+  line,
+  side,
+  parts
+){
+  if(!line){
+    return false;
+  }
+
+  return parts.some(part=>
+    part.op!=="equal" &&
+    partTouchesRange(
+      part,
+      side,
+      line.start,
+      line.fullEnd
+    )
+  );
+}
+
+function hunkTouchesLayoutRow(
+  hunk,
+  row,
+  linesA,
+  linesB
+){
+  const lineA=
+    row.aIndex==null
+      ? null
+      : linesA[row.aIndex];
+
+  const lineB=
+    row.bIndex==null
+      ? null
+      : linesB[row.bIndex];
+
+  const touchesA=
+    lineA &&
+    (
+      hunk.aStart===hunk.aEnd
+        ? (
+            lineA.start<=hunk.aStart &&
+            hunk.aStart<=lineA.fullEnd
+          )
+        : (
+            hunk.aEnd>lineA.start &&
+            hunk.aStart<lineA.fullEnd
+          )
+    );
+
+  const touchesB=
+    lineB &&
+    (
+      hunk.bStart===hunk.bEnd
+        ? (
+            lineB.start<=hunk.bStart &&
+            hunk.bStart<=lineB.fullEnd
+          )
+        : (
+            hunk.bEnd>lineB.start &&
+            hunk.bStart<lineB.fullEnd
+          )
+    );
+
+  if(touchesA || touchesB){
+    return true;
+  }
+
+  // A pure insertion/deletion may sit exactly in the empty side of
+  // a virtual alignment row.
+  if(!lineA && row.aInsert!=null){
+    const at=boundaryOffsetForLine(
+      linesA,
+      state.a,
+      row.aInsert
+    );
+
+    if(
+      hunk.aStart===hunk.aEnd &&
+      hunk.aStart===at
+    ){
+      return true;
+    }
+  }
+
+  if(!lineB && row.bInsert!=null){
+    const at=boundaryOffsetForLine(
+      linesB,
+      state.b,
+      row.bInsert
+    );
+
+    if(
+      hunk.bStart===hunk.bEnd &&
+      hunk.bStart===at
+    ){
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function combineChangeHunks(hunks){
+  if(!hunks.length){
+    return null;
+  }
+
+  const sorted=[...hunks].sort(
+    (x,y)=>
+      x.aStart-y.aStart ||
+      x.bStart-y.bStart
+  );
+
+  return {
+    type:"change",
+    aStart:Math.min(
+      ...sorted.map(hunk=>hunk.aStart)
+    ),
+    aEnd:Math.max(
+      ...sorted.map(hunk=>hunk.aEnd)
+    ),
+    bStart:Math.min(
+      ...sorted.map(hunk=>hunk.bStart)
+    ),
+    bEnd:Math.max(
+      ...sorted.map(hunk=>hunk.bEnd)
+    ),
+    parts:sorted.flatMap(
+      hunk=>hunk.parts
+    )
+  };
+}
+
+
+function makeLineAction(
+  sourceSide,
+  sourceStart,
+  sourceCount,
+  targetSide,
+  targetStart,
+  targetCount,
+  description
+){
+  return {
+    sourceSide,
+    sourceStart,
+    sourceCount,
+    targetSide,
+    targetStart,
+    targetCount,
+    description
+  };
+}
+
+function documentLinesForApply(side){
+  // split("\n") preserves a trailing empty physical line, which is important
+  // for line-level operations on documents ending with a newline.
+  return state[side].split("\n");
+}
+
+function clampLineIndex(
+  lines,
+  index
+){
+  return Math.max(
+    0,
+    Math.min(
+      index,
+      lines.length
+    )
+  );
+}
+
+function applyLineAction(action){
+  cancelScheduledRender();
+
+  if(
+    !action ||
+    !canWrite(action.targetSide)
+  ){
+    return;
+  }
+
+  const before=snapshot();
+
+  const sourceLines=
+    documentLinesForApply(
+      action.sourceSide
+    );
+
+  const targetLines=
+    documentLinesForApply(
+      action.targetSide
+    );
+
+  const sourceStart=
+    clampLineIndex(
+      sourceLines,
+      action.sourceStart
+    );
+
+  const targetStart=
+    clampLineIndex(
+      targetLines,
+      action.targetStart
+    );
+
+  const sourceCount=
+    Math.max(
+      0,
+      Math.min(
+        action.sourceCount,
+        sourceLines.length-sourceStart
+      )
+    );
+
+  const targetCount=
+    Math.max(
+      0,
+      Math.min(
+        action.targetCount,
+        targetLines.length-targetStart
+      )
+    );
+
+  const replacement=
+    sourceCount
+      ? sourceLines.slice(
+          sourceStart,
+          sourceStart+sourceCount
+        )
+      : [];
+
+  targetLines.splice(
+    targetStart,
+    targetCount,
+    ...replacement
+  );
+
+  // Deleting the only physical line produces the canonical empty document.
+  const nextText=
+    targetLines.length
+      ? targetLines.join("\n")
+      : "";
+
+  state[action.targetSide]=
+    nextText;
+
+  pushUndo(before);
+  syncEditors(false);
+  render();
+}
+
+function ordinaryRowActions(row){
+  const hasA=
+    row.aIndex!=null;
+
+  const hasB=
+    row.bIndex!=null;
+
+  if(hasA && hasB){
+    return {
+      toRight:makeLineAction(
+        "a",
+        row.aIndex,
+        1,
+        "b",
+        row.bIndex,
+        1,
+        "Заменить строку справа строкой слева"
+      ),
+      toLeft:makeLineAction(
+        "b",
+        row.bIndex,
+        1,
+        "a",
+        row.aIndex,
+        1,
+        "Заменить строку слева строкой справа"
+      )
+    };
+  }
+
+  if(hasA){
+    return {
+      toRight:makeLineAction(
+        "a",
+        row.aIndex,
+        1,
+        "b",
+        row.bInsert ?? 0,
+        0,
+        "Вставить строку слева в правый текст"
+      ),
+      toLeft:makeLineAction(
+        "b",
+        row.bInsert ?? 0,
+        0,
+        "a",
+        row.aIndex,
+        1,
+        "Удалить строку слева"
+      )
+    };
+  }
+
+  if(hasB){
+    return {
+      toRight:makeLineAction(
+        "a",
+        row.aInsert ?? 0,
+        0,
+        "b",
+        row.bIndex,
+        1,
+        "Удалить строку справа"
+      ),
+      toLeft:makeLineAction(
+        "b",
+        row.bIndex,
+        1,
+        "a",
+        row.aInsert ?? 0,
+        0,
+        "Вставить строку справа в левый текст"
+      )
+    };
+  }
+
+  return {
+    toRight:null,
+    toLeft:null
+  };
+}
+
+function matchedBlockRowActions(row){
+  const block=
+    row.alignmentBlock;
+
+  if(!block){
+    return ordinaryRowActions(row);
+  }
+
+  const countA=
+    block.aEnd-block.aStart;
+
+  const countB=
+    block.bEnd-block.bStart;
+
+  // Ordinary N:M blocks are deliberately reduced to physical line actions.
+  if(
+    countA!==1 &&
+    countB!==1
+  ){
+    return ordinaryRowActions(row);
+  }
+
+  // 1 <-> 1 is the normal per-line replace case.
+  if(
+    countA===1 &&
+    countB===1
+  ){
+    return ordinaryRowActions(row);
+  }
+
+  // Case 4: one A line corresponds to several B lines.
+  if(
+    countA===1 &&
+    countB>1
+  ){
+    if(row.aIndex!=null){
+      // Single A action replaces the complete B block.
+      // B1 still has its own independent B1 -> A1 action.
+      return {
+        toRight:makeLineAction(
+          "a",
+          block.aStart,
+          1,
+          "b",
+          block.bStart,
+          countB,
+          `Заменить ${countB} строк справа одной строкой слева`
+        ),
+        toLeft:makeLineAction(
+          "b",
+          row.bIndex,
+          1,
+          "a",
+          block.aStart,
+          1,
+          "Заменить строку слева этой строкой справа"
+        )
+      };
+    }
+
+    // B2..BN: each right-side line can be inserted into A independently.
+    // There is no "empty -> B" delete button here: A1 -> whole B block is
+    // already represented by the single group action above.
+    return {
+      toRight:null,
+      toLeft:makeLineAction(
+        "b",
+        row.bIndex,
+        1,
+        "a",
+        block.aEnd,
+        0,
+        "Вставить эту строку справа после связанной строки слева"
+      )
+    };
+  }
+
+  // Case 5: several A lines correspond to one B line.
+  if(
+    countA>1 &&
+    countB===1
+  ){
+    if(row.bIndex!=null){
+      // A1 has its own A1 -> B1 action; the single B action replaces
+      // the complete A block.
+      return {
+        toRight:makeLineAction(
+          "a",
+          row.aIndex,
+          1,
+          "b",
+          block.bStart,
+          1,
+          "Заменить строку справа этой строкой слева"
+        ),
+        toLeft:makeLineAction(
+          "b",
+          block.bStart,
+          1,
+          "a",
+          block.aStart,
+          countA,
+          `Заменить ${countA} строк слева одной строкой справа`
+        )
+      };
+    }
+
+    // A2..AN: each left-side line can be inserted into B independently.
+    return {
+      toRight:makeLineAction(
+        "a",
+        row.aIndex,
+        1,
+        "b",
+        block.bEnd,
+        0,
+        "Вставить эту строку слева после связанной строки справа"
+      ),
+      toLeft:null
+    };
+  }
+
+  return ordinaryRowActions(row);
+}
+
+function actionsForLayoutRow(
+  row,
+  lineA,
+  lineB,
+  changedA,
+  changedB
+){
+  // A truly identical physical line has nothing to apply.
+  if(
+    lineA &&
+    lineB &&
+    lineA.fullText===lineB.fullText &&
+    !changedA &&
+    !changedB
+  ){
+    return {
+      toRight:null,
+      toLeft:null
+    };
+  }
+
+  return matchedBlockRowActions(
+    row
+  );
+}
+
+function makeLineLayoutRow(
+  row,
+  linesA,
+  linesB,
+  parts,
+  rowActions=null
+){
+  const element=
+    document.createElement("div");
+
+  element.className="diff-row";
+
+  const lineA=
+    row.aIndex==null
+      ? null
+      : linesA[row.aIndex];
+
+  const lineB=
+    row.bIndex==null
+      ? null
+      : linesB[row.bIndex];
+
+  const left=
+    document.createElement("div");
+
+  left.className="side left";
+  left.dataset.side="a";
+
+  const leftStart=
+    lineA
+      ? lineA.start
+      : boundaryOffsetForLine(
+          linesA,
+          state.a,
+          row.aInsert ?? 0
+        );
+
+  const leftEnd=
+    lineA
+      ? lineA.end
+      : leftStart;
+
+  left.dataset.start=
+    String(leftStart);
+
+  left.dataset.end=
+    String(leftEnd);
+
+  left.dataset.realLine=
+    lineA ? "1" : "0";
+
+  if(lineA){
+    left.dataset.lineIndex=
+      String(lineA.index);
+  }
+
+  left.innerHTML=
+    renderLineSegments(
+      "a",
+      lineA,
+      parts
+    );
+
+  const right=
+    document.createElement("div");
+
+  right.className="side right";
+  right.dataset.side="b";
+
+  const rightStart=
+    lineB
+      ? lineB.start
+      : boundaryOffsetForLine(
+          linesB,
+          state.b,
+          row.bInsert ?? 0
+        );
+
+  const rightEnd=
+    lineB
+      ? lineB.end
+      : rightStart;
+
+  right.dataset.start=
+    String(rightStart);
+
+  right.dataset.end=
+    String(rightEnd);
+
+  right.dataset.realLine=
+    lineB ? "1" : "0";
+
+  if(lineB){
+    right.dataset.lineIndex=
+      String(lineB.index);
+  }
+
+  right.innerHTML=
+    renderLineSegments(
+      "b",
+      lineB,
+      parts
+    );
+
+  if(!lineA){
+    left.classList.add("empty");
+  }
+
+  if(!lineB){
+    right.classList.add("empty");
+  }
+
+  const changedA=
+    lineHasChange(
+      lineA,
+      "a",
+      parts
+    );
+
+  const changedB=
+    lineHasChange(
+      lineB,
+      "b",
+      parts
+    );
+
+  if(changedA){
+    left.classList.add(
+      "changed-left"
+    );
+  }
+
+  if(changedB){
+    right.classList.add(
+      "changed-right"
+    );
+  }
+
+  const gutter=
+    document.createElement("div");
+
+  gutter.className="gutter";
+
+  const leftNumber=
+    document.createElement("div");
+
+  leftNumber.className="gnum left";
+  leftNumber.textContent=
+    lineA
+      ? String(lineA.index+1)
+      : "";
+
+  const actions=
+    document.createElement("div");
+
+  actions.className="row-actions";
+
+  const actionsForRow=
+    rowActions || {
+      toRight:null,
+      toLeft:null
+    };
+
+  if(actionsForRow.toRight){
+    const toRight=
+      document.createElement("button");
+
+    toRight.className="apply-btn";
+    toRight.type="button";
+    toRight.textContent="»";
+    toRight.title=
+      actionsForRow.toRight.description ||
+      "Применить строку слева направо";
+    toRight.disabled=!canWrite("b");
+    toRight.addEventListener(
+      "pointerdown",
+      event=>event.preventDefault()
+    );
+    toRight.onclick=
+      ()=>applyLineAction(
+        actionsForRow.toRight
+      );
+
+    actions.append(
+      toRight
+    );
+  }
+
+  if(actionsForRow.toLeft){
+    const toLeft=
+      document.createElement("button");
+
+    toLeft.className="apply-btn";
+    toLeft.type="button";
+    toLeft.textContent="«";
+    toLeft.title=
+      actionsForRow.toLeft.description ||
+      "Применить строку справа налево";
+    toLeft.disabled=!canWrite("a");
+    toLeft.addEventListener(
+      "pointerdown",
+      event=>event.preventDefault()
+    );
+    toLeft.onclick=
+      ()=>applyLineAction(
+        actionsForRow.toLeft
+      );
+
+    actions.append(
+      toLeft
+    );
+  }
+
+  const rightNumber=
+    document.createElement("div");
+
+  rightNumber.className="gnum right";
+  rightNumber.textContent=
+    lineB
+      ? String(lineB.index+1)
+      : "";
+
+  gutter.append(
+    leftNumber,
+    actions,
+    rightNumber
+  );
+
+  element.append(
+    left,
+    gutter,
+    right
+  );
+
+  element.dataset.equal=
+    (
+      lineA &&
+      lineB &&
+      lineA.fullText===lineB.fullText &&
+      !changedA &&
+      !changedB
+    )
+      ? "1"
+      : "0";
+
+  return element;
+}
+
+function lineFoldKey(rows,start,end){
+  return [
+    "line-layout",
+    rows[start]?.aIndex ?? "x",
+    rows[start]?.bIndex ?? "x",
+    rows[end-1]?.aIndex ?? "x",
+    rows[end-1]?.bIndex ?? "x",
+    end-start
+  ].join(":");
+}
+
+function makeLineFold(
+  hiddenCount,
+  key
+){
+  const fold=
+    document.createElement("div");
+
+  fold.className="fold";
+
+  const left=
+    document.createElement("div");
+
+  left.className="fold-side";
+
+  const center=
+    document.createElement("div");
+
+  center.className="fold-center";
+  center.textContent=
+    `… ${hiddenCount} одинаковых строк скрыто · показать ещё 5 …`;
+
+  center.onclick=event=>{
+    event.preventDefault();
+    event.stopPropagation();
+
+    foldReveal.set(
+      key,
+      (foldReveal.get(key) || 0)+5
+    );
+
+    render();
+  };
+
+  const right=
+    document.createElement("div");
+
+  right.className="fold-side";
+
+  fold.append(
+    left,
+    center,
+    right
+  );
+
+  return fold;
+}
+
+function renderLineBoundDiff(
+  diff,
+  parts,
+  hunks
+){
+  const layout=
+    buildLineLayout(
+      parts,
+      state.a,
+      state.b
+    );
+
+  const {
+    linesA,
+    linesB,
+    rows
+  }=layout;
+
+  const rowMeta=rows.map(row=>{
+    const lineA=
+      row.aIndex==null
+        ? null
+        : linesA[row.aIndex];
+
+    const lineB=
+      row.bIndex==null
+        ? null
+        : linesB[row.bIndex];
+
+    const changedA=
+      lineHasChange(
+        lineA,
+        "a",
+        parts
+      );
+
+    const changedB=
+      lineHasChange(
+        lineB,
+        "b",
+        parts
+      );
+
+    const equal=
+      !!(
+        lineA &&
+        lineB &&
+        lineA.fullText===lineB.fullText &&
+        !changedA &&
+        !changedB
+      );
+
+    return {
+      row,
+      lineA,
+      lineB,
+      changedA,
+      changedB,
+      equal,
+      actions:actionsForLayoutRow(
+        row,
+        lineA,
+        lineB,
+        changedA,
+        changedB
+      )
+    };
+  });
+
+  let index=0;
+  let equalLines=0;
+  let changedRows=0;
+
+  while(index<rowMeta.length){
+    if(
+      collapsed &&
+      rowMeta[index].equal
+    ){
+      let end=index;
+
+      while(
+        end<rowMeta.length &&
+        rowMeta[end].equal
+      ){
+        end++;
+      }
+
+      const count=end-index;
+
+      if(count>6){
+        const key=
+          lineFoldKey(
+            rows,
+            index,
+            end
+          );
+
+        const hiddenTotal=count-4;
+
+        const revealed=Math.min(
+          foldReveal.get(key) || 0,
+          hiddenTotal
+        );
+
+        const headEnd=Math.min(
+          end-2,
+          index+2+revealed
+        );
+
+        for(
+          let pos=index;
+          pos<headEnd;
+          pos++
+        ){
+          const meta=
+            rowMeta[pos];
+
+          diff.appendChild(
+            makeLineLayoutRow(
+              meta.row,
+              linesA,
+              linesB,
+              parts,
+              meta.actions
+            )
+          );
+
+          equalLines++;
+        }
+
+        const hidden=
+          end-2-headEnd;
+
+        if(hidden>0){
+          diff.appendChild(
+            makeLineFold(
+              hidden,
+              key
+            )
+          );
+        }
+
+        for(
+          let pos=Math.max(
+            headEnd,
+            end-2
+          );
+          pos<end;
+          pos++
+        ){
+          const meta=
+            rowMeta[pos];
+
+          diff.appendChild(
+            makeLineLayoutRow(
+              meta.row,
+              linesA,
+              linesB,
+              parts,
+              meta.actions
+            )
+          );
+
+          equalLines++;
+        }
+
+        index=end;
+        continue;
+      }
+    }
+
+    const meta=
+      rowMeta[index++];
+
+    diff.appendChild(
+      makeLineLayoutRow(
+        meta.row,
+        linesA,
+        linesB,
+        parts,
+        meta.actions
+      )
+    );
+
+    if(meta.equal){
+      equalLines++;
+    }else{
+      changedRows++;
+    }
+  }
+
+  return {
+    equalLines,
+    changedRows
+  };
+}
+
+function render(){
+  cancelScheduledRender();
+  renderDirty=false;
+  layoutDirty=false;
+
+  const stage=$("#diffStage");
+  const scrollTop=stage.scrollTop;
+  const scrollLeft=stage.scrollLeft;
+
+  const parts=
+    buildEditParts(
+      state.a,
+      state.b,
+      algorithmMode
+    );
+
+  const hunks=
+    buildHunks(
+      parts,
+      state.a
+    );
+
+  const diff=$("#diff");
+  diff.innerHTML="";
+
+  const stats=
+    renderLineBoundDiff(
+      diff,
+      parts,
+      hunks
+    );
+
+  $("#stats").textContent=
+    `Одинаковых строк: ${stats.equalLines} · Строк с изменениями: ${stats.changedRows}`;
+
+  $("#toggleFold").classList.toggle(
+    "is-expanded",
+    !collapsed
+  );
+
+  $("#toggleFold").title=
+    collapsed
+      ? "Раскрыть общие строки"
+      : "Схлопнуть общие строки";
+
+  $("#toggleFold").setAttribute(
+    "aria-label",
+    $("#toggleFold").title
+  );
+
+  stage.scrollTop=scrollTop;
+  stage.scrollLeft=scrollLeft;
+
+  updateHistoryButtons();
+
+  requestAnimationFrame(
+    paintVirtualSelection
+  );
+}
+
+function domOffsetFromPoint(
+  element,
+  x,
+  y
+){
+  let node=null;
+  let offset=0;
+
+  if(document.caretPositionFromPoint){
+    const position=
+      document.caretPositionFromPoint(
+        x,
+        y
+      );
+
+    node=
+      position?.offsetNode ||
+      null;
+
+    offset=
+      position?.offset ||
+      0;
+  }else if(document.caretRangeFromPoint){
+    const range=
+      document.caretRangeFromPoint(
+        x,
+        y
+      );
+
+    node=
+      range?.startContainer ||
+      null;
+
+    offset=
+      range?.startOffset ||
+      0;
+  }
+
+  if(
+    !node ||
+    !element.contains(node)
+  ){
+    const rect=
+      element.getBoundingClientRect();
+
+    return x<
+      rect.left+rect.width/2
+        ? 0
+        : element.textContent.length;
+  }
+
+  try{
+    const range=
+      document.createRange();
+
+    range.selectNodeContents(
+      element
+    );
+
+    range.setEnd(
+      node,
+      offset
+    );
+
+    return range.toString().length;
+  }catch{
+    return 0;
+  }
+}
+
+function offsetForBlockPoint(
+  block,
+  x,
+  y
+){
+  const start=
+    Number(block.dataset.start);
+
+  const end=
+    Number(block.dataset.end);
+
+  if(end<=start){
+    return start;
+  }
+
+  return Math.max(
+    start,
+    Math.min(
+      end,
+      start+
+      domOffsetFromPoint(
+        block,
+        x,
+        y
+      )
+    )
+  );
+}
+
+function positionInTextNode(
+  element,
+  charOffset
+){
+  const walker=
+    document.createTreeWalker(
+      element,
+      NodeFilter.SHOW_TEXT
+    );
+
+  let remaining=
+    charOffset;
+
+  let node;
+
+  while(
+    (node=walker.nextNode())
+  ){
+    const length=
+      node.nodeValue.length;
+
+    if(remaining<=length){
+      return {
+        node,
+        offset:remaining
+      };
+    }
+
+    remaining-=length;
+  }
+
+  return {
+    node:element,
+    offset:element.childNodes.length
+  };
+}
+
+function rangeForBlockOffsets(
+  block,
+  start,
+  end
+){
+  const first=
+    positionInTextNode(
+      block,
+      start
+    );
+
+  const last=
+    positionInTextNode(
+      block,
+      end
+    );
+
+  const range=
+    document.createRange();
+
+  try{
+    range.setStart(
+      first.node,
+      first.offset
+    );
+
+    range.setEnd(
+      last.node,
+      last.offset
+    );
+
+    return range;
+  }catch{
+    return null;
+  }
+}
+
+function clearHighlight(){
+  if(window.CSS?.highlights){
+    CSS.highlights.delete(
+      "diff-selection"
+    );
+  }
+}
+
+function visibleBlocks(side){
+  return [
+    ...document.querySelectorAll(
+      `.side[data-side="${side}"]`
+    )
+  ];
+}
+
+function findBlockForOffset(
+  side,
+  offset
+){
+  const blocks=
+    visibleBlocks(side);
+
+  let realAtStart=null;
+  let realAtEnd=null;
+  let realEmpty=null;
+  let virtualFallback=null;
+
+  for(const block of blocks){
+    const start=
+      Number(block.dataset.start);
+
+    const end=
+      Number(block.dataset.end);
+
+    const real=
+      block.dataset.realLine==="1";
+
+    // Strongest case: caret is inside a real non-empty physical line.
+    if(
+      real &&
+      start<=offset &&
+      offset<end
+    ){
+      return block;
+    }
+
+    if(real){
+      // A real empty final line (for a document ending in "\n") must
+      // beat any virtual placeholders with the same offset.
+      if(
+        start===end &&
+        offset===start
+      ){
+        realEmpty=block;
+        continue;
+      }
+
+      // At the first character of a real line, prefer that line.
+      if(
+        offset===start &&
+        end>start
+      ){
+        realAtStart=block;
+        continue;
+      }
+
+      // At document/line end, keep the nearest real line as fallback.
+      if(offset===end){
+        realAtEnd=block;
+      }
+
+      continue;
+    }
+
+    // Virtual rows are alignment-only. They may receive a caret only
+    // when no real physical source line represents this offset.
+    if(
+      start===end &&
+      offset===start &&
+      virtualFallback===null
+    ){
+      virtualFallback=block;
+    }
+  }
+
+  return (
+    realEmpty ||
+    realAtStart ||
+    realAtEnd ||
+    virtualFallback
+  );
+}
+
+function paintVirtualSelection(){
+  clearHighlight();
+
+  const caret=$("#virtualCaret");
+  caret.style.display="none";
+
+  if(!activeSide){
+    return;
+  }
+
+  const editor=
+    editorFor(activeSide);
+
+  const start=
+    editor.selectionStart ||
+    0;
+
+  const end=
+    editor.selectionEnd ||
+    0;
+
+  const ranges=[];
+
+  if(start!==end){
+    for(
+      const block of
+      visibleBlocks(activeSide)
+    ){
+      const blockStart=
+        Number(block.dataset.start);
+
+      const blockEnd=
+        Number(block.dataset.end);
+
+      const from=
+        Math.max(
+          start,
+          blockStart
+        );
+
+      const to=
+        Math.min(
+          end,
+          blockEnd
+        );
+
+      if(to>from){
+        const range=
+          rangeForBlockOffsets(
+            block,
+            from-blockStart,
+            to-blockStart
+          );
+
+        if(range){
+          ranges.push(range);
+        }
+      }
+    }
+
+    if(
+      window.Highlight &&
+      window.CSS?.highlights
+    ){
+      CSS.highlights.set(
+        "diff-selection",
+        new Highlight(...ranges)
+      );
+    }
+
+    return;
+  }
+
+  const block=
+    findBlockForOffset(
+      activeSide,
+      start
+    );
+
+  if(!block){
+    return;
+  }
+
+  const blockStart=
+    Number(block.dataset.start);
+
+  const blockEnd=
+    Number(block.dataset.end);
+
+  const local=
+    Math.max(
+      0,
+      Math.min(
+        start-blockStart,
+        blockEnd-blockStart
+      )
+    );
+
+  const range=
+    rangeForBlockOffsets(
+      block,
+      local,
+      local
+    );
+
+  let rect=
+    range?.getBoundingClientRect();
+
+  if(
+    !rect ||
+    (!rect.height && !rect.width)
+  ){
+    const blockRect=
+      block.getBoundingClientRect();
+
+    rect={
+      left:blockRect.left+10,
+      top:blockRect.top+4,
+      height:19
+    };
+  }
+
+  const stage=$("#diffStage");
+  const stageRect=
+    stage.getBoundingClientRect();
+
+  caret.style.left=
+    (
+      rect.left-
+      stageRect.left+
+      stage.scrollLeft
+    )+"px";
+
+  caret.style.top=
+    (
+      rect.top-
+      stageRect.top+
+      stage.scrollTop
+    )+"px";
+
+  caret.style.height=
+    Math.max(
+      18,
+      rect.height || 18
+    )+"px";
+
+  caret.style.display="block";
+}
+
+function isWordChar(char){
+  return (
+    !!char &&
+    /[\p{L}\p{N}_]/u.test(char)
+  );
+}
+
+function wordRangeAtOffset(
+  text,
+  offset
+){
+  offset=Math.max(
+    0,
+    Math.min(
+      offset,
+      text.length
+    )
+  );
+
+  let probe=offset;
+
+  if(
+    (
+      probe===text.length ||
+      !isWordChar(text[probe])
+    ) &&
+    probe>0 &&
+    isWordChar(text[probe-1])
+  ){
+    probe--;
+  }
+
+  if(!isWordChar(text[probe])){
+    return {
+      start:Math.min(
+        offset,
+        text.length
+      ),
+      end:Math.min(
+        offset+1,
+        text.length
+      )
+    };
+  }
+
+  let start=probe;
+  let end=probe+1;
+
+  while(
+    start>0 &&
+    isWordChar(text[start-1])
+  ){
+    start--;
+  }
+
+  while(
+    end<text.length &&
+    isWordChar(text[end])
+  ){
+    end++;
+  }
+
+  return {start,end};
+}
+
+function focusSide(
+  side,
+  offset,
+  extend=false
+){
+  activeSide=side;
+
+  const editor=
+    editorFor(side);
+
+  editor.focus({
+    preventScroll:true
+  });
+
+  offset=Math.max(
+    0,
+    Math.min(
+      offset,
+      editor.value.length
+    )
+  );
+
+  if(extend){
+    const anchor=
+      editor.selectionDirection===
+      "backward"
+        ? editor.selectionEnd
+        : editor.selectionStart;
+
+    if(offset<anchor){
+      editor.setSelectionRange(
+        offset,
+        anchor,
+        "backward"
+      );
+    }else{
+      editor.setSelectionRange(
+        anchor,
+        offset,
+        "forward"
+      );
+    }
+  }else{
+    editor.setSelectionRange(
+      offset,
+      offset
+    );
+  }
+
+  paintVirtualSelection();
+}
+
+function selectWord(
+  side,
+  offset
+){
+  activeSide=side;
+
+  const editor=
+    editorFor(side);
+
+  const range=
+    wordRangeAtOffset(
+      state[side],
+      offset
+    );
+
+  editor.focus({
+    preventScroll:true
+  });
+
+  editor.setSelectionRange(
+    range.start,
+    range.end,
+    "forward"
+  );
+
+  paintVirtualSelection();
+}
+
+function blockAtPointForSide(
+  side,
+  x,
+  y
+){
+  const direct=
+    document
+      .elementFromPoint(x,y)
+      ?.closest?.(
+        `.side[data-side="${side}"]`
+      );
+
+  if(direct){
+    return direct;
+  }
+
+  const stageRect=
+    $("#diffStage")
+      .getBoundingClientRect();
+
+  const probeX=
+    side==="a"
+      ? stageRect.left+
+        Math.max(
+          20,
+          (stageRect.width-132)/4
+        )
+      : stageRect.right-
+        Math.max(
+          20,
+          (stageRect.width-132)/4
+        );
+
+  return (
+    document
+      .elementFromPoint(
+        probeX,
+        y
+      )
+      ?.closest?.(
+        `.side[data-side="${side}"]`
+      ) ||
+    null
+  );
+}
+
+$("#diffStage").addEventListener(
+  "pointerdown",
+  event=>{
+    let block=
+      event.target.closest?.(
+        ".side[data-side]"
+      );
+
+    if(!block){
+      return;
+    }
+
+    event.preventDefault();
+
+    const clientX=
+      event.clientX;
+
+    const clientY=
+      event.clientY;
+
+    if(renderDirty){
+      render();
+
+      block=
+        document
+          .elementFromPoint(
+            clientX,
+            clientY
+          )
+          ?.closest?.(
+            ".side[data-side]"
+          );
+
+      if(!block){
+        return;
+      }
+    }
+
+    const side=
+      block.dataset.side;
+
+    const offset=
+      offsetForBlockPoint(
+        block,
+        clientX,
+        clientY
+      );
+
+    if(event.detail>=2){
+      drag=null;
+      selectWord(
+        side,
+        offset
+      );
+      return;
+    }
+
+    const editor=
+      editorFor(side);
+
+    if(
+      event.shiftKey &&
+      activeSide===side
+    ){
+      focusSide(
+        side,
+        offset,
+        true
+      );
+    }else{
+      focusSide(
+        side,
+        offset,
+        false
+      );
+    }
+
+    drag={
+      side,
+      anchor:
+        event.shiftKey
+          ? (
+              editor.selectionDirection===
+              "backward"
+                ? editor.selectionEnd
+                : editor.selectionStart
+            )
+          : offset,
+      pointerId:event.pointerId
+    };
+
+    $("#diffStage")
+      .setPointerCapture?.(
+        event.pointerId
+      );
+  }
+);
+
+$("#diffStage").addEventListener(
+  "pointermove",
+  event=>{
+    if(
+      !drag ||
+      drag.pointerId!==
+      event.pointerId
+    ){
+      return;
+    }
+
+    event.preventDefault();
+
+    const stage=$("#diffStage");
+    const rect=
+      stage.getBoundingClientRect();
+
+    if(
+      event.clientY<
+      rect.top+18
+    ){
+      stage.scrollTop-=18;
+    }else if(
+      event.clientY>
+      rect.bottom-18
+    ){
+      stage.scrollTop+=18;
+    }
+
+    const block=
+      blockAtPointForSide(
+        drag.side,
+        event.clientX,
+        Math.max(
+          rect.top+2,
+          Math.min(
+            event.clientY,
+            rect.bottom-2
+          )
+        )
+      );
+
+    if(!block){
+      return;
+    }
+
+    const offset=
+      offsetForBlockPoint(
+        block,
+        event.clientX,
+        event.clientY
+      );
+
+    const editor=
+      editorFor(drag.side);
+
+    if(offset<drag.anchor){
+      editor.setSelectionRange(
+        offset,
+        drag.anchor,
+        "backward"
+      );
+    }else{
+      editor.setSelectionRange(
+        drag.anchor,
+        offset,
+        "forward"
+      );
+    }
+
+    paintVirtualSelection();
+  }
+);
+
+function endDrag(event){
+  if(!drag){
+    return;
+  }
+
+  if(
+    event &&
+    drag.pointerId!==
+    event.pointerId
+  ){
+    return;
+  }
+
+  drag=null;
+}
+
+$("#diffStage")
+  .addEventListener(
+    "pointerup",
+    endDrag
+  );
+
+$("#diffStage")
+  .addEventListener(
+    "pointercancel",
+    endDrag
+  );
+
+for(const side of ["a","b"]){
+  const editor=
+    editorFor(side);
+
+  editor.value=
+    state[side];
+
+  editor.addEventListener(
+    "focus",
+    ()=>{
+      activeSide=side;
+      paintVirtualSelection();
+    }
+  );
+
+  editor.addEventListener(
+    "select",
+    paintVirtualSelection
+  );
+
+  editor.addEventListener(
+    "keyup",
+    paintVirtualSelection
+  );
+
+  editor.addEventListener(
+    "click",
+    paintVirtualSelection
+  );
+
+  editor.addEventListener(
+    "beforeinput",
+    event=>{
+      if(
+        event.inputType===
+        "historyUndo" ||
+        event.inputType===
+        "historyRedo" ||
+        !canWrite(side)
+      ){
+        return;
+      }
+
+      pushUndo(snapshot());
+    }
+  );
+
+  editor.addEventListener(
+    "input",
+    ()=>{
+      const oldText=
+        state[side];
+
+      const newText=
+        editor.value
+          .replace(
+            /\r\n?/g,
+            "\n"
+          );
+
+      state[side]=newText;
+
+      const oldNewlines=
+        (oldText.match(/\n/g) || [])
+          .length;
+
+      const newNewlines=
+        (newText.match(/\n/g) || [])
+          .length;
+
+      if(
+        oldNewlines!==
+        newNewlines
+      ){
+        layoutDirty=true;
+        renderDirty=true;
+        scheduleRender(45);
+        return;
+      }
+
+      if(layoutDirty){
+        scheduleRender(45);
+        return;
+      }
+
+      const patched=
+        livePatchBlock(
+          side,
+          oldText,
+          newText
+        );
+
+      if(patched){
+        // Keep the active physical line plain while typing.
+        // Re-highlighting it on every pause causes visible flashing
+        // and can shift wrapping. We reconcile on blur/next click.
+        cancelScheduledRender();
+        return;
+      }
+
+      renderDirty=true;
+      scheduleRender(70);
+    }
+  );
+
+  editor.addEventListener(
+    "blur",
+    ()=>{
+      if(renderDirty){
+        requestAnimationFrame(
+          render
+        );
+      }
+    }
+  );
+
+  editor.addEventListener(
+    "keydown",
+    event=>{
+      const mod=
+        event.metaKey ||
+        event.ctrlKey;
+
+      if(
+        mod &&
+        !event.altKey
+      ){
+        const key=
+          event.key.toLowerCase();
+
+        if(key==="z"){
+          event.preventDefault();
+          event.shiftKey
+            ? redo()
+            : undo();
+          return;
+        }
+
+        if(
+          key==="y" &&
+          !event.metaKey
+        ){
+          event.preventDefault();
+          redo();
+          return;
+        }
+      }
+
+      requestAnimationFrame(
+        paintVirtualSelection
+      );
+    }
+  );
+}
+
+document.addEventListener(
+  "selectionchange",
+  ()=>{
+    if(
+      activeSide &&
+      document.activeElement===
+      editorFor(activeSide)
+    ){
+      paintVirtualSelection();
+    }
+  }
+);
+
+$("#swap").onclick = ()=>{
+  if(!canWrite("a") || !canWrite("b")) return;
+
+  const before = snapshot();
+
+  [state.a,state.b] = [state.b,state.a];
+
+  pushUndo(before);
+  syncEditors(false);
+  render();
+};
+
+$("#clear").onclick = ()=>{
+  if(!canWrite("a") && !canWrite("b")) return;
+
+  const before = snapshot();
+
+  if(canWrite("a")) state.a = "";
+  if(canWrite("b")) state.b = "";
+
+  pushUndo(before);
+  syncEditors(false);
+  render();
+};
+
+$("#undo").onclick = undo;
+$("#redo").onclick = redo;
+
+$("#toggleFold").onclick = ()=>{
+  collapsed = !collapsed;
+
+  if(collapsed){
+    foldReveal.clear();
+  }
+
+  render();
+};
+
+$("#algorithmSwitch").addEventListener("change",()=>{
+  algorithmMode=
+    $("#algorithmSwitch").checked
+      ? "lines"
+      : "myers";
+
+  foldReveal.clear();
+  render();
+});
+
+$("#readonlyA").onchange = ()=>{
+  syncEditors();
+  render();
+};
+
+$("#readonlyB").onchange = ()=>{
+  syncEditors();
+  render();
+};
+
+[
+  "caseSoft",
+  "punctSoft",
+  "spaceSoft"
+].forEach(id=>{
+  $("#" + id).addEventListener("change",render);
+});
+
+async function writeClipboard(text){
+  try{
+    await navigator.clipboard.writeText(text);
+    return;
+  }catch{}
+
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.style.position = "fixed";
+  ta.style.opacity = "0";
+
+  document.body.appendChild(ta);
+  ta.select();
+  document.execCommand("copy");
+  ta.remove();
+}
+
+document.querySelectorAll("[data-copy]").forEach(button=>{
+  button.onclick = async ()=>{
+    const side=
+      button.dataset.copy;
+
+    await writeClipboard(
+      state[side]
+    );
+
+    button.classList.remove(
+      "copy-ok"
+    );
+
+    void button.offsetWidth;
+
+    button.classList.add(
+      "copy-ok"
+    );
+
+    button.title="Скопировано";
+
+    clearTimeout(
+      button._copyTimer
+    );
+
+    button._copyTimer=
+      setTimeout(()=>{
+        button.classList.remove(
+          "copy-ok"
+        );
+
+        button.title=
+          side==="a"
+            ? "Копировать текст A"
+            : "Копировать текст B";
+      },900);
+  };
+});
+
+document.querySelectorAll(".icon-btn").forEach(button=>{
+  button.addEventListener("click",()=>{
+    button.classList.remove(
+      "icon-pop"
+    );
+
+    void button.offsetWidth;
+
+    button.classList.add(
+      "icon-pop"
+    );
+
+    setTimeout(
+      ()=>button.classList.remove(
+        "icon-pop"
+      ),
+      300
+    );
+  });
+});
+
+$("#algorithmSwitch").checked=
+  algorithmMode==="lines";
+
+syncEditors(false);
+render();
+</script>
+</body>
+</html>
