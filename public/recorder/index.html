@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width">
+  <title>Recorder — запись и расшифровка созвонов на вашем Mac</title>
+  <meta name="description" content="Recorder пишет звук созвонов и ваш микрофон на две дорожки и расшифровывает разговор в текст с разбивкой по участникам. Всё локально на Mac, без облака и аккаунтов.">
+  <meta name="author" content="Pahaz White">
+  <link rel="canonical" href="https://pahaz.8iq.dev/recorder/">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="ru_RU">
+  <meta property="og:site_name" content="PahazBlog">
+  <meta property="og:title" content="Recorder — запись и расшифровка созвонов на вашем Mac">
+  <meta property="og:description" content="Локальная запись созвонов и расшифровка с разбивкой по голосам. Без облака, аккаунтов и аналитики.">
+  <meta property="og:url" content="https://pahaz.8iq.dev/recorder/">
+  <meta property="og:image" content="https://pahaz.8iq.dev/og.png">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <!-- Тема: тот же ключ localStorage, что и у блога, выбор переносится между страницами -->
+  <script>
+    (function () {
+      var t = null;
+      try { t = localStorage.getItem("theme"); } catch (e) {}
+      if (!t) t = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      document.documentElement.setAttribute("data-theme", t);
+    })();
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap&subset=cyrillic,latin" rel="stylesheet">
+
+  <style>
+    :root, html[data-theme="light"] {
+      --background: #fdfdfd;
+      --foreground: #282728;
+      --accent: #006cac;
+      --muted: #e6e6e6;
+      --border: #ece9e9;
+    }
+    html[data-theme="dark"] {
+      --background: #212737;
+      --foreground: #eaedf3;
+      --accent: #ff6b01;
+      --muted: #343f60;
+      --border: #ab4b08;
+    }
+    * { box-sizing: border-box; border-color: var(--border); }
+    html { scroll-behavior: smooth; overflow-y: scroll; scroll-padding-top: 1rem; }
+    body {
+      margin: 0; min-height: 100svh; display: flex; flex-direction: column;
+      background: var(--background); color: var(--foreground);
+      font-family: "IBM Plex Mono", ui-monospace, monospace;
+      font-size: 16px; line-height: 1.6;
+    }
+    ::selection { background: color-mix(in srgb, var(--accent) 75%, transparent); color: var(--background); }
+    a { color: inherit; outline-offset: 1px; }
+    a:focus-visible, button:focus-visible { outline: 2px dashed var(--accent); text-decoration: none; }
+    .layout { width: 100%; max-width: 48rem; margin: 0 auto; padding: 0 1rem; }
+
+    /* шапка */
+    .top { display: flex; align-items: center; justify-content: space-between; padding: 1.5rem 0; border-bottom: 1px solid var(--border); }
+    .logo { font-size: 1.5rem; font-weight: 600; text-decoration: none; white-space: nowrap; line-height: 2rem; }
+    .logo img { height: 30px; vertical-align: text-top; border-radius: 9999px; margin-right: .25rem; }
+    .top nav { display: flex; align-items: center; gap: 1.25rem; font-weight: 500; }
+    .top nav a { text-decoration: none; }
+    .top nav a:hover { color: var(--accent); }
+    .top nav a.active { text-decoration: underline wavy; text-decoration-thickness: 2px; text-underline-offset: .5rem; }
+    #theme-btn { background: none; border: 0; padding: 0; width: 2rem; height: 2rem; position: relative; color: inherit; cursor: pointer; }
+    #theme-btn svg { position: absolute; top: 50%; left: 50%; width: 24px; height: 24px; transform: translate(-50%,-50%); fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: all .3s; }
+    #theme-btn:hover svg { stroke: var(--accent); }
+    #theme-btn .sun { transform: translate(-50%,-50%) scale(0) rotate(90deg); }
+    html[data-theme="dark"] #theme-btn .sun { transform: translate(-50%,-50%) scale(1) rotate(0); }
+    html[data-theme="dark"] #theme-btn .moon { transform: translate(-50%,-50%) scale(0) rotate(-90deg); }
+
+    /* содержимое */
+    main { padding-bottom: 2rem; }
+    h1 { font-size: 1.875rem; line-height: 1.25; font-weight: 600; margin: 2rem 0 1rem; }
+    h2 { font-size: 1.25rem; font-weight: 600; margin: 0 0 1rem; color: var(--accent); }
+    h3 { font-size: 1rem; font-weight: 600; margin: 0 0 .25rem; }
+    p { margin: 0 0 1rem; }
+    section { padding: 1.75rem 0; border-top: 1px solid var(--border); }
+    .lead { max-width: 40rem; }
+    .meta { font-size: .875rem; opacity: .75; }
+    .hero { padding: 0 0 1.75rem; border: 0; }
+    .hero h1 { font-size: 2.25rem; }
+    .accent { color: var(--accent); }
+
+    .btn { display: inline-block; padding: .5rem 1rem; border: 1px solid var(--accent); border-radius: .25rem; text-decoration: none; font-weight: 500; margin: 0 .5rem .5rem 0; }
+    .btn.primary { background: var(--accent); color: var(--background); }
+    .btn:hover { opacity: .8; }
+    .btn.primary:hover { opacity: .85; }
+
+    ul, ol { margin: 0 0 1rem; padding-left: 1.5rem; }
+    li { margin-bottom: .375rem; }
+    .steps { list-style: none; padding: 0; counter-reset: s; }
+    .steps li { counter-increment: s; position: relative; padding-left: 2.5rem; margin-bottom: 1.25rem; }
+    .steps li::before { content: counter(s); position: absolute; left: 0; top: 0; width: 1.75rem; height: 1.75rem; border: 1px solid var(--accent); border-radius: 9999px; color: var(--accent); text-align: center; line-height: 1.6rem; font-size: .875rem; }
+    .steps p { margin: 0; }
+
+    .cols { display: grid; gap: 1.5rem; grid-template-columns: 1fr; }
+    @media (min-width: 640px) { .cols { grid-template-columns: repeat(3, 1fr); } }
+    .cols p { margin: 0; font-size: .9375rem; }
+
+    pre, code, .mono { font-family: inherit; }
+    code { background: color-mix(in srgb, var(--muted) 60%, transparent); padding: .1rem .35rem; border-radius: .25rem; font-size: .9em; }
+    .transcript { background: color-mix(in srgb, var(--muted) 45%, transparent); border: 1px solid var(--border); border-radius: .5rem; padding: 1rem; font-size: .875rem; overflow-x: auto; margin: 1.5rem 0 0; }
+    .transcript div { white-space: nowrap; }
+    .transcript .t { opacity: .6; }
+    .transcript .cap { opacity: .6; font-size: .75rem; margin-bottom: .75rem; }
+
+    details { border-bottom: 1px solid var(--border); padding: .75rem 0; }
+    details:first-of-type { border-top: 1px solid var(--border); }
+    summary { cursor: pointer; font-weight: 600; }
+    summary:hover { color: var(--accent); }
+    details p { margin: .75rem 0 0; }
+
+    footer { margin-top: auto; }
+    footer .in { padding: 1.5rem 0; border-top: 1px solid var(--border); display: flex; flex-wrap: wrap; justify-content: space-between; gap: .5rem; font-size: .9375rem; }
+    footer a:hover, section a:hover { color: var(--accent); }
+
+    @media (max-width: 639px) {
+      .hero h1 { font-size: 1.75rem; }
+      .logo { font-size: 1.25rem; }
+      .top nav .hide-sm { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<header class="layout">
+  <div class="top">
+    <a href="/" class="logo"><img src="/favicon.svg" alt="logo" height="30"><span>PahazBlog</span></a>
+    <nav>
+      <a href="/recorder/" class="active hide-sm">Recorder</a>
+      <a href="/archives" class="hide-sm">Archives</a>
+      <a href="/search" aria-label="search" title="Search">Search</a>
+      <button id="theme-btn" title="Toggles light &amp; dark" aria-label="Переключить тему">
+        <svg class="moon" viewBox="0 0 24 24"><path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z"/></svg>
+        <svg class="sun" viewBox="0 0 24 24"><path d="M14.828 14.828a4 4 0 1 0 -5.656 -5.656a4 4 0 0 0 5.656 5.656z"/><path d="M6.343 17.657l-1.414 1.414"/><path d="M6.343 6.343l-1.414 -1.414"/><path d="M17.657 6.343l1.414 -1.414"/><path d="M17.657 17.657l1.414 1.414"/><path d="M4 12h-2"/><path d="M12 4v-2"/><path d="M20 12h2"/><path d="M12 20v2"/></svg>
+      </button>
+    </nav>
+  </div>
+</header>
+
+<main class="layout">
+
+  <section class="hero">
+    <p class="meta">Recorder для macOS</p>
+    <h1>Запись и расшифровка созвонов прямо на вашем Mac</h1>
+    <p class="lead">Живёт в строке меню. Записывает звук встречи и ваш микрофон, а потом превращает разговор в текст с разбивкой по участникам. Аудио никуда не уходит.</p>
+    <p>
+      <a class="btn primary" href="#download">Скачать для macOS</a>
+      <a class="btn" href="#how">Как это работает</a>
+    </p>
+    <p class="meta">macOS 15 и новее · Apple Silicon и Intel · бесплатно для хобби, для работы — по лицензии</p>
+
+    <div class="transcript" aria-label="Пример транскрипта">
+      <div class="cap">2026-10-05 11.02.40.txt</div>
+      <div><span class="t">[00:04]</span> <b>Иван:</b> Давайте по порядку: сначала релиз, потом бюджет.</div>
+      <div><span class="t">[00:11]</span> <b>Мария:</b> По релизу всё готово, ждём только подпись.</div>
+      <div><span class="t">[00:19]</span> <b>Иван:</b> Отлично. Тогда бюджет на 20% больше прошлого квартала?</div>
+      <div><span class="t">[00:26]</span> <b>Пётр:</b> Да, закладываем 3500 на инфраструктуру.</div>
+      <div class="cap" style="margin:.75rem 0 0">Пример оформления. Имена участников вы задаёте сами.</div>
+    </div>
+  </section>
+
+  <section>
+    <div class="cols">
+      <div><h2>Приватно</h2><p>Запись и распознавание работают на вашем компьютере. Нет аккаунтов, аналитики и облака. Сеть нужна только для скачивания моделей.</p></div>
+      <div><h2>Без драйверов</h2><p>Звук Zoom, Meet, Teams или любого другого приложения записывается штатными средствами macOS. Виртуальный аудиодрайвер ставить не нужно.</p></div>
+      <div><h2>Текст с говорящими</h2><p>В транскрипте видно, кто что сказал. Собеседники и вы пишетесь на разные дорожки, поэтому слова реже приписываются не тому человеку.</p></div>
+    </div>
+  </section>
+
+  <section id="how">
+    <h2>Как это работает</h2>
+    <ol class="steps">
+      <li><h3>Выберите источник звука</h3><p>Все приложения сразу или одно: Zoom, Teams, браузер для Google Meet. Свой микрофон включается отдельно.</p></li>
+      <li><h3>Начните запись</h3><p>Кнопкой в меню или глобальной горячей клавишей, например правым ⌘. Можно включить автозапись: она стартует, когда другое приложение занимает микрофон, и сохраняется, когда микрофон освобождается.</p></li>
+      <li><h3>Получите файл</h3><p>Запись сохраняется в <code>~/Music/Recorder</code> как аудио MOV с двумя дорожками AAC: звук встречи и ваш микрофон.</p></li>
+      <li><h3>Прочитайте расшифровку</h3><p>Рядом с записью сам появляется текст: читаемый TXT и подробный JSON. Исходный файл при этом не меняется.</p></li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>Что внутри</h2>
+    <ul>
+      <li>Компактное тёмное меню в строке меню</li>
+      <li>Глобальная горячая клавиша, в том числе одиночный модификатор</li>
+      <li>Автозапись по микрофону и запуск при входе в систему</li>
+      <li>Очередь расшифровки: новые записи подхватываются сами, архив обрабатывается от новых к старым</li>
+      <li>Распознавание русской речи (GigaAM-v3) и дополнительные проходы для английских терминов и названий</li>
+      <li>Числа записываются цифрами: «27-й», «20%», «3500»</li>
+      <li>Переименование участников: имя меняется в JSON, TXT обновляется само</li>
+      <li>Журнал для диагностики с кнопкой экспорта</li>
+    </ul>
+    <p class="meta">Подробности о распознавании в несколько проходов описаны в документации проекта на GitHub.</p>
+  </section>
+
+  <section id="privacy">
+    <h2>Приватность и честные ограничения</h2>
+    <ul>
+      <li>Аудио и текст не покидают ваш компьютер. Модели скачиваются отдельно и только по кнопке.</li>
+      <li>Нажатия клавиш отслеживаются только для сочетания горячей клавиши. Ничего не сохраняется и не отправляется.</li>
+      <li>Если выбрать браузер, записывается весь браузер, а не одна вкладка.</li>
+      <li>Запись людей в вашей стране может требовать их согласия. Это ответственность того, кто записывает.</li>
+      <li>Разделение по голосам несовершенно: при перебивании и на длинных встречах возможны ошибки.</li>
+    </ul>
+  </section>
+
+  <section id="license">
+    <h2>Лицензия</h2>
+    <p><b>Для личного использования и хобби Recorder бесплатен.</b> Если вы хотите использовать его в коммерческих целях, в компании или для работы, нужно запросить лицензию.</p>
+    <p>Напишите на <a href="mailto:pahaz@8iq.dev?subject=Recorder%3A%20лицензия">pahaz@8iq.dev</a> или в <a href="https://t.me/pahaz">Telegram</a>: коротко опишите, кто и как будет пользоваться.</p>
+  </section>
+
+  <section id="download">
+    <h2>Скачать</h2>
+    <p>Подписанный и нотариально проверенный Apple DMG для Intel и Apple Silicon. Нужна macOS 15 или новее.</p>
+    <p>
+      <a class="btn primary" href="https://github.com/pahaz/recorder/releases/latest">Последняя версия на GitHub</a>
+      <a class="btn" href="https://github.com/pahaz/recorder/blob/master/CHANGELOG.md">История изменений</a>
+    </p>
+    <ol>
+      <li>Откройте DMG и перетащите Recorder в «Программы».</li>
+      <li>Запустите приложение. Оно появится в строке меню.</li>
+      <li>Разрешите «Запись экрана и системного звука» и «Микрофон» в настройках конфиденциальности.</li>
+      <li>Нажмите «Скачать модели», если нужна расшифровка. Без них приложение просто записывает.</li>
+    </ol>
+  </section>
+
+  <section id="faq">
+    <h2>Частые вопросы</h2>
+    <details><summary>Зачем нужно разрешение «Запись экрана»?</summary>
+      <p>Через него macOS отдаёт приложениям системный звук. Изображение экрана Recorder не записывает.</p></details>
+    <details><summary>Нужен ли аккаунт или облако?</summary>
+      <p>Нет. Всё хранится в вашей папке, а работа не требует регистрации.</p></details>
+    <details><summary>Работает ли без интернета?</summary>
+      <p>Да, после того как модели скачаны. Сеть нужна только для их загрузки.</p></details>
+    <details><summary>Какие языки поддерживаются?</summary>
+      <p>Основной язык — русский. Английские термины и названия внутри русской речи распознаются отдельными проходами.</p></details>
+    <details><summary>Чем это отличается от Otter, Fireflies и подобных сервисов?</summary>
+      <p>Ваши разговоры не уходят на чужой сервер, и нет ежемесячной подписки. В обмен вы получаете локальное приложение для Mac, а не веб-сервис.</p></details>
+    <details><summary>Куда сообщить об ошибке?</summary>
+      <p>В репозитории <a href="https://github.com/pahaz/recorder">github.com/pahaz/recorder</a>. В настройках есть экспорт журнала, его удобно приложить к сообщению.</p></details>
+  </section>
+
+</main>
+
+<footer class="layout">
+  <div class="in">
+    <span>Recorder — независимый проект</span>
+    <span>Copyright &#169; <script>document.write(new Date().getFullYear())</script> | <a href="/">Pahaz White</a></span>
+  </div>
+</footer>
+
+<script>
+  document.getElementById("theme-btn").addEventListener("click", function () {
+    var next = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", next);
+    try { localStorage.setItem("theme", next); } catch (e) {}
+  });
+</script>
+</body>
+</html>
