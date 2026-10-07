@@ -714,18 +714,83 @@ EOF
   fi
 }
 
+# Installs an example ruleset shipped with the auditd package as is.
+# Usage: install_audit_example_rules <example-name> [<installed-name>]
+install_audit_example_rules() {
+  local name="$1"
+  local dst_name="${2:-$1}"
+  local src="/usr/share/doc/auditd/examples/rules/${name}.rules"
+  local dst="/etc/audit/rules.d/${dst_name}.rules"
+
+  if [[ ! -f "${src}" ]]; then
+    warn "Audit example rules not found at ${src}; skipping"
+    return 0
+  fi
+
+  if [[ ! -f "${dst}" ]] || ! cmp -s "${src}" "${dst}"; then
+    install -D -m 0640 -o root -g root "${src}" "${dst}"
+    log "Updated ${dst}"
+  else
+    log "Audit rules already up to date: ${dst}"
+  fi
+}
+
+# Rules that have no counterpart in the shipped example rulesets.
+# Watches are emitted only for paths whose parent directory exists.
+generate_extra_audit_rules() {
+  local dst="/etc/audit/rules.d/60-local-extra.rules"
+  local home_dir
+
+  {
+    echo "# Managed by public/sh/init.sh"
+
+    echo "# Every program started by a logged-in user (auid is kept across sudo/su)."
+    echo "-a always,exit -F arch=b64 -S execve -F auid>=1000 -F auid!=unset -F key=exec_user"
+    echo "-a always,exit -F arch=b32 -S execve -F auid>=1000 -F auid!=unset -F key=exec_user"
+
+    echo "# SSH daemon config and authorized keys."
+    echo "-w /etc/ssh/sshd_config -p wa -k ssh_config"
+    echo "-w /etc/ssh/sshd_config.d -p wa -k ssh_config"
+    for home_dir in /root /home/*; do
+      [[ -d "${home_dir}/.ssh" ]] || continue
+      echo "-w ${home_dir}/.ssh/authorized_keys -p wa -k ssh_keys"
+    done
+
+    echo "# Persistence: schedulers, systemd units, preload."
+    echo "-w /etc/crontab -p wa -k persistence"
+    echo "-w /etc/cron.d -p wa -k persistence"
+    echo "-w /var/spool/cron -p wa -k persistence"
+    echo "-w /etc/systemd/system -p wa -k persistence"
+    echo "-w /etc/ld.so.preload -p wa -k persistence"
+
+    echo "# Security tooling config."
+    echo "-w /etc/audit -p wa -k audit_config"
+    echo "-w /etc/ufw -p wa -k service_config"
+    echo "-w /etc/fail2ban -p wa -k service_config"
+    echo "-w /etc/nginx -p wa -k service_config"
+
+    if [[ -x /usr/bin/docker ]]; then
+      echo "# Docker access is root-equivalent."
+      echo "-w /usr/bin/docker -p x -k docker"
+      echo "-w /run/docker.sock -p rwxa -k docker"
+      if [[ -d /etc/docker ]]; then
+        echo "-w /etc/docker -p wa -k docker"
+      fi
+    fi
+  } | write_file "${dst}" "0640" "root" "root"
+}
+
 configure_auditd_web_profile() {
   local legacy_rule
   local -a legacy_rules=(
-    /etc/audit/rules.d/10-base-config.rules
+    /etc/audit/rules.d/10-base.rules
     /etc/audit/rules.d/10-loginuid.rules
     /etc/audit/rules.d/11-loginuid.rules
-    /etc/audit/rules.d/12-cont-fail.rules
     /etc/audit/rules.d/22-ignore-chrony.rules
     /etc/audit/rules.d/31-privileged.rules
-    /etc/audit/rules.d/32-power-abuse.rules
-    /etc/audit/rules.d/43-module-load.rules
+    /etc/audit/rules.d/40-kernel-modules.rules
     /etc/audit/rules.d/44-installers.rules
+    /etc/audit/rules.d/45-power-abuse.rules
   )
 
   for legacy_rule in "${legacy_rules[@]}"; do
@@ -735,12 +800,7 @@ configure_auditd_web_profile() {
     fi
   done
 
-  write_file "/etc/audit/rules.d/10-base.rules" "0640" "root" "root" <<'EOF'
-# Managed by public/sh/init.sh
--D
--b 8192
--f 1
-EOF
+  install_audit_example_rules "10-base-config"
 
   write_file "/etc/audit/rules.d/20-identity.rules" "0640" "root" "root" <<'EOF'
 # Managed by public/sh/init.sh
@@ -756,22 +816,13 @@ EOF
 -w /usr/sbin/groupdel -p x -k identity
 EOF
 
-  write_file "/etc/audit/rules.d/40-kernel-modules.rules" "0640" "root" "root" <<'EOF'
-# Managed by public/sh/init.sh
--a always,exit -F arch=b32 -S init_module,finit_module -F key=kernel_modules
--a always,exit -F arch=b64 -S init_module,finit_module -F key=kernel_modules
--a always,exit -F arch=b32 -S delete_module -F key=kernel_modules
--a always,exit -F arch=b64 -S delete_module -F key=kernel_modules
--w /usr/sbin/insmod -p x -k kernel_modules
--w /usr/sbin/rmmod -p x -k kernel_modules
--w /usr/sbin/modprobe -p x -k kernel_modules
-EOF
-
-  write_file "/etc/audit/rules.d/45-power-abuse.rules" "0640" "root" "root" <<'EOF'
-# Managed by public/sh/init.sh
--a always,exit -F dir=/home -F uid=0 -F auid>=1000 -F auid!=-1 -C auid!=obj_uid -F key=power-abuse
-EOF
-
+  install_audit_example_rules "43-module-load"
+  install_audit_example_rules "32-power-abuse"
+  install_audit_example_rules "30-pci-dss-v31" "30-pci-dss"
+  install_audit_example_rules "12-cont-fail"
+  install_audit_example_rules "41-containers"
+  install_audit_example_rules "42-injection"
+  generate_extra_audit_rules
   generate_privileged_audit_rules
   generate_software_installer_audit_rules
 
