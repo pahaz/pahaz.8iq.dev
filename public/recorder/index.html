@@ -59,14 +59,11 @@
     a:focus-visible, button:focus-visible { outline: 2px dashed var(--accent); text-decoration: none; }
     .layout { width: 100%; max-width: 48rem; margin: 0 auto; padding: 0 1rem; }
 
-    /* шапка */
-    .top { display: flex; align-items: center; justify-content: space-between; padding: 1.5rem 0; border-bottom: 1px solid var(--border); }
-    .logo { font-size: 1.5rem; font-weight: 600; text-decoration: none; white-space: nowrap; line-height: 2rem; }
-    .logo img { height: 30px; vertical-align: text-top; border-radius: 9999px; margin-right: .25rem; }
-    .top nav { display: flex; align-items: center; gap: 1.25rem; font-weight: 500; }
-    .top nav a { text-decoration: none; }
-    .top nav a:hover { color: var(--accent); }
-    .top nav a.active { text-decoration: underline wavy; text-decoration-thickness: 2px; text-underline-offset: .5rem; }
+    /* шапка: те же механика и размеры, что у блога, чтобы при переходе ничего не прыгало */
+    .top { position: relative; display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 1.5rem 0; border-bottom: 1px solid var(--border); }
+    .logo { position: absolute; padding: .25rem 0; font-size: 1.5rem; line-height: 2rem; font-weight: 600; text-decoration: none; white-space: nowrap; }
+    .logo img { height: 30px; display: inline-block; vertical-align: text-top; border-radius: 9999px; }
+    .top nav { display: flex; align-items: center; justify-content: flex-end; width: 100%; min-height: 33.9px; }
     #theme-btn { background: none; border: 0; padding: 0; width: 2rem; height: 2rem; position: relative; color: inherit; cursor: pointer; }
     #theme-btn svg { position: absolute; top: 50%; left: 50%; width: 24px; height: 24px; transform: translate(-50%,-50%); fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: all .3s; }
     #theme-btn:hover svg { stroke: var(--accent); }
@@ -123,7 +120,7 @@
     @media (max-width: 639px) {
       .hero h1 { font-size: 1.75rem; }
       .logo { font-size: 1.25rem; }
-      .top nav .hide-sm { display: none; }
+      .top { padding: 1rem 0; align-items: baseline; }
     }
   </style>
 </head>
@@ -131,11 +128,9 @@
 
 <header class="layout">
   <div class="top">
-    <a href="/" class="logo"><img src="/favicon.svg" alt="logo" height="30"><span>PahazBlog</span></a>
+    <a href="/" class="logo"><img src="/favicon.svg" alt="logo" height="30">
+      <span>PahazBlog</span></a>
     <nav>
-      <a href="/recorder/" class="active hide-sm">Recorder</a>
-      <a href="/archives" class="hide-sm">Archives</a>
-      <a href="/search" aria-label="search" title="Search">Search</a>
       <button id="theme-btn" title="Toggles light &amp; dark" aria-label="Переключить тему">
         <svg class="moon" viewBox="0 0 24 24"><path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z"/></svg>
         <svg class="sun" viewBox="0 0 24 24"><path d="M14.828 14.828a4 4 0 1 0 -5.656 -5.656a4 4 0 0 0 5.656 5.656z"/><path d="M6.343 17.657l-1.414 1.414"/><path d="M6.343 6.343l-1.414 -1.414"/><path d="M17.657 6.343l1.414 -1.414"/><path d="M17.657 17.657l1.414 1.414"/><path d="M4 12h-2"/><path d="M12 4v-2"/><path d="M20 12h2"/><path d="M12 20v2"/></svg>
@@ -147,7 +142,6 @@
 <main class="layout">
 
   <section class="hero">
-    <p class="meta">Recorder для macOS</p>
     <h1>Запись и расшифровка созвонов прямо на вашем Mac</h1>
     <p class="lead">Живёт в строке меню. Записывает звук встречи и ваш микрофон, а потом превращает разговор в текст с разбивкой по участникам. Аудио никуда не уходит.</p>
     <p>
