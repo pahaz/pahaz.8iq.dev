@@ -5,6 +5,7 @@ import IconBrandX from "@/assets/icons/IconBrandX.svg";
 import IconWhatsapp from "@/assets/icons/IconWhatsapp.svg";
 import IconFacebook from "@/assets/icons/IconFacebook.svg";
 import IconTelegram from "@/assets/icons/IconTelegram.svg";
+import IconRecorder from "@/assets/icons/IconRecorder.svg";
 import IconPinterest from "@/assets/icons/IconPinterest.svg";
 import { SITE } from "@/config";
 
@@ -80,3 +81,13 @@ export const SHARE_LINKS: Social[] = [
     icon: IconMail,
   },
 ] as const;
+
+interface Project {
+  name: string;
+  href: string;
+  icon: (_props: Props) => Element;
+}
+
+export const PROJECTS: Project[] = [
+  { name: "Рекордер", href: "/recorder/", icon: IconRecorder },
+];
