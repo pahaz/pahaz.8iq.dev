@@ -1,0 +1,39 @@
+<?xml version="1.0" standalone="yes"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+    <channel>
+        <title>Recorder</title>
+        <item>
+            <title>0.15.0</title>
+            <pubDate>Thu, 08 Oct 2026 13:14:39 +0300</pubDate>
+            <sparkle:version>39</sparkle:version>
+            <sparkle:shortVersionString>0.15.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[Main page with the description, installation and news: [pahaz.8iq.dev/recorder](https://pahaz.8iq.dev/recorder/)
+
+**The first public release of Recorder.** It records your calls and turns them into text right on your Mac. Need a deadline, a number or someone's promise? Find the line instead of replaying an hour of audio.
+
+- **Entirely local.** The recording and the text stay on your computer: no cloud, no account, no bot joining the meeting.
+- **Any meeting.** Zoom, Meet, Teams or any other app: Recorder captures its sound and your microphone.
+- **Accurate terms.** Several models check each other, so the text says Postgres, not "постгрес".
+- **Who said what.** Speakers are told apart by voice, and you name them yourself.
+
+Recognition is for Russian speech, with English terms inside it. The app itself speaks English and Russian.
+
+Requires macOS 15 or later; runs on Apple Silicon and Intel. Free for hobby use; work and business use needs a license.
+
+## Getting started
+
+1. Drag Recorder from the DMG to Applications and open it.
+2. Grant two permissions: "Screen & System Audio Recording" and "Microphone". Recorder does not record your screen; macOS requires that permission to hand over system audio.
+3. Click "Download models". Without them the app only records.
+
+The text appears in `~/Music/Recorder` next to the audio.
+
+## Automatic updates
+
+From this version on, Recorder finds new releases by itself: once a day it asks `pahaz.8iq.dev` whether a newer version exists and offers to install it. You can turn the check off in the settings, under "Check for updates". Your audio and text are never sent anywhere.
+]]></description>
+            <enclosure url="https://github.com/pahaz/pahaz.8iq.dev/releases/download/recorder-v0.15.0/Recorder-0.15.0.dmg" length="11055300" type="application/octet-stream" sparkle:edSignature="p0GhdWZUL0QxFe3Czknd1tF/ZE1umP1HGYXkOTbxMcUk4nvFWnFCjyF6v7mGrryMruJ+KzrziD7msACSveiTAQ=="/>
+        </item>
+    </channel>
+</rss>
