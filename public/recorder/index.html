@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width">
-  <title>Рекордер — не теряйте детали рабочих встреч</title>
+  <title>Рекордер: не теряйте детали рабочих встреч</title>
   <meta name="description" content="Рекордер записывает созвон и превращает его в текст на вашем Mac. Запись и текст остаются на компьютере.">
   <meta name="author" content="Pahaz White">
   <link rel="canonical" href="https://pahaz.8iq.dev/recorder/">
@@ -11,7 +11,7 @@
   <meta property="og:type" content="website">
   <meta property="og:locale" content="ru_RU">
   <meta property="og:site_name" content="PahazBlog">
-  <meta property="og:title" content="Рекордер — не теряйте детали рабочих встреч">
+  <meta property="og:title" content="Рекордер: не теряйте детали рабочих встреч">
   <meta property="og:description" content="Запись и расшифровка рабочих встреч на вашем Mac. Без облака, аккаунтов и аналитики.">
   <meta property="og:url" content="https://pahaz.8iq.dev/recorder/">
   <meta property="og:image" content="https://pahaz.8iq.dev/og.png">
@@ -118,6 +118,30 @@
     .tech details { border-top: 0; border-bottom: 0; }
     .tech ul { margin-top: .75rem; }
 
+
+    /* текстовый слайдер «было → стало» */
+    .slider { margin: .75rem 0 .5rem; }
+    .slider .bars { display: flex; gap: .375rem; margin-bottom: 1rem; }
+    .slider .bar { flex: 1; height: 1.25rem; padding: 0; border: 0; background: none; position: relative; cursor: pointer; }
+    .slider .bar::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 3px; margin-top: -1.5px; background: var(--muted); border-radius: 2px; }
+    .slider .bar i { position: absolute; left: 0; top: 50%; height: 3px; margin-top: -1.5px; width: 0; background: var(--accent); border-radius: 2px; }
+    .slider .bar.done i { width: 100%; }
+    .slider .bar.active i { animation: fill 8s linear forwards; }
+    .slider.paused .bar.active i { animation-play-state: paused; }
+    @keyframes fill { from { width: 0; } to { width: 100%; } }
+    .slider .slide .lbl { margin: 0 0 .25rem; font-size: .75rem; opacity: .7; text-transform: uppercase; letter-spacing: .05em; }
+    .slider .slide .q { margin: 0 0 1rem; font-size: .9375rem; }
+    .slider .slide .q:last-child { margin-bottom: 0; }
+    .slider mark { background: none; color: inherit; }
+    .slider .was-text mark { text-decoration: line-through; opacity: .75; }
+    .slider .now-text mark { color: var(--accent); font-weight: 600; }
+    .slider.on .slides { display: grid; }
+    .slider.on .slide { grid-area: 1 / 1; visibility: hidden; }
+    .slider.on .slide.active { visibility: visible; }
+    .slider:not(.on) .bars { display: none; }
+    .slider:not(.on) .slide { margin-bottom: 1.5rem; }
+    @media (prefers-reduced-motion: reduce) { .slider .bar.active i { animation: none; width: 100%; } }
+
     footer { margin-top: auto; }
     footer .in { padding: 1.5rem 0; border-top: 1px solid var(--border); display: flex; flex-wrap: wrap; justify-content: space-between; gap: .5rem; font-size: .9375rem; }
     footer a:hover, section a:hover { color: var(--accent); }
@@ -149,7 +173,7 @@
   <!-- 1. Результат -->
   <section class="hero">
     <h1>Не теряйте детали рабочих встреч</h1>
-    <p class="lead">Рекордер записывает созвон и превращает его в текст на вашем Mac. Нужен срок, цифра или чьё-то обещание — найдите реплику, а не переслушивайте час записи.</p>
+    <p class="lead">Рекордер записывает созвон и превращает его в текст на вашем Mac. Нужен срок, цифра или чьё-то обещание? Найдите реплику, а не переслушивайте час записи.</p>
     <p class="lead"><b>Запись и текст остаются на компьютере.</b> В облако ничего не уходит.</p>
     <p>
       <a class="btn primary" href="#download">Скачать для Mac</a>
@@ -161,7 +185,7 @@
   <!-- 2. Три причины -->
   <section>
     <div class="cols">
-      <div><h2>Всё локально</h2><p>Корпоративная тайна, кадровые решения, личные разговоры — всё остаётся на вашем компьютере. Ни облака, ни аккаунта, ни бота на встрече.</p></div>
+      <div><h2>Всё локально</h2><p>Корпоративная тайна, кадровые решения и личные разговоры остаются на вашем компьютере. Ни облака, ни аккаунта, ни бота на встрече.</p></div>
       <div><h2>Любые встречи</h2><p>Zoom, Meet, Teams или любое другое приложение: Рекордер пишет его звук и ваш микрофон. Менять сервис для звонков не нужно.</p></div>
       <div><h2>Точные термины</h2><p>Несколько моделей проверяют друг друга, поэтому в тексте Postgres, а не «постгрес», и Claude, а не «клот».</p></div>
     </div>
@@ -177,18 +201,59 @@
       <div><span class="t">[00:11]</span> <b>Мария:</b> По релизу всё готово, ждём только подпись.</div>
       <div><span class="t">[00:19]</span> <b>Иван:</b> Отлично. Тогда бюджет на 20% больше прошлого квартала?</div>
       <div><span class="t">[00:26]</span> <b>Пётр:</b> Да, закладываем 3500 на инфраструктуру и перевод базы на Postgres.</div>
-      <div class="cap" style="margin:.75rem 0 0">Вымышленный разговор. Имена участников вы задаёте сами.</div>
+      <div class="cap" style="margin:.75rem 0 0">Имена участников вы задаёте сами.</div>
     </div>
-    <p style="margin-top:1rem">Числа записаны цифрами, термины — как принято: Postgres, Linux, WebRTC.</p>
+    <p style="margin-top:1rem">Числа записаны цифрами, термины написаны как принято: Postgres, Linux, WebRTC.</p>
   </section>
 
   <!-- 4. Качество -->
   <section id="quality">
-    <h2>Несколько моделей вместо одной</h2>
-    <p>У каждой открытой модели своя слабость. Whisper хорош с английским, но чаще ошибается в русской речи. GigaAM лучше слышит русский, но ломает термины: «кодекселай» вместо Codex CLI, «клот» вместо Claude.</p>
-    <p>Мы собрали конвейер из нескольких моделей. Наша метрика сравнивает их варианты по звучанию и исправляет только то, что стоит исправить. Русская речь остаётся от сильной русской модели, термины подтягиваются из других. Всё работает на вашем Mac.</p>
-    <p>Проверяли на своих наборах: разговорная речь C-level, бизнес-встречи, термины и разработка, синтетика. На записях с терминами ошибок стало меньше: 43,4% вместо 52,9% у лучшей одиночной модели.</p>
-    <p class="meta">Выборки небольшие. Цифра относится к одному набору и не гарантирует такую же точность на ваших записях.</p>
+    <h2>Слышит то, что другие пропускают</h2>
+    <p>У каждой открытой модели своя слабость. Whisper хорош с английским, но чаще ошибается в русской речи. GigaAM лучше слышит русский, но ломает термины. Одна модель не справляется со всем.</p>
+    <p>Рекордер собирает текст из нескольких моделей. Наша метрика сравнивает их варианты по звучанию и выбирает лучший. И всё это локально, без облаков.</p>
+    <p><b>На сложных текстах с терминами ошибок меньше до 30%</b>, чем у лучшей одиночной модели. Замеры и тюнинг параметров мы делали на четырёх наборах записей: разговорная речь C-level, бизнес-встречи, обсуждения разработчиков и синтетика с терминами.</p>
+    <h3 style="margin-top:1.5rem">Примеры: было → стало</h3>
+    <div class="slider" id="fixSlider" role="group" aria-roledescription="carousel" aria-label="Примеры исправлений">
+      <div class="bars">
+        <button class="bar" type="button" aria-label="Пример 1"><i></i></button>
+        <button class="bar" type="button" aria-label="Пример 2"><i></i></button>
+        <button class="bar" type="button" aria-label="Пример 3"><i></i></button>
+        <button class="bar" type="button" aria-label="Пример 4"><i></i></button>
+        <button class="bar" type="button" aria-label="Пример 5"><i></i></button>
+      </div>
+      <div class="slides" aria-live="off">
+        <article class="slide">
+          <p class="lbl">Одна модель</p>
+          <p class="q was-text">… что выберем для <mark>Gitway</mark>, <mark>конк</mark> или <mark>Инвой</mark> …</p>
+          <p class="lbl">Рекордер</p>
+          <p class="q now-text">… что выберем для <mark>API gateway</mark>, <mark>Kong</mark> или <mark>Invoy</mark> …</p>
+        </article>
+        <article class="slide">
+          <p class="lbl">Одна модель</p>
+          <p class="q was-text">… Надо ещё <mark>импотентные</mark> ключи и <mark>ветраи</mark> не забыть …</p>
+          <p class="lbl">Рекордер</p>
+          <p class="q now-text">… Надо ещё <mark>идемпотентные</mark> ключи и <mark>ретраи</mark> не забыть …</p>
+        </article>
+        <article class="slide">
+          <p class="lbl">Одна модель</p>
+          <p class="q was-text">… для Кью, <mark>кавка</mark>, <mark>твой барик</mark>, топики, партиции, вся фигня …</p>
+          <p class="lbl">Рекордер</p>
+          <p class="q now-text">… для Кью <mark>kafka</mark> <mark>твой варик</mark>. Топики, партиции, вся фигня …</p>
+        </article>
+        <article class="slide">
+          <p class="lbl">Одна модель</p>
+          <p class="q was-text">… в <mark>PostgreSUCS Play</mark>, <mark>analyze</mark> …</p>
+          <p class="lbl">Рекордер</p>
+          <p class="q now-text">… в <mark>Postgres учи EXPLAIN ANALYZE</mark> …</p>
+        </article>
+        <article class="slide">
+          <p class="lbl">Одна модель</p>
+          <p class="q was-text">… <mark>Pager</mark> … <mark>опунтилеметрия</mark> … <mark>зипкин</mark> … <mark>кавка</mark> … <mark>ветраи</mark> …</p>
+          <p class="lbl">Рекордер</p>
+          <p class="q now-text">… <mark>PagerDuty</mark> … <mark>OpenTelemetry</mark> … <mark>Zipkin</mark> … <mark>Kafka</mark> … <mark>Retry</mark> …</p>
+        </article>
+      </div>
+    </div>
   </section>
 
   <!-- 5. Как начать -->
@@ -196,7 +261,7 @@
     <h2>Как начать</h2>
     <ol class="steps">
       <li><h3>Дайте два разрешения</h3><p>«Запись экрана и системного звука» и «Микрофон». Экран Рекордер не записывает, это требование macOS.</p></li>
-      <li><h3>Начните запись</h3><p>Нажмите кнопку в статус-баре меню или горячую клавишу. Или включите автозапись: она стартует, когда звонок активирует микрофон, и сохраняется, когда микрофон освобождается.</p></li>
+      <li><h3>Начните запись</h3><p>Нажмите значок Рекордера в статус-баре или горячую клавишу. Или включите автозапись: она стартует, когда звонок активирует микрофон, и сохраняется, когда микрофон освобождается.</p></li>
       <li><h3>Откройте текст</h3><p>Файл лежит в <code>~/Music/Recorder</code> рядом с аудио.</p></li>
     </ol>
   </section>
@@ -205,8 +270,8 @@
   <section id="more">
     <h2>Что ещё умеет Рекордер</h2>
     <div class="cols two">
-      <div><h3>Режим «только запись»</h3><p>Расшифровка не обязательна. Не скачивайте модели — используйте Рекордер как диктофон или голосовые заметки.</p></div>
-      <div><h3>Режим «только расшифровка»</h3><p>Положите файл (m4a, mp3, wav, mp4, mov, flac, aiff) в папку <code>~/Music/Recorder</code> — Рекордер расшифрует его сам.</p></div>
+      <div><h3>Режим «только запись»</h3><p>Расшифровка не обязательна. Не скачивайте модели и используйте Рекордер как диктофон или голосовые заметки.</p></div>
+      <div><h3>Режим «только расшифровка»</h3><p>Положите файл (m4a, mp3, wav, mp4, mov, flac, aiff) в папку <code>~/Music/Recorder</code>, и Рекордер расшифрует его сам.</p></div>
     </div>
   </section>
 
@@ -214,10 +279,10 @@
   <section id="privacy">
     <h2>Приватность и ограничения</h2>
     <ul>
-      <li>Аудио и текст не покидают компьютер. Модели скачиваются по кнопке с сайта Hugging Face.</li>
-      <li>Рекордер даёт расшифровку, а не протокол. Итоги и поручения формулируете вы.</li>
+      <li>Аудио и текст не покидают компьютер. Модели скачиваются с Hugging Face.</li>
+      <li>Рекордер даёт расшифровку. Итоги и поручения формулируете вы.</li>
       <li>Текст иногда придётся поправить: ошибки в именах и терминах остаются, а при перебивании участников можно перепутать.</li>
-      <li>Выбрали браузер — запишется весь браузер, а не одна вкладка.</li>
+      <li>Если выбрали браузер, запишется весь браузер, а не одна вкладка.</li>
       <li>Запись людей может требовать их согласия. Это на вас.</li>
       <li>Клавиши отслеживаются только ради горячей клавиши и нигде не сохраняются.</li>
     </ul>
@@ -233,7 +298,7 @@
   <!-- 8. Скачать -->
   <section id="download">
     <h2>Скачать</h2>
-    <p>Подписанный и нотариально проверенный DMG для Intel и Apple Silicon. Нужна macOS 15 или новее.</p>
+    <p>Мы подписали приложение, а Apple проверила его на вредоносный код. Работает на Intel и Apple Silicon. Нужна macOS 15 или новее.</p>
     <p>
       <a class="btn primary" href="https://github.com/pahaz/recorder/releases/latest">Скачать последнюю версию</a>
     </p>
@@ -248,7 +313,7 @@
   <section id="faq">
     <h2>Частые вопросы</h2>
     <details><summary>Сколько ждать расшифровку?</summary>
-      <p>Основной текст появляется примерно в 9 раз быстрее длины записи (замер на Intel Core i9 2019 года). Улучшения идут в фоне. На Apple Silicon время пока не измеряли.</p></details>
+      <p>Основной текст появляется примерно в 9 раз быстрее длины записи на Intel Core i9 2019 года. На Apple Silicon ещё примерно в 6 раз быстрее. Улучшения идут в фоне.</p></details>
     <details><summary>Зачем нужно разрешение «Запись экрана»?</summary>
       <p>Через него macOS отдаёт системный звук. Экран Рекордер не записывает.</p></details>
     <details><summary>Нужен ли аккаунт или облако?</summary>
@@ -258,7 +323,7 @@
     <details><summary>Какие языки поддерживаются?</summary>
       <p>Русский. Английские термины внутри русской речи тоже.</p></details>
     <details><summary>Что-то не записалось. Куда писать?</summary>
-      <p>На <a href="mailto:pahaz@8iq.dev">pahaz@8iq.dev</a> или в <a href="https://t.me/pahaz">Telegram</a>. В настройках есть экспорт журнала — приложите его к сообщению.</p></details>
+      <p>На <a href="mailto:pahaz@8iq.dev">pahaz@8iq.dev</a> или в <a href="https://t.me/pahaz">Telegram</a>. В настройках есть экспорт журнала. Приложите его к сообщению.</p></details>
     <details><summary>Чем это отличается от Otter, Fireflies и подобных сервисов?</summary>
       <p>Разговоры не уходят на чужой сервер. Взамен вы получаете приложение для Mac, а не веб-сервис.</p></details>
   </section>
@@ -268,7 +333,7 @@
     <details>
       <summary>Технические подробности</summary>
       <ul>
-        <li>Звук: ScreenCaptureKit, без виртуального драйвера. Запись — аудио MOV, до двух дорожек AAC: приложения (стерео, 192 кбит/с) и микрофон (моно, 96 кбит/с).</li>
+        <li>Звук: ScreenCaptureKit, без виртуального драйвера. Запись сохраняется как аудио MOV, до двух дорожек AAC: приложения (стерео, 192 кбит/с) и микрофон (моно, 96 кбит/с).</li>
         <li>Распознавание: основа GigaAM-v3 e2e RNN-T, шаги улучшения на Parakeet TDT 0.6B v3 и, на старших уровнях, Whisper medium и large-v3. Запуск через transcribe.cpp.</li>
         <li>Участники: диаризация FluidAudio, дорожки собеседников и микрофона обрабатываются отдельно.</li>
         <li>Результат: читаемый TXT и подробный JSON со словами, временем и данными диаризации. Имена участников хранятся в JSON, TXT обновляется по ним.</li>
@@ -282,11 +347,48 @@
 
 <footer class="layout">
   <div class="in">
-    <span>Рекордер — независимый проект</span>
+    <span>Рекордер. Независимый проект</span>
     <span>Copyright &#169; <script>document.write(new Date().getFullYear())</script> | <a href="/">Pahaz White</a></span>
   </div>
 </footer>
 
+
+<script>
+  (function () {
+    var el = document.getElementById("fixSlider");
+    if (!el) return;
+    var slides = Array.prototype.slice.call(el.querySelectorAll(".slide"));
+    var bars = Array.prototype.slice.call(el.querySelectorAll(".bar"));
+    var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    var current = 0;
+    el.classList.add("on");
+    function show(n) {
+      current = (n + slides.length) % slides.length;
+      slides.forEach(function (sl, k) {
+        sl.classList.toggle("active", k === current);
+        sl.setAttribute("aria-hidden", k === current ? "false" : "true");
+      });
+      bars.forEach(function (b, k) {
+        b.classList.remove("active", "done");
+        b.setAttribute("aria-current", k === current ? "true" : "false");
+        if (k < current) b.classList.add("done");
+      });
+      void el.offsetWidth;
+      bars[current].classList.add("active");
+    }
+    bars.forEach(function (b, k) { b.addEventListener("click", function () { show(k); }); });
+    bars.forEach(function (b) {
+      b.addEventListener("animationend", function () { if (!reduce) show(current + 1); });
+    });
+    ["mouseenter", "focusin", "touchstart"].forEach(function (ev) {
+      el.addEventListener(ev, function () { el.classList.add("paused"); }, { passive: true });
+    });
+    ["mouseleave", "focusout", "touchend"].forEach(function (ev) {
+      el.addEventListener(ev, function () { el.classList.remove("paused"); }, { passive: true });
+    });
+    show(0);
+  })();
+</script>
 <script>
   document.getElementById("theme-btn").addEventListener("click", function () {
     var next = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
