@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+<title id="title">Рекордер для Mac — Встреча закончилась. Детали остались.</title>
+<desc id="desc">Векторная версия рекламной карточки. Запись и расшифровка встреч на вашем Mac. Без облака, без бота и без аккаунта. Справа — иллюстративный интерфейс с волной звука и репликами участников. Это иллюстрация, а не снимок приложения.</desc>
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffffff"/><stop offset="1" stop-color="#f8fafc"/></linearGradient>
+  <linearGradient id="arc" x1="0.1" y1="0" x2="0.9" y2="1"><stop stop-color="#f0f3f7"/><stop offset="1" stop-color="#dfe4ec"/></linearGradient>
+  <linearGradient id="bezel" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#090b0e"/><stop offset="0.55" stop-color="#171b20"/><stop offset="1" stop-color="#30353c"/></linearGradient>
+  <linearGradient id="screen" x1="0" y1="0" x2="0.9" y2="1"><stop stop-color="#d6dae0"/><stop offset="0.5" stop-color="#e8ebef"/><stop offset="1" stop-color="#b4bcc8"/></linearGradient>
+  <linearGradient id="base" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#acb2bb"/><stop offset="0.18" stop-color="#dce0e5"/><stop offset="0.47" stop-color="#b9bec6"/><stop offset="0.73" stop-color="#6c737c"/><stop offset="1" stop-color="#30353c"/></linearGradient>
+  <linearGradient id="baseLip" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#686f79"/><stop offset="0.028" stop-color="#ccd0d6"/><stop offset="0.10" stop-color="#959ca7"/><stop offset="0.44" stop-color="#e1e4e9"/><stop offset="0.77" stop-color="#a8afbb"/><stop offset="1" stop-color="#dce0e5"/></linearGradient>
+  <linearGradient id="notch" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#969da8"/><stop offset="1" stop-color="#d9dde3"/></linearGradient>
+  <linearGradient id="panel" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#f8f9fb"/><stop offset="0.25" stop-color="#ffffff"/><stop offset="1" stop-color="#fafbfd"/></linearGradient>
+  <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f2f4f7"/><stop offset="1" stop-color="#edf0f4"/></linearGradient>
+  <linearGradient id="record" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ff6b61"/><stop offset="1" stop-color="#f5362d"/></linearGradient>
+  <filter id="windowShadow" x="-25%" y="-20%" width="155%" height="150%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="15"/></filter>
+  <filter id="laptopShadow" x="-20%" y="-200%" width="150%" height="500%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="5"/></filter>
+  <clipPath id="canvas"><rect width="1200" height="630"/></clipPath>
+</defs>
+<g clip-path="url(#canvas)">
+<!-- Background -->
+<rect width="1200" height="630" fill="url(#bg)"/>
+<path d="M686 0H1200V543C1080 572 908 530 787 441C654 343 611 259 611 183C611 97 647 46 686 0Z" fill="url(#arc)"/>
+<path d="M1200 89V409C1115 450 1024 450 950 408C1052 354 1128 249 1200 89Z" fill="#ffffff" opacity="0.34"/>
+<path d="M1200 307V367C1131 429 1056 453 961 452C1073 425 1145 378 1200 307Z" fill="#d2d9e3" opacity="0.50"/>
+<!-- Laptop: vector geometry and gradients only -->
+<g id="laptop">
+<ellipse cx="1002" cy="590" rx="325" ry="6.5" fill="#26303d" opacity="0.27" filter="url(#laptopShadow)"/>
+<path d="M785 50L1221 35Q1241 34 1241 56V548Q1241 573 1217 573H784Q759 573 759 549V77Q759 52 785 50Z" fill="url(#bezel)" stroke="#626a73" stroke-width="1.4"/>
+<path d="M786 62L1226 46V547H773V79Q773 63 786 62Z" fill="url(#screen)"/>
+<path d="M1200 96V422L931 547H796Z" fill="#eef1f5" opacity="0.33"/>
+<path d="M1200 319V360L983 547H894Z" fill="#a3acb9" opacity="0.16"/>
+<path d="M1106 49L1194 45L1193 58Q1193 63 1187 63L1114 65Q1107 65 1107 59Z" fill="#090b0e"/>
+<path d="M661 566H1246V578Q1246 588 1219 591H700Q666 590 661 580Z" fill="url(#base)"/>
+<path d="M661 566H1246V580H662Z" fill="url(#baseLip)"/>
+<path d="M1047 566H1174L1172 573Q1171 578 1161 578H1060Q1050 578 1049 573Z" fill="url(#notch)" stroke="#8f97a1" stroke-width="0.5"/>
+<path d="M682 587C710 592 733 592 778 592H1218" fill="none" stroke="#262c33" stroke-opacity="0.55" stroke-width="1.2"/>
+</g>
+<!-- Headline and app name -->
+<g id="copy" fill="#080a0d" font-family="Inter Display, Inter, Arial, sans-serif">
+<rect x="50" y="88" width="230" height="43" rx="21.5" fill="#edeff2"/>
+<text font-size="22" font-weight="600" fill="#101216" transform="translate(70 117) scale(0.975 1)" x="0" y="0">Рекордер для Mac</text>
+<text font-size="64" font-weight="800" fill="#030507" id="headline-first" transform="translate(50 212) scale(0.855 1)" x="0" y="0">Встреча закончилась.</text>
+<text font-size="64" font-weight="800" fill="#030507" id="headline-second" transform="translate(50 281) scale(0.89 1)" x="0" y="0">Детали остались.</text>
+<text font-size="28" font-weight="400" fill="#32363e" transform="translate(50 337) scale(0.918 1)" x="0" y="0">Запись и расшифровка встреч на вашем Mac</text>
+<!-- Feature icons -->
+<g id="features" stroke-linecap="round" stroke-linejoin="round">
+<g transform="translate(50 387)">
+<rect width="84" height="82" rx="22" fill="url(#tile)"/>
+<path d="M25 57H54C66 57 69 42 61 37C58 35 55 34 52 35C49 20 30 21 26 34C13 32 11 48 18 53C20 55 22 56 25 57Z" fill="#fafbfc" stroke="#111315" stroke-width="2.2"/>
+<path d="M20 65L63 22" stroke="#f14037" stroke-width="3.2"/>
+</g>
+<g transform="translate(204 387)">
+<rect width="84" height="82" rx="22" fill="url(#tile)"/>
+<path d="M24 34C20 34 18 38 18 41V50C18 54 20 56 23 56M62 34C66 34 68 38 68 41V50C68 54 66 56 63 56" fill="none" stroke="#111315" stroke-width="2.2"/>
+<rect x="22" y="29" width="43" height="33" rx="11" fill="#fafbfc" stroke="#111315" stroke-width="2.2"/>
+<path d="M42 29V23" fill="none" stroke="#111315" stroke-width="2.2"/>
+<circle cx="42" cy="20" r="3.5" fill="#fafbfc" stroke="#111315" stroke-width="2.2"/>
+<circle cx="33" cy="44" r="2.8" fill="#111315"/>
+<circle cx="51" cy="44" r="2.8" fill="#111315"/>
+<path d="M22 65L64 22" stroke="#f14037" stroke-width="3.2"/>
+</g>
+<g transform="translate(357 387)">
+<rect width="84" height="82" rx="22" fill="url(#tile)"/>
+<circle cx="41" cy="31" r="9" fill="#fafbfc" stroke="#111315" stroke-width="2.2"/>
+<path d="M22 64C22 42 59 42 59 64Z" fill="#fafbfc" stroke="#111315" stroke-width="2.2"/>
+<path d="M20 65L64 22" stroke="#f14037" stroke-width="3.2"/>
+</g>
+</g>
+<text font-size="22" font-weight="400" fill="#11141d" x="50" y="502">Без облака.</text>
+<text font-size="22" font-weight="400" fill="#11141d" x="204" y="502">Без бота.</text>
+<text font-size="22" font-weight="400" fill="#11141d" x="357" y="502">Без аккаунта.</text>
+<text font-size="17" font-weight="400" fill="#7b8089" x="50" y="578">macOS 15+ · Intel и Apple Silicon</text>
+</g>
+<!-- Illustration of the recorder window; not a product screenshot -->
+<g id="recorder-window">
+<rect x="680" y="110" width="487" height="431" rx="17" fill="#697b94" opacity="0.21" filter="url(#windowShadow)"/>
+<rect x="677" y="97" width="485" height="430" rx="16" fill="url(#panel)" stroke="#d5dae2" stroke-width="1.1"/>
+<path d="M693 150H1146Q1162 150 1162 166V511Q1162 527 1146 527H693Q677 527 677 511V166Q677 150 693 150Z" fill="#ffffff" opacity="0.62"/>
+<circle cx="705" cy="123" r="7.2" fill="#ff635c" stroke="#ec524d" stroke-width="0.7"/>
+<circle cx="727" cy="123" r="7.2" fill="#f7c448" stroke="#e6b33b" stroke-width="0.7"/>
+<circle cx="749" cy="123" r="7.2" fill="#2ebd59" stroke="#23ab4b" stroke-width="0.7"/>
+<circle cx="892" cy="124" r="8.4" fill="url(#record)" stroke="#ec3d35" stroke-width="0.7"/>
+<g font-family="Inter Display, Inter, Arial, sans-serif">
+<text font-size="16" font-weight="400" fill="#17191d" x="912" y="130">Запись...</text>
+<text font-size="14" font-weight="400" fill="#606572" font-family="Liberation Mono, monospace" x="1081" y="130">00:12:34</text>
+<!-- Audio waveform and conversion arrow -->
+<g id="waveform" stroke-linecap="round">
+<path d="M694.5 211.0V219.0" stroke="#999fa9" stroke-width="3"/>
+<path d="M702.4 206.5V223.5" stroke="#999fa9" stroke-width="3"/>
+<path d="M710.3 199.5V230.5" stroke="#999fa9" stroke-width="3"/>
+<path d="M718.2 192.5V237.5" stroke="#999fa9" stroke-width="3"/>
+<path d="M726.1 205.5V224.5" stroke="#999fa9" stroke-width="3"/>
+<path d="M734.0 189.5V240.5" stroke="#999fa9" stroke-width="3"/>
+<path d="M741.9 183.0V247.0" stroke="#999fa9" stroke-width="3"/>
+<path d="M749.8 194.5V235.5" stroke="#999fa9" stroke-width="3"/>
+<path d="M757.7 204.5V225.5" stroke="#999fa9" stroke-width="3"/>
+<path d="M765.6 208.0V222.0" stroke="#999fa9" stroke-width="3"/>
+<path d="M773.5 201.5V228.5" stroke="#999fa9" stroke-width="3"/>
+<path d="M781.4 207.0V223.0" stroke="#999fa9" stroke-width="3"/>
+<path d="M789.3 202.5V227.5" stroke="#999fa9" stroke-width="3"/>
+<path d="M797.2 184.0V246.0" stroke="#999fa9" stroke-width="3"/>
+<path d="M805.1 175.5V254.5" stroke="#999fa9" stroke-width="3"/>
+<path d="M813.0 191.0V239.0" stroke="#999fa9" stroke-width="3"/>
+<path d="M820.9 201.0V229.0" stroke="#999fa9" stroke-width="3"/>
+<path d="M828.8 188.0V242.0" stroke="#999fa9" stroke-width="3"/>
+<path d="M836.7 195.0V235.0" stroke="#999fa9" stroke-width="3"/>
+<path d="M844.6 203.0V227.0" stroke="#999fa9" stroke-width="3"/>
+<path d="M852.5 207.0V223.0" stroke="#f24036" stroke-width="3"/>
+<path d="M860.4 206.5V223.5" stroke="#f24036" stroke-width="3"/>
+<path d="M868.3 191.5V238.5" stroke="#f24036" stroke-width="3"/>
+<path d="M876.2 200.5V229.5" stroke="#f24036" stroke-width="3"/>
+<path d="M884.1 209.5V220.5" stroke="#f24036" stroke-width="3"/>
+<path d="M892.0 211.0V219.0" stroke="#f24036" stroke-width="3"/>
+<path d="M899.9 204.0V226.0" stroke="#f24036" stroke-width="3"/>
+<path d="M907.8 208.5V221.5" stroke="#f24036" stroke-width="3"/>
+<path d="M915.7 212.0V218.0" stroke="#f24036" stroke-width="3"/>
+</g>
+<path d="M941 215H964M957 208L964 215L957 222" fill="none" stroke="#9198a3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<g fill="#b8bec8">
+<rect x="993" y="177" width="83" height="9" rx="2"/>
+<rect x="993" y="198" width="142" height="9" rx="2"/>
+<rect x="993" y="218" width="125" height="9" rx="2"/>
+<rect x="993" y="238" width="74" height="9" rx="2"/>
+</g>
+<!-- Transcript preview -->
+<rect x="689" y="275" width="461" height="240" rx="13" fill="#f5f6f8"/>
+<text font-size="15" font-weight="400" fill="#424853" font-family="Liberation Mono, monospace" x="709" y="313">[00:11]</text>
+<text font-size="17" font-weight="700" fill="#101114" x="796" y="313">Мария:</text>
+<text font-size="16.5" font-weight="400" fill="#2e323a" transform="translate(869 313) scale(0.96 1)" x="0" y="0">По релизу всё готово.</text>
+<text font-size="15" font-weight="400" fill="#424853" font-family="Liberation Mono, monospace" x="709" y="349">[00:26]</text>
+<text font-size="17" font-weight="700" fill="#101114" x="796" y="349">Пётр:</text>
+<text font-size="16.5" font-weight="400" fill="#2e323a" transform="translate(869 349) scale(0.96 1)" x="0" y="0">Закладываем 3500</text>
+<text font-size="16.5" font-weight="400" fill="#2e323a" transform="translate(869 372) scale(0.96 1)" x="0" y="0">на инфраструктуру и Postgres.</text>
+<text font-size="15" font-weight="400" fill="#424853" font-family="Liberation Mono, monospace" x="709" y="408">[00:41]</text>
+<text font-size="17" font-weight="700" fill="#101114" x="796" y="408">Мария:</text>
+<text font-size="16.5" font-weight="400" fill="#2e323a" transform="translate(869 408) scale(0.96 1)" x="0" y="0">Отлично. Тогда двигаемся</text>
+<text font-size="16.5" font-weight="400" fill="#2e323a" transform="translate(869 431) scale(0.96 1)" x="0" y="0">по плану.</text>
+<text font-size="15" font-weight="400" fill="#424853" font-family="Liberation Mono, monospace" x="709" y="470">[01:03]</text>
+<text font-size="17" font-weight="700" fill="#101114" x="796" y="470">Пётр:</text>
+<text font-size="16.5" font-weight="400" fill="#2e323a" transform="translate(869 470) scale(0.96 1)" x="0" y="0">Согласен. Я подготовлю задачи</text>
+<text font-size="16.5" font-weight="400" fill="#2e323a" transform="translate(869 493) scale(0.96 1)" x="0" y="0">в Jira.</text>
+</g>
+</g>
+</g>
+</svg>
