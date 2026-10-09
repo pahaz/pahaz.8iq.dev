@@ -3,6 +3,36 @@
     <channel>
         <title>Recorder</title>
         <item>
+            <title>0.15.2</title>
+            <pubDate>Sat, 10 Oct 2026 01:06:33 +0300</pubDate>
+            <sparkle:version>41</sparkle:version>
+            <sparkle:shortVersionString>0.15.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[Main page with the description, installation and news: [pahaz.8iq.dev/recorder](https://pahaz.8iq.dev/recorder/)
+
+**A guided setup on first launch, and many fixes.**
+
+## Guided setup
+
+On first launch, Recorder now walks you through setup step by step: launch at login, the microphone and system audio permissions, the speech recognition models, and automatic recording. It checks that the models actually run on your Mac. If a step gets stuck, it tells you why and lets you send the logs in one click. The setup appears once. If you already set Recorder up, you will not see it.
+
+## Improvements
+
+- **Download models** now fetches everything your first transcripts need in one go, including the models that improve the text. You no longer have to press it a second time.
+- Each recording folder now shows only the audio and the text. The app's service files are hidden.
+- The buttons in the settings are readable again. Some of them were drawn black and their text was hard to see.
+
+## Fixes
+
+- A recording no longer stops when the display goes to sleep during a long call.
+- On some Intel Macs, a transcript could come out empty. It no longer does.
+- On macOS 26.6, the app could stop responding to clicks altogether. Fixed.
+- Pressing stop while a recording was being saved could lose the recording. Fixed.
+- Automatic recording could start by itself in a later call after a monitor was connected. It no longer does. It also resumes reliably when a display comes back.
+]]></description>
+            <enclosure url="https://github.com/pahaz/pahaz.8iq.dev/releases/download/recorder-v0.15.2/Recorder-0.15.2.dmg" length="11748290" type="application/octet-stream" sparkle:edSignature="d6w6vGvtZsWCsajlJl7gPuEF9H3UT/P68NgkY4tRTqTUz3hCAh7KqfxrpNPfj521TZCqoyyD5TZ2ZQYuWEHJBQ=="/>
+        </item>
+        <item>
             <title>0.15.0</title>
             <pubDate>Thu, 08 Oct 2026 13:14:39 +0300</pubDate>
             <sparkle:version>39</sparkle:version>
