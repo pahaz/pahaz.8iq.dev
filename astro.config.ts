@@ -17,6 +17,8 @@ export default defineConfig({
   integrations: [
     sitemap({
       filter: page => SITE.showArchives || !page.endsWith("/archives"),
+      // static pages in public/ are not seen by Astro
+      customPages: [`${SITE.website}recorder/`],
     }),
   ],
   markdown: {

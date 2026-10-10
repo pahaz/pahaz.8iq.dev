@@ -3,16 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width">
-  <title>Рекордер: не теряйте детали рабочих встреч</title>
-  <meta name="description" content="Рекордер записывает созвон и превращает его в текст на вашем Mac. Запись и текст остаются на компьютере.">
+  <title>Транскрибация аудио и видео в текст бесплатно на Mac, без интернета — Рекордер</title>
+  <meta name="description" content="Бесплатная программа для Mac: записывает встречи в Zoom, Телемосте, Meet и Teams и переводит аудио и видео в текст прямо на компьютере. Без облака, регистрации и ограничений по длине.">
   <meta name="author" content="Pahaz White">
   <link rel="canonical" href="https://pahaz.8iq.dev/recorder/">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <meta property="og:type" content="website">
   <meta property="og:locale" content="ru_RU">
   <meta property="og:site_name" content="PahazBlog">
-  <meta property="og:title" content="Рекордер: не теряйте детали рабочих встреч">
-  <meta property="og:description" content="Запись и расшифровка рабочих встреч на вашем Mac. Без облака, аккаунтов и аналитики.">
+  <meta property="og:title" content="Рекордер: бесплатная транскрибация встреч, аудио и видео в текст на Mac">
+  <meta property="og:description" content="Запись и расшифровка встреч, перевод аудио и видео в текст на вашем Mac. Без облака, аккаунтов и ограничений по длине.">
   <meta property="og:url" content="https://pahaz.8iq.dev/recorder/">
   <meta property="og:image" content="https://pahaz.8iq.dev/recorder/social.jpg">
   <meta property="og:image:type" content="image/jpeg">
@@ -21,6 +21,144 @@
   <meta property="og:image:alt" content="Рекордер для Mac: встреча закончилась, детали остались. Запись и расшифровка встреч без облака, бота и аккаунта.">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:image" content="https://pahaz.8iq.dev/recorder/social.jpg">
+
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Рекордер",
+  "alternateName": "Recorder",
+  "description": "Программа для Mac: запись встреч и транскрибация аудио и видео в текст на компьютере, без облака и ограничений по длине.",
+  "url": "https://pahaz.8iq.dev/recorder/",
+  "image": "https://pahaz.8iq.dev/recorder/social.jpg",
+  "applicationCategory": "BusinessApplication",
+  "operatingSystem": "macOS 15 или новее",
+  "inLanguage": "ru",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "RUB",
+    "description": "Бесплатно. Лицензия нужна только для корпоративного использования."
+  },
+  "author": {
+    "@type": "Person",
+    "name": "Pahaz White",
+    "url": "https://pahaz.8iq.dev/"
+  }
+}
+  </script>
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Как перевести аудио или видео в текст?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Скачайте Рекордер и модели, затем положите файл в папку ~/Music/Recorder. Подходят m4a, mp3, wav, mp4, mov, flac и aiff. Текст с временем и участниками появится рядом с файлом."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Как расшифровать встречу в Zoom или Телемосте?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Включите автозапись или нажмите горячую клавишу в начале звонка. Рекордер пишет звук приложения и ваш микрофон, а после звонка сам переводит запись в текст. Подходит любое приложение или браузер: Zoom, Яндекс Телемост, Google Meet, Teams, МТС Линк, Контур Толк."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Есть ли ограничение по длине записи?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Нет. Длинные записи распознаются по частям, а прерванная расшифровка продолжается с места остановки."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Это бесплатно?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Да, без ограничений по числу и длине записей и без регистрации. Лицензия нужна только для корпоративного использования, подробности в разделе «Условия»."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Чем это лучше, чем Whisper?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Whisper хорош с английским, но чаще ошибается в русской речи. Рекордер берёт за основу GigaAM, которая лучше слышит русский, а термины проверяет моделью Parakeet и, на старших уровнях, Whisper."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Сколько ждать расшифровку?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Основной текст появляется примерно в 9 раз быстрее длины записи на Intel Core i9 2019 года. На Apple Silicon ещё примерно в 6 раз быстрее. Улучшения идут в фоне."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Зачем нужно разрешение «Запись экрана»?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Через него macOS отдаёт системный звук. Экран Рекордер не записывает."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Нужен ли аккаунт или облако?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Нет. Всё лежит в вашей папке."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Работает ли без интернета?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Да, когда модели скачаны. Сеть нужна только для их загрузки."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Какие языки поддерживаются?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Русский. Английские термины внутри русской речи тоже."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Что-то не записалось. Куда писать?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "На recorder@8iq.dev или в Telegram. В настройках есть экспорт журнала. Приложите его к сообщению."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Как удалить Рекордер?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Выполните в Терминале: curl -fsSL https://pahaz.8iq.dev/recorder/uninstall.sh | bash Скрипт покажет, что удалит, и спросит подтверждение. Приложение, настройки, модели, журналы и кэши уходят в Корзину. Записи и тексты в ~/Music/Recorder остаются. Скрипт напишет, сколько они занимают и как удалить их отдельно. Чтобы только посмотреть список, допишите после bash: -s -- --dry-run."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Чем это отличается от Otter, Fireflies и подобных сервисов?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Разговоры не уходят на чужой сервер. Взамен вы получаете приложение для Mac, а не веб-сервис."
+      }
+    }
+  ]
+}
+  </script>
 
   <!-- Тема: тот же ключ localStorage, что и у блога, выбор переносится между страницами -->
   <script>
@@ -180,20 +318,21 @@
   <!-- 1. Результат -->
   <section class="hero">
     <h1>Не теряйте детали рабочих встреч</h1>
-    <p class="lead">Рекордер записывает созвон и превращает его в текст на вашем Mac. Нужен срок, цифра или чьё-то обещание? Найдите реплику, а не переслушивайте час записи.</p>
-    <p class="lead"><b>Запись и текст остаются на компьютере.</b> В облако ничего не уходит.</p>
+    <p class="lead">Рекордер — бесплатная программа для Mac, которая записывает созвон и переводит его в текст: кто, что и когда сказал. Нужен срок, цифра или чьё-то обещание? Найдите реплику, а не переслушивайте час записи.</p>
+    <p class="lead">Аудио и видео файлы он тоже расшифровывает: mp3, m4a, wav, mp4, mov. Длина не ограничена.</p>
+    <p class="lead"><b>Транскрибация идёт на компьютере, без интернета.</b> В облако ничего не уходит.</p>
     <p>
       <a class="btn primary" href="#download">Скачать для Mac</a>
       <a class="btn" href="#example">Посмотреть пример</a>
     </p>
-    <p class="meta">macOS 15+ · Apple Silicon и Intel · бесплатно для хобби</p>
+    <p class="meta">macOS 15+ · Apple Silicon и Intel · бесплатно</p>
   </section>
 
   <!-- 2. Три причины -->
   <section>
     <div class="cols">
-      <div><h2>Всё локально</h2><p>Корпоративная тайна, кадровые решения и личные разговоры остаются на вашем компьютере. Ни облака, ни аккаунта, ни бота на встрече.</p></div>
-      <div><h2>Любые встречи</h2><p>Zoom, Meet, Teams или любое другое приложение: Рекордер пишет его звук и ваш микрофон. Менять сервис для звонков не нужно.</p></div>
+      <div><h2>Всё локально</h2><p>Корпоративная тайна, кадровые решения и личные разговоры остаются на вашем компьютере. Ни облака, ни регистрации, ни бота на встрече.</p></div>
+      <div><h2>Любые встречи</h2><p>Zoom, Яндекс Телемост, Meet, Teams, МТС Линк, Контур Толк или любое другое приложение: Рекордер пишет его звук и ваш микрофон. Менять сервис для звонков не нужно.</p></div>
       <div><h2>Точные термины</h2><p>Несколько моделей проверяют друг друга, поэтому в тексте Postgres, а не «постгрес», и Claude, а не «клот».</p></div>
     </div>
   </section>
@@ -278,7 +417,7 @@
     <h2>Что ещё умеет Рекордер</h2>
     <div class="cols two">
       <div><h3>Режим «только запись»</h3><p>Расшифровка не обязательна. Не скачивайте модели и используйте Рекордер как диктофон или голосовые заметки.</p></div>
-      <div><h3>Режим «только расшифровка»</h3><p>Положите файл (m4a, mp3, wav, mp4, mov, flac, aiff) в папку <code>~/Music/Recorder</code>, и Рекордер расшифрует его сам.</p></div>
+      <div><h3>Аудио и видео в текст</h3><p>Положите файл (m4a, mp3, wav, mp4, mov, flac, aiff) в папку <code>~/Music/Recorder</code>, и Рекордер расшифрует его сам: лекцию, интервью, голосовое, запись с диктофона. Хоть час, хоть три.</p></div>
     </div>
   </section>
 
@@ -298,8 +437,8 @@
   <!-- 7. Условия -->
   <section id="license">
     <h2>Условия</h2>
-    <p><b>Для хобби Рекордер бесплатен.</b> Для работы и бизнеса нужна лицензия.</p>
-    <p>Напишите на <a href="mailto:pahaz@8iq.dev?subject=%D0%A0%D0%B5%D0%BA%D0%BE%D1%80%D0%B4%D0%B5%D1%80%3A%20%D0%BB%D0%B8%D1%86%D0%B5%D0%BD%D0%B7%D0%B8%D1%8F">pahaz@8iq.dev</a> или в <a href="https://t.me/pahaz">Telegram</a>: кто и как будет пользоваться.</p>
+    <p><b>Рекордер бесплатный.</b> Лицензия нужна только для корпоративного использования, когда Рекордером пользуется компания.</p>
+    <p>Напишите на <a href="mailto:recorder@8iq.dev?subject=%D0%A0%D0%B5%D0%BA%D0%BE%D1%80%D0%B4%D0%B5%D1%80%3A%20%D0%BB%D0%B8%D1%86%D0%B5%D0%BD%D0%B7%D0%B8%D1%8F">recorder@8iq.dev</a> или в <a href="https://t.me/pahaz">Telegram</a>: кто и как будет пользоваться.</p>
   </section>
 
   <!-- 8. Скачать -->
@@ -319,6 +458,16 @@
   <!-- 9. FAQ -->
   <section id="faq">
     <h2>Частые вопросы</h2>
+    <details><summary>Как перевести аудио или видео в текст?</summary>
+      <p>Скачайте Рекордер и модели, затем положите файл в папку <code>~/Music/Recorder</code>. Подходят m4a, mp3, wav, mp4, mov, flac и aiff. Текст с временем и участниками появится рядом с файлом.</p></details>
+    <details><summary>Как расшифровать встречу в Zoom или Телемосте?</summary>
+      <p>Включите автозапись или нажмите горячую клавишу в начале звонка. Рекордер пишет звук приложения и ваш микрофон, а после звонка сам переводит запись в текст. Подходит любое приложение или браузер: Zoom, Яндекс Телемост, Google Meet, Teams, МТС Линк, Контур Толк.</p></details>
+    <details><summary>Есть ли ограничение по длине записи?</summary>
+      <p>Нет. Длинные записи распознаются по частям, а прерванная расшифровка продолжается с места остановки.</p></details>
+    <details><summary>Это бесплатно?</summary>
+      <p>Да, без ограничений по числу и длине записей и без регистрации. Лицензия нужна только для корпоративного использования, подробности в разделе «Условия».</p></details>
+    <details><summary>Чем это лучше, чем Whisper?</summary>
+      <p>Whisper хорош с английским, но чаще ошибается в русской речи. Рекордер берёт за основу GigaAM, которая лучше слышит русский, а термины проверяет моделью Parakeet и, на старших уровнях, Whisper.</p></details>
     <details><summary>Сколько ждать расшифровку?</summary>
       <p>Основной текст появляется примерно в 9 раз быстрее длины записи на Intel Core i9 2019 года. На Apple Silicon ещё примерно в 6 раз быстрее. Улучшения идут в фоне.</p></details>
     <details><summary>Зачем нужно разрешение «Запись экрана»?</summary>
@@ -330,7 +479,7 @@
     <details><summary>Какие языки поддерживаются?</summary>
       <p>Русский. Английские термины внутри русской речи тоже.</p></details>
     <details><summary>Что-то не записалось. Куда писать?</summary>
-      <p>На <a href="mailto:pahaz@8iq.dev">pahaz@8iq.dev</a> или в <a href="https://t.me/pahaz">Telegram</a>. В настройках есть экспорт журнала. Приложите его к сообщению.</p></details>
+      <p>На <a href="mailto:recorder@8iq.dev">recorder@8iq.dev</a> или в <a href="https://t.me/pahaz">Telegram</a>. В настройках есть экспорт журнала. Приложите его к сообщению.</p></details>
     <details><summary>Как удалить Рекордер?</summary>
       <p>Выполните в Терминале:</p>
       <pre><code>curl -fsSL https://pahaz.8iq.dev/recorder/uninstall.sh | bash</code></pre>
