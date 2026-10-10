@@ -118,6 +118,8 @@
     summary { cursor: pointer; font-weight: 600; }
     summary:hover { color: var(--accent); }
     details p { margin: .75rem 0 0; }
+    details pre { margin: .75rem 0 0; overflow-x: auto; }
+    details pre code { display: block; padding: .5rem .75rem; white-space: pre; }
 
     .tech { border-top: 0; padding-top: 0; }
     .tech details { border-top: 0; border-bottom: 0; }
@@ -329,6 +331,10 @@
       <p>Русский. Английские термины внутри русской речи тоже.</p></details>
     <details><summary>Что-то не записалось. Куда писать?</summary>
       <p>На <a href="mailto:pahaz@8iq.dev">pahaz@8iq.dev</a> или в <a href="https://t.me/pahaz">Telegram</a>. В настройках есть экспорт журнала. Приложите его к сообщению.</p></details>
+    <details><summary>Как удалить Рекордер?</summary>
+      <p>Выполните в Терминале:</p>
+      <pre><code>curl -fsSL https://pahaz.8iq.dev/recorder/uninstall.sh | bash</code></pre>
+      <p>Скрипт покажет, что удалит, и спросит подтверждение. Приложение, настройки, модели, журналы и кэши уходят в Корзину. Записи и тексты в <code>~/Music/Recorder</code> остаются. Скрипт напишет, сколько они занимают и как удалить их отдельно. Чтобы только посмотреть список, допишите после <code>bash</code>: <code>-s -- --dry-run</code>.</p></details>
     <details><summary>Чем это отличается от Otter, Fireflies и подобных сервисов?</summary>
       <p>Разговоры не уходят на чужой сервер. Взамен вы получаете приложение для Mac, а не веб-сервис.</p></details>
   </section>
