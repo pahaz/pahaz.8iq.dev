@@ -1,0 +1,94 @@
+name: "Рекордер: сообщить об ошибке"
+description: Что-то в Рекордере работает не так, как должно.
+title: "[Рекордер] "
+labels: ["recorder", "bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Спасибо, что сообщаете о проблеме! Чем подробнее описание, тем быстрее получится её исправить.
+        Перед отправкой проверьте, что у вас последняя версия: меню Рекордера → «Проверить обновления».
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Что случилось?
+      description: Опишите проблему своими словами.
+      placeholder: Запись звонка остановилась сама через 20 минут, файл с текстом пустой.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Как повторить
+      description: Шаги, после которых проблема появляется. Если не знаете, оставьте пустым.
+      placeholder: |
+        1. Включить автоматическую запись
+        2. Начать звонок в Zoom
+        3. ...
+    validations:
+      required: false
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Что должно было произойти?
+    validations:
+      required: false
+
+  - type: dropdown
+    id: frequency
+    attributes:
+      label: Как часто повторяется?
+      options:
+        - Каждый раз
+        - Иногда
+        - Один раз
+        - Не знаю
+    validations:
+      required: false
+
+  - type: input
+    id: version
+    attributes:
+      label: Версия Рекордера
+      description: Меню Рекордера → «О программе».
+      placeholder: "0.15.2 (41)"
+    validations:
+      required: true
+
+  - type: input
+    id: macos
+    attributes:
+      label: Версия macOS
+      description: Меню Apple → «Об этом Mac».
+      placeholder: "macOS 15.6"
+    validations:
+      required: true
+
+  - type: input
+    id: mac
+    attributes:
+      label: Модель Mac
+      description: Например, MacBook Air M2 или iMac Intel 2019.
+      placeholder: "MacBook Pro M3, 16 ГБ"
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Логи
+      description: Если Рекордер предложил отправить логи, вставьте их сюда. Они будут отформатированы как код.
+      render: text
+    validations:
+      required: false
+
+  - type: textarea
+    id: attachments
+    attributes:
+      label: Скриншоты и файлы
+      description: Перетащите сюда скриншоты или запись экрана. Не прикладывайте записи разговоров с личными данными — задача публичная.
+    validations:
+      required: false

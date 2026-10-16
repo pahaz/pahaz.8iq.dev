@@ -1,0 +1,94 @@
+name: "Recorder: report a bug"
+description: Something in Recorder doesn't work the way it should.
+title: "[Recorder] "
+labels: ["recorder", "bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a problem! The more detail you give, the faster it gets fixed.
+        Before sending, please make sure you're on the latest version: Recorder menu → "Check for Updates".
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the problem in your own words.
+      placeholder: The call recording stopped by itself after 20 minutes and the transcript is empty.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: The steps that make the problem appear. Leave empty if you don't know.
+      placeholder: |
+        1. Turn on automatic recording
+        2. Start a Zoom call
+        3. ...
+    validations:
+      required: false
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen?
+    validations:
+      required: false
+
+  - type: dropdown
+    id: frequency
+    attributes:
+      label: How often does it happen?
+      options:
+        - Every time
+        - Sometimes
+        - Once
+        - Not sure
+    validations:
+      required: false
+
+  - type: input
+    id: version
+    attributes:
+      label: Recorder version
+      description: Recorder menu → "About Recorder".
+      placeholder: "0.15.2 (41)"
+    validations:
+      required: true
+
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+      description: Apple menu → "About This Mac".
+      placeholder: "macOS 15.6"
+    validations:
+      required: true
+
+  - type: input
+    id: mac
+    attributes:
+      label: Mac model
+      description: For example, MacBook Air M2 or iMac Intel 2019.
+      placeholder: "MacBook Pro M3, 16 GB"
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: If Recorder offered to send logs, paste them here. They will be formatted as code.
+      render: text
+    validations:
+      required: false
+
+  - type: textarea
+    id: attachments
+    attributes:
+      label: Screenshots and files
+      description: Drag screenshots or a screen recording here. Don't attach recordings of conversations with personal data — the issue is public.
+    validations:
+      required: false
