@@ -3,6 +3,23 @@
     <channel>
         <title>Recorder</title>
         <item>
+            <title>0.15.3</title>
+            <pubDate>Fri, 16 Oct 2026 23:04:43 +0300</pubDate>
+            <sparkle:version>42</sparkle:version>
+            <sparkle:shortVersionString>0.15.3</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[[See what else Recorder can do](https://pahaz.8iq.dev/recorder/)
+
+**Recordings are no longer lost when the Mac restarts or the app updates.**
+
+- Speakers are separated again on some Intel Macs.
+- Any setup step can be skipped.
+
+Install this update outside a call.
+]]></description>
+            <enclosure url="https://github.com/pahaz/pahaz.8iq.dev/releases/download/recorder-v0.15.3/Recorder-0.15.3.dmg" length="11779958" type="application/octet-stream" sparkle:edSignature="tNjPg5PKNpShH6ebcLOpu0SFU22QKhsvQevv6aoLpkOqTHrySZHtqNUEduX2rdRVTkv0gkc9H0RYg7Ne2EZXAA=="/>
+        </item>
+        <item>
             <title>0.15.2</title>
             <pubDate>Sat, 10 Oct 2026 01:06:33 +0300</pubDate>
             <sparkle:version>41</sparkle:version>
