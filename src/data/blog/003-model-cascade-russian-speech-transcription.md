@@ -1,7 +1,7 @@
 ---
 author: Pahaz White
 pubDatetime: 2026-10-17T07:06:17Z
-title: A Model Cascade for Russian Speech Transcription
+title: ASR Model Cascade for Russian Speech Transcription
 slug: model-cascade-russian-speech-transcription
 image: "@/assets/images/003-russian-speech-transcription/01-cover.png"
 featured: false
