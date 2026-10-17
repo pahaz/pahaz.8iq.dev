@@ -75,12 +75,12 @@ Annotation turned out to be the most time-consuming part. Running a model is eas
 
 I put together four datasets.
 
-| Dataset           | What's recorded                                                                                                                                     | Duration         | Words / terms |
-| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- | ------------- |
-| Business meetings | I selected 82 excerpts from work meetings where the models disagreed the most. Then added the same number of random excerpts.                       | About 24 minutes | 1,870 / ~5%   |
-| IT speech         | A specially prepared text packed with IT terms                                                                                                      | About 24 minutes | 1,679 / ~41%  |
-| Cat feeder        | A story about a smart cat feeder, read by two voices. Something between the first two datasets. Similar to the text in the article by @egorsokolov. | About 24 minutes | 2,391 / ~14%  |
-| Synthetic         | 200 phrases containing technical terms, voiced by Silero TTS. To see how well this method reflects reality.                                         | About 26 minutes | 2,831 / ~14%  |
+| Dataset           | What's recorded                                                                                                               | Duration         | Words / terms |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------- | ---------------- | ------------- |
+| Business meetings | I selected 82 excerpts from work meetings where the models disagreed the most. Then added the same number of random excerpts. | About 24 minutes | 1,870 / ~5%   |
+| IT speech         | A specially prepared text packed with IT terms                                                                                | About 24 minutes | 1,679 / ~41%  |
+| Cat feeder        | A story about a smart cat feeder, read by two voices. Something between the first two datasets.                               | About 24 minutes | 2,391 / ~14%  |
+| Synthetic         | 200 phrases containing technical terms, voiced by Silero TTS. To see how well this method reflects reality.                   | About 26 minutes | 2,831 / ~14%  |
 
 That gave me **about 1 hour 38 minutes of audio with reference transcripts and 8,700 words**. Separately, I had an archive of 185 recordings totaling 36 hours, which I used to inspect the results after testing hypotheses on the annotated sample. It has no complete reference transcript or full annotation for calculating WER. The archive contains about 230,000 words.
 
@@ -284,7 +284,7 @@ The two tracks proved useful for speaker separation. One contains the microphone
 
 The current workflow is designed for Russian speech with English borrowings. It isn't very suitable for meetings held entirely in English.
 
-If you're on Windows or Linux, or [you want to reproduce the result yourself, there's a prompt your coding agent can use to do it](https://gist.github.com/pahaz/db2faf33bd0e1ca45b815b0f705a9b41). Let me know in the comments how it went.
+If you're on Windows or Linux, or [you want to reproduce the result yourself, there's a prompt your coding agent can use to do it](https://gist.github.com/pahaz/db2faf33bd0e1ca45b815b0f705a9b41).
 
 ## What worked out, and what's left for the next article
 
