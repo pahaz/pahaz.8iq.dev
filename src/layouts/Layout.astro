@@ -22,6 +22,7 @@ const {
   author = SITE.author,
   profile = SITE.profile,
   description = SITE.desc,
+  ogImage,
   canonicalURL = new URL(Astro.url.pathname, Astro.url),
   pubDatetime,
   modDatetime,
@@ -29,7 +30,9 @@ const {
 } = Astro.props;
 
 let socialImageURL = new URL("/og.png", Astro.url);
-if (SITE.ogImage) {
+if (ogImage) {
+  socialImageURL = new URL(ogImage, Astro.url);
+} else if (SITE.ogImage) {
   const img = await getImage({
     src: SITE.ogImage,
     width: 1200,
