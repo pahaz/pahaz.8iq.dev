@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width">
+  <title>Условия использования и конфиденциальность — Рекордер</title>
+  <meta name="description" content="Лицензионное соглашение Рекордера, политика конфиденциальности и лицензии открытых компонентов.">
+  <meta name="author" content="Pahaz White">
+  <link rel="canonical" href="https://pahaz.8iq.dev/recorder/terms/">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="ru_RU">
+  <meta property="og:site_name" content="PahazBlog">
+  <meta property="og:title" content="Рекордер: условия использования и конфиденциальность">
+  <meta property="og:description" content="Лицензионное соглашение, политика конфиденциальности и лицензии открытых компонентов.">
+  <meta property="og:url" content="https://pahaz.8iq.dev/recorder/terms/">
+  <meta property="og:image" content="https://pahaz.8iq.dev/recorder/social.jpg">
+
+  <!-- Тема: тот же ключ localStorage, что и у блога, выбор переносится между страницами -->
+  <script>
+    (function () {
+      var t = null;
+      try { t = localStorage.getItem("theme"); } catch (e) {}
+      if (!t) t = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      document.documentElement.setAttribute("data-theme", t);
+    })();
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap&subset=cyrillic,latin" rel="stylesheet">
+
+  <style>
+    :root, html[data-theme="light"] {
+      --background: #fdfdfd;
+      --foreground: #282728;
+      --accent: #006cac;
+      --muted: #e6e6e6;
+      --border: #ece9e9;
+    }
+    html[data-theme="dark"] {
+      --background: #212737;
+      --foreground: #eaedf3;
+      --accent: #ff6b01;
+      --muted: #343f60;
+      --border: #ab4b08;
+    }
+    * { box-sizing: border-box; border-color: var(--border); }
+    html { scroll-behavior: smooth; overflow-y: scroll; scroll-padding-top: 1rem; }
+    body {
+      margin: 0; min-height: 100svh; display: flex; flex-direction: column;
+      background: var(--background); color: var(--foreground);
+      font-family: "IBM Plex Mono", ui-monospace, monospace;
+      font-size: 16px; line-height: 1.6;
+    }
+    ::selection { background: color-mix(in srgb, var(--accent) 75%, transparent); color: var(--background); }
+    a { color: inherit; outline-offset: 1px; overflow-wrap: anywhere; }
+    a:focus-visible, button:focus-visible { outline: 2px dashed var(--accent); text-decoration: none; }
+    .layout { width: 100%; max-width: 48rem; margin: 0 auto; padding: 0 1rem; }
+
+    /* шапка: те же механика и размеры, что у блога и лендинга */
+    .top { position: relative; display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 1.5rem 0; border-bottom: 1px solid var(--border); }
+    .logo { position: absolute; padding: .25rem 0; font-size: 1.5rem; line-height: 2rem; font-weight: 600; text-decoration: none; white-space: nowrap; }
+    .logo img { height: 30px; display: inline-block; vertical-align: text-top; border-radius: 9999px; }
+    .top nav { display: flex; align-items: center; justify-content: flex-end; width: 100%; min-height: 33.9px; }
+    #theme-btn { background: none; border: 0; padding: 0; width: 2rem; height: 2rem; position: relative; color: inherit; cursor: pointer; }
+    #theme-btn svg { position: absolute; top: 50%; left: 50%; width: 24px; height: 24px; transform: translate(-50%,-50%); fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: all .3s; }
+    #theme-btn:hover svg { stroke: var(--accent); }
+    #theme-btn .sun { transform: translate(-50%,-50%) scale(0) rotate(90deg); }
+    html[data-theme="dark"] #theme-btn .sun { transform: translate(-50%,-50%) scale(1) rotate(0); }
+    html[data-theme="dark"] #theme-btn .moon { transform: translate(-50%,-50%) scale(0) rotate(-90deg); }
+
+    /* содержимое */
+    main { padding-bottom: 2rem; }
+    h1 { font-size: 1.875rem; line-height: 1.25; font-weight: 600; margin: 2rem 0 1rem; }
+    h2 { font-size: 1.25rem; font-weight: 600; margin: 0 0 1rem; color: var(--accent); }
+    h3 { font-size: 1rem; font-weight: 600; margin: 1.5rem 0 .5rem; }
+    p { margin: 0 0 1rem; }
+    section { padding: 1.75rem 0; border-top: 1px solid var(--border); }
+    .hero { padding: 0 0 1.75rem; border: 0; }
+    .meta { font-size: .875rem; opacity: .75; }
+    .back { display: inline-block; margin-top: 1.5rem; font-size: .875rem; text-decoration: none; }
+    .back:hover { color: var(--accent); }
+
+    ul, ol { margin: 0 0 1rem; padding-left: 1.5rem; }
+    li { margin-bottom: .375rem; }
+    .toc { list-style: none; padding: 0; }
+    .toc a { text-decoration: none; border-bottom: 1px solid var(--accent); }
+
+    .short { background: color-mix(in srgb, var(--muted) 45%, transparent); border: 1px solid var(--border); border-radius: .5rem; padding: 1rem 1rem .25rem; font-size: .9375rem; margin: 0 0 1rem; }
+    .short ul { padding-left: 1.25rem; }
+
+    code { font-family: inherit; background: color-mix(in srgb, var(--muted) 60%, transparent); padding: .1rem .35rem; border-radius: .25rem; font-size: .9em; }
+
+    /* лицензии компонентов: карточками, чтобы на телефоне не было горизонтального скролла */
+    .deps { list-style: none; padding: 0; }
+    .deps li { padding: .75rem 0; margin: 0; border-bottom: 1px solid var(--border); font-size: .9375rem; }
+    .deps li:first-child { border-top: 1px solid var(--border); }
+    .deps b { display: block; }
+    .deps span { display: block; opacity: .8; }
+
+    footer { margin-top: auto; }
+    footer .in { padding: 1.5rem 0; border-top: 1px solid var(--border); display: flex; flex-wrap: wrap; justify-content: space-between; gap: .5rem; font-size: .9375rem; }
+    footer a:hover, section a:hover, .toc a:hover { color: var(--accent); }
+
+    @media (max-width: 639px) {
+      h1 { font-size: 1.5rem; }
+      .logo { font-size: 1.25rem; }
+      .top { padding: 1rem 0; align-items: baseline; }
+    }
+  </style>
+</head>
+<body>
+
+<header class="layout">
+  <div class="top">
+    <a href="/" class="logo"><img src="/favicon.svg" alt="logo" height="30">
+      <span>PahazBlog</span></a>
+    <nav>
+      <button id="theme-btn" title="Toggles light &amp; dark" aria-label="Переключить тему">
+        <svg class="moon" viewBox="0 0 24 24"><path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z"/></svg>
+        <svg class="sun" viewBox="0 0 24 24"><path d="M14.828 14.828a4 4 0 1 0 -5.656 -5.656a4 4 0 0 0 5.656 5.656z"/><path d="M6.343 17.657l-1.414 1.414"/><path d="M6.343 6.343l-1.414 -1.414"/><path d="M17.657 6.343l1.414 -1.414"/><path d="M17.657 17.657l1.414 1.414"/><path d="M4 12h-2"/><path d="M12 4v-2"/><path d="M20 12h2"/><path d="M12 20v2"/></svg>
+      </button>
+    </nav>
+  </div>
+</header>
+
+<main class="layout">
+
+  <section class="hero">
+    <a class="back" href="/recorder/">← Рекордер</a>
+    <h1>Условия использования и конфиденциальность</h1>
+    <p class="meta">Редакция от 26 октября 2026 года</p>
+    <div class="short">
+      <p><b>Коротко</b></p>
+      <ul>
+        <li>Рекордер бесплатный для людей, в том числе для их собственной работы. Компании покупают лицензию.</li>
+        <li>Программа предоставляется «как есть». Важное в расшифровке проверяйте по записи.</li>
+        <li>Согласие собеседников на запись получаете вы.</li>
+        <li>Записи и тексты не покидают ваш компьютер. Приложение не собирает аналитику.</li>
+      </ul>
+    </div>
+    <ul class="toc">
+      <li><a href="#license">1. Лицензионное соглашение</a></li>
+      <li><a href="#privacy">2. Политика конфиденциальности</a></li>
+      <li><a href="#third-party">3. Лицензии открытых компонентов</a></li>
+    </ul>
+  </section>
+
+  <!-- 1. Лицензионное соглашение -->
+  <section id="license">
+    <h2>1. Лицензионное соглашение</h2>
+
+    <h3>1.1. Стороны и предмет</h3>
+    <p>Это соглашение заключается между автором программы Рекордер Pahaz White (далее — Автор) и вами (далее — Пользователь). Автор предоставляет Пользователю простую неисключительную лицензию на использование Рекордера на условиях ниже.</p>
+    <p>Соглашение заключается в упрощённом порядке по пункту 5 статьи 1286 Гражданского кодекса РФ. Устанавливая или запуская Рекордер, вы принимаете эти условия. Если вы с ними не согласны, не устанавливайте программу или удалите её.</p>
+
+    <h3>1.2. Бесплатное использование</h3>
+    <p>Бесплатно и без ограничения срока Рекордером может пользоваться физическое лицо:</p>
+    <ul>
+      <li>для личных целей;</li>
+      <li>для собственной работы, в том числе как индивидуальный предприниматель или самозанятый без сотрудников, которые тоже пользуются Рекордером.</li>
+    </ul>
+    <p>Число ваших компьютеров, записей и их длина не ограничены.</p>
+
+    <h3>1.3. Корпоративное использование</h3>
+    <p>Корпоративное использование — это использование в интересах организации: когда компания или индивидуальный предприниматель устанавливает Рекордер на рабочие компьютеры, рекомендует или поручает сотрудникам пользоваться им для работы.</p>
+    <p>Для корпоративного использования нужна отдельная лицензия. Её условия и цена согласуются в договоре. Напишите на <a href="mailto:recorder@8iq.dev">recorder@8iq.dev</a>, кто и как будет пользоваться Рекордером. Если нужно сначала попробовать, договоримся о пробном периоде.</p>
+
+    <h3>1.4. Что нельзя делать</h3>
+    <ul>
+      <li>продавать Рекордер, сдавать его в аренду или включать в платные продукты и услуги;</li>
+      <li>распространять копии и изменённые сборки. Делиться ссылкой на эту страницу или на <a href="/recorder/">страницу Рекордера</a> можно и нужно;</li>
+      <li>декомпилировать и изменять программу, кроме случаев, которые прямо разрешает закон (статья 1280 ГК РФ);</li>
+      <li>удалять или изменять сведения об авторстве и лицензиях;</li>
+      <li>использовать Рекордер для незаконной записи и слежки.</li>
+    </ul>
+
+    <h3>1.5. Запись разговоров</h3>
+    <p>Рекордер записывает звук приложений и микрофона по вашей команде или по включённой вами автозаписи. Правила записи разговоров зависят от страны и ситуации: в некоторых странах и штатах нужно согласие всех участников, а запись может содержать персональные данные, коммерческую или иную охраняемую законом тайну.</p>
+    <p>Решение записывать, получение согласий, хранение и передача записей и расшифровок — ответственность Пользователя.</p>
+
+    <h3>1.6. Открытые компоненты</h3>
+    <p>Рекордер включает открытые библиотеки и использует модели распознавания речи других авторов. Они распространяются по своим лицензиям, перечисленным в <a href="#third-party">разделе 3</a>. Это соглашение не ограничивает права, которые дают вам эти лицензии.</p>
+
+    <h3>1.7. Обновления</h3>
+    <p>Рекордер раз в сутки проверяет, есть ли новая версия, и предлагает её установить. Обновления выходят на тех же условиях, если вместе с ними не опубликована новая редакция соглашения.</p>
+
+    <h3>1.8. Без гарантий</h3>
+    <p>Рекордер предоставляется «как есть» и «как доступно». Автор не гарантирует, что программа подойдёт для ваших целей, будет работать без перерывов и ошибок, запишет каждую встречу и правильно расшифрует каждое слово и каждого участника. Распознавание речи ошибается в именах, терминах, числах и при перебиваниях. Проверяйте по записи то, на что опираетесь в решениях.</p>
+
+    <h3>1.9. Ограничение ответственности</h3>
+    <p>В той мере, в какой это допускает применимое право, Автор не отвечает за убытки от использования или невозможности использования Рекордера, включая потерю записей и данных, упущенную выгоду и последствия решений, принятых по расшифровке. Это не ограничивает ответственность, которую закон не позволяет исключить, в том числе за умышленное нарушение.</p>
+    <p>Делайте резервные копии важных записей. Папка <code>~/Music/Recorder</code> — обычная папка на вашем диске.</p>
+
+    <h3>1.10. Срок, прекращение и изменения</h3>
+    <p>Лицензия действует, пока вы пользуетесь Рекордером, на территории всех стран. Если вы нарушаете это соглашение, лицензия прекращается, и программу нужно удалить. Удалить Рекордер можно в любой момент, инструкция есть на <a href="/recorder/#faq">странице Рекордера</a>.</p>
+    <p>Автор может изменить соглашение. Новая редакция публикуется на этой странице с новой датой и действует для версий, выпущенных после неё. Корпоративные лицензии меняются только по договору.</p>
+
+    <h3>1.11. Применимое право и споры</h3>
+    <p>К соглашению применяется право Российской Федерации. Если что-то пошло не так, сначала напишите на <a href="mailto:recorder@8iq.dev">recorder@8iq.dev</a>: большинство вопросов решается перепиской. Это не лишает потребителя прав, которые ему даёт закон страны его проживания.</p>
+  </section>
+
+  <!-- 2. Политика конфиденциальности -->
+  <section id="privacy">
+    <h2>2. Политика конфиденциальности</h2>
+    <p>Эта политика описывает, какие данные обрабатываются, когда вы пользуетесь Рекордером, сайтом <a href="/recorder/">pahaz.8iq.dev/recorder</a> и пишете Автору. Оператор — Pahaz White, связь: <a href="mailto:recorder@8iq.dev">recorder@8iq.dev</a>.</p>
+
+    <h3>2.1. Что остаётся на вашем компьютере</h3>
+    <p>Записи, расшифровки, имена участников, настройки и журналы диагностики хранятся только на вашем Mac и Автору не передаются. В Рекордере нет аналитики, телеметрии, отчётов о сбоях и рекламы. Нажатия клавиш отслеживаются только для горячей клавиши и нигде не сохраняются.</p>
+
+    <h3>2.2. Какие запросы Рекордер делает в интернет</h3>
+    <ul>
+      <li><b>Проверка обновлений</b> раз в сутки: запрос к <code>pahaz.8iq.dev</code> (хостинг GitHub Pages). Передаются ваш IP-адрес и название и версия приложения. Данные о системе не отправляются.</li>
+      <li><b>Скачивание обновлений</b>: с GitHub Releases, когда вы соглашаетесь установить новую версию.</li>
+      <li><b>Скачивание моделей</b>: с Hugging Face, только когда вы нажимаете «Скачать модели».</li>
+    </ul>
+    <p>Эти запросы видят GitHub и Hugging Face и обрабатывают их по своим политикам конфиденциальности. Автор не получает журналы этих запросов и не может связать их с вами. Записи и тексты в этих запросах не передаются.</p>
+
+    <h3>2.3. Сайт</h3>
+    <p>На сайте нет счётчиков, аналитики и рекламных cookies. Выбор светлой или тёмной темы хранится в вашем браузере. Шрифт загружается с Google Fonts, поэтому браузер передаёт Google ваш IP-адрес. Хостинг GitHub Pages обрабатывает технические данные запросов, как и любой хостинг.</p>
+
+    <h3>2.4. Когда вы пишете Автору</h3>
+    <p>Если вы пишете на почту или в Telegram, Автор получает ваш адрес или имя пользователя, текст сообщения и то, что вы приложили. Журнал диагностики может содержать названия файлов записей и технические сведения о вашем Mac. Посмотрите его перед отправкой.</p>
+    <p>Эти данные нужны, чтобы ответить, помочь с проблемой и оформить корпоративную лицензию. Основание — ваше обращение и договор. Они хранятся, пока нужны для переписки, и для корпоративных лицензий — пока действует договор и сроки, которые требует закон. Автор не продаёт и не передаёт их другим, кроме почтового сервиса и Telegram, через которые идёт переписка.</p>
+
+    <h3>2.5. Ваши права</h3>
+    <p>Вы можете узнать, какие ваши данные есть у Автора, попросить исправить или удалить их и отозвать согласие. Напишите на <a href="mailto:recorder@8iq.dev">recorder@8iq.dev</a>, ответ придёт в течение 10 рабочих дней. Если вы считаете, что ваши права нарушены, вы можете обратиться в Роскомнадзор или в надзорный орган по защите данных своей страны.</p>
+  </section>
+
+  <!-- 3. Лицензии открытых компонентов -->
+  <section id="third-party">
+    <h2>3. Лицензии открытых компонентов</h2>
+    <p>Рекордер использует программы и модели, распространяемые по открытым лицензиям. Тот же список есть в приложении: «О программе → Лицензии открытых компонентов». Модели скачиваются только по вашему запросу.</p>
+    <ul class="deps">
+      <li><b><a href="https://github.com/sparkle-project/Sparkle">Sparkle</a></b><span>© Andy Matuschak и участники Sparkle Project · MIT</span></li>
+      <li><b><a href="https://github.com/FluidInference/FluidAudio">FluidAudio</a></b><span>© FluidInference contributors · Apache License 2.0</span></li>
+      <li><b><a href="https://github.com/handy-computer/transcribe.cpp">transcribe.cpp</a></b><span>© 2026 The transcribe.cpp authors · MIT</span></li>
+      <li><b><a href="https://github.com/ggml-org/ggml">ggml</a></b><span>© 2023–2026 The ggml authors · MIT</span></li>
+      <li><b><a href="https://github.com/salute-developers/GigaAM">GigaAM-v3</a></b><span>© 2024 GigaChat Team · MIT</span></li>
+      <li><b><a href="https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3">NVIDIA Parakeet TDT 0.6B v3</a></b><span>© NVIDIA Corporation · изменённые сборки GGUF и Core ML · <a href="https://creativecommons.org/licenses/by/4.0/deed.ru">CC BY 4.0</a></span></li>
+      <li><b><a href="https://github.com/openai/whisper">Whisper</a></b><span>© OpenAI · сборки GGUF моделей base, small, medium, large-v2, large-v3 и large-v3-turbo · Apache License 2.0 (модель turbo OpenAI публикует под MIT)</span></li>
+      <li><b><a href="https://huggingface.co/MediaTek-Research/Breeze-ASR-25">Breeze-ASR-25</a></b><span>© MediaTek Research · дообученный Whisper large-v2 в сборке GGUF · Apache License 2.0</span></li>
+      <li><b><a href="https://huggingface.co/nvidia/canary-1b-v2">NVIDIA Canary 1B v2</a></b><span>© NVIDIA Corporation · изменённая сборка GGUF · <a href="https://creativecommons.org/licenses/by/4.0/deed.ru">CC BY 4.0</a></span></li>
+      <li><b><a href="https://huggingface.co/Qwen/Qwen3-ASR-1.7B">Qwen3-ASR</a></b><span>© Alibaba Cloud Qwen Team · сборки GGUF моделей 0.6B и 1.7B · Apache License 2.0</span></li>
+      <li><b><a href="https://github.com/snakers4/silero-vad">Silero VAD</a></b><span>© Silero Team · MIT</span></li>
+      <li><b><a href="https://huggingface.co/FluidInference/speaker-diarization-coreml/blob/main/NOTICE.md">Модели определения участников (Core ML)</a></b><span>pyannote · WeSpeaker · BUT Speech@FIT · Fluid Inference · изменённые Core ML-сборки пайплайна pyannote Community-1 · <a href="https://creativecommons.org/licenses/by/4.0/deed.ru">CC BY 4.0</a></span></li>
+    </ul>
+    <p class="meta">Полные тексты лицензий — по ссылкам на страницах компонентов.</p>
+  </section>
+
+</main>
+
+<footer class="layout">
+  <div class="in">
+    <span>Рекордер. Независимый проект</span>
+    <span>Copyright &#169; <script>document.write(new Date().getFullYear())</script> | <a href="/">Pahaz White</a></span>
+  </div>
+</footer>
+
+<script>
+  document.getElementById("theme-btn").addEventListener("click", function () {
+    var next = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", next);
+    try { localStorage.setItem("theme", next); } catch (e) {}
+  });
+</script>
+</body>
+</html>
