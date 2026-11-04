@@ -1238,9 +1238,11 @@ EOF
   fi
 }
 
-# Watches that depend on what exists on the machine. auditd runs this script on
-# every start, so accounts and Docker added later are covered after a reboot.
+# Watches that depend on what exists on the machine. This script runs right before
+# the rules load at boot, so accounts and Docker added later are covered after a reboot.
 install_audit_refresh_script() {
+  local rules_unit="auditd.service"
+
   write_file "${AUDIT_REFRESH_SCRIPT}" "0755" "root" "root" <<'EOF'
 #!/usr/bin/env bash
 # Managed by public/sh/init.sh
@@ -1268,7 +1270,12 @@ if ! cmp -s "${tmp}" "${dst}"; then
 fi
 EOF
 
-  write_file "/etc/systemd/system/auditd.service.d/10-init-sh.conf" "0644" "root" "root" <<EOF
+  # Newer audit packages (Debian 13) load the rules in a separate unit before auditd.
+  if unit_file_exists "audit-rules.service"; then
+    rules_unit="audit-rules.service"
+  fi
+
+  write_file "/etc/systemd/system/${rules_unit}.d/10-init-sh.conf" "0644" "root" "root" <<EOF
 # Managed by public/sh/init.sh
 [Service]
 ExecStartPre=-${AUDIT_REFRESH_SCRIPT}
