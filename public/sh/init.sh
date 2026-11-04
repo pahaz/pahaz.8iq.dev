@@ -4,6 +4,8 @@
 #
 # One-liner (download + apply):
 #   curl -fsSL "https://pahaz.8iq.dev/sh/init.sh" | sudo bash
+# Web server (nginx, certbot, ports 80 and 443):
+#   curl -fsSL "https://pahaz.8iq.dev/sh/init.sh" | sudo bash -s -- --web
 # Debug mode:
 #   curl -fsSL "https://pahaz.8iq.dev/sh/init.sh" | sudo bash -s -- --debug
 #   sudo INIT_DEBUG=1 bash ./init.sh
@@ -14,6 +16,7 @@ set -Eeuo pipefail
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:${PATH:-}"
 
 DEBUG_MODE="${INIT_DEBUG:-0}"
+WEB_MODE="${INIT_WEB:-0}"
 SHOW_HELP=0
 
 usage() {
@@ -21,10 +24,15 @@ usage() {
 Usage: init.sh [OPTIONS]
 
 Options:
+  --web         Set up nginx and certbot and open ports 80 and 443
   --debug, -x   Enable shell command tracing (set -x)
   --help, -h    Show this help message and exit
 
+The script is safe to run again. A machine that already has nginx keeps its web
+setup without --web; the script never removes anything.
+
 Environment:
+  INIT_WEB=1            Same as --web
   INIT_DEBUG=1          Enable debug mode (same as --debug)
   SSH_KEY_URL=URL       Where to get the SSH key; the first key is used for both
                         root and the admin user
@@ -43,6 +51,9 @@ parse_args() {
 
   for arg in "$@"; do
     case "${arg}" in
+      --web)
+        WEB_MODE=1
+        ;;
       --debug|-x)
         DEBUG_MODE=1
         ;;
@@ -62,26 +73,30 @@ parse_args() {
   fi
 }
 
-normalize_debug_mode() {
+# Prints 1 or 0 for a yes/no setting.
+normalize_bool() {
+  local name="$1"
+  local value="$2"
   local normalized
-  normalized="$(printf '%s' "${DEBUG_MODE}" | tr '[:upper:]' '[:lower:]')"
+  normalized="$(printf '%s' "${value}" | tr '[:upper:]' '[:lower:]')"
   case "${normalized}" in
     1|true|yes|on)
-      DEBUG_MODE=1
+      printf '1'
       ;;
     0|false|no|off|'')
-      DEBUG_MODE=0
+      printf '0'
       ;;
     *)
-      printf 'Invalid INIT_DEBUG value: %s\n' "${DEBUG_MODE}" >&2
+      printf 'Invalid %s value: %s\n' "${name}" "${value}" >&2
       printf 'Use one of: 1,0,true,false,yes,no,on,off\n' >&2
-      exit 1
+      return 1
       ;;
   esac
 }
 
 parse_args "$@"
-normalize_debug_mode
+DEBUG_MODE="$(normalize_bool INIT_DEBUG "${DEBUG_MODE}")"
+WEB_MODE="$(normalize_bool INIT_WEB "${WEB_MODE}")"
 if [[ "${SHOW_HELP}" -eq 1 ]]; then
   usage
   exit 0
@@ -155,6 +170,9 @@ AUDIT_LOG_FILES=10
 
 FAILED_STEPS=()
 HEALTH_PROBLEMS=0
+# Set by write_file and set_config_value. A step resets it and restarts its service
+# only if something changed, so running the script again disturbs nothing.
+FILES_CHANGED=0
 
 log() {
   if [[ -t 1 ]]; then
@@ -255,7 +273,7 @@ apt_update() {
 
 has_deb_installed() {
   local package="$1"
-  dpkg-query -W -f='${db:Status-Abbrev}' "${package}" 2>/dev/null | grep -q '^ii'
+  [[ "$(dpkg-query -W -f='${db:Status-Abbrev}' "${package}" 2>/dev/null || true)" == ii* ]]
 }
 
 # Avoid "producer | grep -q" in this script: grep exits at the first match, the
@@ -291,6 +309,7 @@ write_file() {
 
   if [[ ! -f "${path}" ]] || ! cmp -s "${tmp}" "${path}"; then
     install -D -m "${mode}" -o "${owner}" -g "${group}" "${tmp}" "${path}"
+    FILES_CHANGED=$((FILES_CHANGED + 1))
     log "Updated ${path}"
   else
     log "No changes for ${path}"
@@ -303,6 +322,11 @@ set_config_value() {
   local key="$2"
   local value="$3"
 
+  if grep -Eq "^[[:space:]]*${key}[[:space:]]*=[[:space:]]*${value}[[:space:]]*$" "${file}"; then
+    return 0
+  fi
+
+  FILES_CHANGED=$((FILES_CHANGED + 1))
   if grep -Eq "^[[:space:]]*${key}[[:space:]]*=" "${file}"; then
     sed -i -E "s|^[[:space:]]*${key}[[:space:]]*=.*|${key} = ${value}|" "${file}"
   else
@@ -380,7 +404,9 @@ ensure_key_in_authorized_keys() {
 
   install -d -m 0700 -o "${username}" -g "${group}" "${home_dir}/.ssh"
   auth_file="${home_dir}/.ssh/authorized_keys"
-  touch "${auth_file}"
+  if [[ ! -e "${auth_file}" ]]; then
+    touch "${auth_file}"
+  fi
   chown "${username}:${group}" "${auth_file}"
   chmod 0600 "${auth_file}"
 
@@ -468,7 +494,10 @@ configure_admin_sudo() {
   visudo -cqf "${tmp}"
   write_file "/etc/sudoers.d/90-${ADMIN_USER}" "0440" "root" "root" < "${tmp}"
   rm -f "${tmp}"
-  usermod --append --groups sudo "${ADMIN_USER}"
+  if ! grep -qw sudo <<< "$(id -nG "${ADMIN_USER}")"; then
+    usermod --append --groups sudo "${ADMIN_USER}"
+    log "Added ${ADMIN_USER} to the sudo group"
+  fi
 }
 
 force_time_sync() {
@@ -477,6 +506,11 @@ force_time_sync() {
   local max_attempts=20
   local ntp_unit=""
   local ntp_issues=()
+
+  if [[ "$(timedatectl show -p NTPSynchronized --value 2>/dev/null || true)" == "yes" ]]; then
+    log "Time synchronization is active (NTP synchronized)"
+    return 0
+  fi
 
   # Prefer distro-default timesyncd, but fall back to chrony when present.
   if unit_file_exists 'systemd-timesyncd.service'; then
@@ -649,8 +683,11 @@ configure_ssh() {
   local main_config="/etc/ssh/sshd_config"
   local main_config_backup
   local allow_users=""
+  local config_file
   local user
   local config_ok=1
+
+  FILES_CHANGED=0
 
   ssh_unit="$(pick_unit_name "ssh" "sshd")"
   ssh_enable_unit="$(systemctl show -p Id --value "${ssh_unit}.service" 2>/dev/null || true)"
@@ -667,14 +704,19 @@ configure_ssh() {
   # sshd_config may have lost this line, and then the file below does nothing.
   if ! grep -Eq '^[[:space:]]*Include[[:space:]]+/etc/ssh/sshd_config\.d/' "${main_config}"; then
     sed -i '1i Include /etc/ssh/sshd_config.d/*.conf' "${main_config}"
+    FILES_CHANGED=$((FILES_CHANGED + 1))
     log "Added the sshd_config.d include to ${main_config}"
   fi
 
   # AllowUsers lines add up. If logins are already limited to a list, root and the
   # admin must join it. If not, adding the line would lock out everyone else.
-  if grep -q '^allowusers ' <<< "$(sshd -T 2>/dev/null || true)"; then
-    allow_users="AllowUsers root ${ADMIN_USER}"
-  fi
+  # Our own file does not count: its old line must not keep itself alive.
+  for config_file in "${main_config}" /etc/ssh/sshd_config.d/*.conf; do
+    if [[ -f "${config_file}" && "${config_file}" != "${hardening}" ]] \
+      && grep -Eiq '^[[:space:]]*AllowUsers[[:space:]]' "${config_file}"; then
+      allow_users="AllowUsers root ${ADMIN_USER}"
+    fi
+  done
 
   # Keep hardening in an early include file so cloud-init defaults do not override it.
   write_file "${hardening}" "0644" "root" "root" <<EOF
@@ -712,12 +754,19 @@ EOF
   rm -f "${main_config_backup}"
 
   # A socket-activated sshd starts through ssh.socket; ssh.service stays as it is.
-  if ! systemctl is-enabled --quiet ssh.socket 2>/dev/null; then
+  if ! systemctl is-enabled --quiet ssh.socket 2>/dev/null \
+    && ! systemctl is-enabled --quiet "${ssh_enable_unit}" 2>/dev/null; then
     if ! systemctl enable "${ssh_enable_unit}"; then
       warn "Cannot enable ${ssh_enable_unit}.service; check that sshd starts after a reboot."
     fi
   fi
-  systemctl restart "${ssh_enable_unit}"
+
+  if [[ "${FILES_CHANGED}" -gt 0 ]] \
+    || { ! systemctl is-active --quiet "${ssh_enable_unit}" && ! systemctl is-active --quiet ssh.socket; }; then
+    systemctl restart "${ssh_enable_unit}"
+  else
+    log "SSH config has not changed; sshd was not restarted"
+  fi
 }
 
 # Asks the running sshd, not the config on disk, which login methods it offers.
@@ -763,7 +812,22 @@ get_ssh_ports() {
   printf '%s\n' "${ports:-22}"
 }
 
+# A machine that already has nginx keeps its web setup: running the script again
+# without --web must not undo an earlier run with it.
+resolve_web_mode() {
+  if [[ "${WEB_MODE}" -eq 1 ]]; then
+    log "Web mode: nginx, certbot and ports 80 and 443 are managed"
+  elif command -v nginx >/dev/null 2>&1; then
+    WEB_MODE=1
+    log "nginx is installed, so the web setup stays managed as with --web. To drop it: apt-get purge nginx nginx-common; ufw delete allow 80/tcp; ufw delete allow 443/tcp"
+  else
+    log "No web setup: only SSH stays open. Run with --web to add nginx and open ports 80 and 443"
+  fi
+}
+
 configure_nginx() {
+  FILES_CHANGED=0
+
   write_file "/etc/nginx/conf.d/00-security-basics.conf" "0644" "root" "root" <<'EOF'
 # Managed by public/sh/init.sh
 server_tokens off;
@@ -775,47 +839,58 @@ EOF
 
   nginx -t
   systemctl enable --now nginx
-  systemctl reload nginx
+  if [[ "${FILES_CHANGED}" -gt 0 ]]; then
+    systemctl reload nginx
+  fi
+}
+
+# True when the port accepts connections from outside this machine.
+port_has_listener() {
+  local port="$1"
+  awk -v port="${port}" '
+    $4 !~ /^(127\.|\[::1\])/ && $4 ~ (":" port "$") { found = 1 }
+    END { exit(found ? 0 : 1) }
+  ' <<< "$(ss -H -ltn 2>/dev/null || true)"
 }
 
 configure_ufw() {
   local port
+  local ufw_status
 
   # Allow SSH traffic before anything can block it.
   while IFS= read -r port; do
     ufw allow "${port}/tcp"
   done < <(get_ssh_ports)
 
-  # Allow HTTP(S) traffic
-  ufw allow 80/tcp
-  ufw allow 443/tcp
-
-  ufw default deny incoming
-  ufw default allow outgoing
-
-  ufw --force enable
-}
-
-configure_fail2ban() {
-  local ssh_ports
-  local log_file
-  ssh_ports="$(get_ssh_ports | paste -sd, -)"
-
-  # Jails with backend = auto do not start until their log file exists.
-  for log_file in /var/log/nginx/error.log /var/log/nginx/access.log; do
-    if [[ -d /var/log/nginx && ! -e "${log_file}" ]]; then
-      install -m 0640 -o www-data -g adm /dev/null "${log_file}"
+  # Allow HTTP(S) traffic. Even without --web, closing a port that is already
+  # serving something would take a working site down.
+  for port in 80 443; do
+    if [[ "${WEB_MODE}" -eq 1 ]]; then
+      ufw allow "${port}/tcp"
+    elif port_has_listener "${port}"; then
+      warn "Port ${port} is in use, so it stays open even without --web"
+      ufw allow "${port}/tcp"
     fi
   done
 
-  # The default keeps ban history for one day, too short for the longer bans.
-  write_file "/etc/fail2ban/fail2ban.d/90-init-sh.local" "0644" "root" "root" <<'EOF'
-# Managed by public/sh/init.sh
-[DEFAULT]
-dbpurgeage = 30d
-EOF
+  ufw_status="$(ufw status verbose 2>/dev/null || true)"
+  if ! grep -q 'Default: deny (incoming), allow (outgoing)' <<< "${ufw_status}"; then
+    ufw default deny incoming
+    ufw default allow outgoing
+  fi
+  if ! grep -q '^Status: active' <<< "${ufw_status}"; then
+    ufw --force enable
+  fi
+}
 
-  write_file "/etc/fail2ban/jail.d/sshd-nginx.local" "0644" "root" "root" <<EOF
+nginx_is_managed() {
+  [[ "${WEB_MODE}" -eq 1 ]] && command -v nginx >/dev/null 2>&1
+}
+
+generate_fail2ban_jails() {
+  local ssh_ports="$1"
+
+  cat <<EOF
 # Managed by public/sh/init.sh
 [DEFAULT]
 # Each repeat ban is longer: 1 min, 5 min, 25 min, about 2 h, 10 h, 2 days, 11 days.
@@ -833,6 +908,10 @@ port = ${ssh_ports}
 # The journal works on all of them; sshd-session appeared in OpenSSH 9.8.
 backend = systemd
 journalmatch = _SYSTEMD_UNIT=ssh.service + _SYSTEMD_UNIT=sshd.service + _COMM=sshd + _COMM=sshd-session
+EOF
+
+  if nginx_is_managed; then
+    cat <<'EOF'
 
 # nginx logs to files. The systemd backend some releases set as the default
 # looks in the journal and would never see these failures.
@@ -844,14 +923,45 @@ backend = auto
 enabled = true
 backend = auto
 EOF
+  fi
+}
+
+configure_fail2ban() {
+  local ssh_ports
+  local log_file
+  ssh_ports="$(get_ssh_ports | paste -sd, -)"
+
+  FILES_CHANGED=0
+
+  # Jails with backend = auto do not start until their log file exists.
+  if nginx_is_managed; then
+    for log_file in /var/log/nginx/error.log /var/log/nginx/access.log; do
+      if [[ -d /var/log/nginx && ! -e "${log_file}" ]]; then
+        install -m 0640 -o www-data -g adm /dev/null "${log_file}"
+      fi
+    done
+  fi
+
+  # The default keeps ban history for one day, too short for the longer bans.
+  write_file "/etc/fail2ban/fail2ban.d/90-init-sh.local" "0644" "root" "root" <<'EOF'
+# Managed by public/sh/init.sh
+[DEFAULT]
+dbpurgeage = 30d
+EOF
+
+  write_file "/etc/fail2ban/jail.d/sshd-nginx.local" "0644" "root" "root" < <(generate_fail2ban_jails "${ssh_ports}")
 
   fail2ban-client -t
   systemctl enable --now fail2ban
-  systemctl restart fail2ban
+  if [[ "${FILES_CHANGED}" -gt 0 ]]; then
+    systemctl restart fail2ban
+  fi
 }
 
 configure_unattended_upgrades() {
   local -a origins=()
+
+  FILES_CHANGED=0
 
   # shellcheck disable=SC2016  # ${distro_codename} is expanded by unattended-upgrades.
   case "${OS_ID}" in
@@ -886,17 +996,19 @@ APT::Periodic::AutocleanInterval "7";
 APT::Periodic::Unattended-Upgrade "1";
 EOF
 
-  {
+  write_file "/etc/apt/apt.conf.d/52auto-security-upgrades" "0644" "root" "root" < <(
     echo '// Managed by public/sh/init.sh'
     echo 'Unattended-Upgrade::Origins-Pattern {'
     printf '  "%s";\n' "${origins[@]}"
     echo '};'
     echo 'Unattended-Upgrade::Remove-Unused-Dependencies "true";'
     echo 'Unattended-Upgrade::Automatic-Reboot "false";'
-  } | write_file "/etc/apt/apt.conf.d/52auto-security-upgrades" "0644" "root" "root"
+  )
 
   systemctl enable --now unattended-upgrades
-  systemctl restart unattended-upgrades
+  if [[ "${FILES_CHANGED}" -gt 0 ]]; then
+    systemctl restart unattended-upgrades
+  fi
 }
 
 configure_shell_history() {
@@ -1243,6 +1355,8 @@ EOF
 install_audit_refresh_script() {
   local rules_unit="auditd.service"
 
+  FILES_CHANGED=0
+
   write_file "${AUDIT_REFRESH_SCRIPT}" "0755" "root" "root" <<'EOF'
 #!/usr/bin/env bash
 # Managed by public/sh/init.sh
@@ -1280,7 +1394,9 @@ EOF
 [Service]
 ExecStartPre=-${AUDIT_REFRESH_SCRIPT}
 EOF
-  systemctl daemon-reload
+  if [[ "${FILES_CHANGED}" -gt 0 ]]; then
+    systemctl daemon-reload
+  fi
 }
 
 remove_old_audit_rules() {
@@ -1350,17 +1466,26 @@ configure_auditd_daemon() {
 
 load_audit_rules() {
   local state
+  local check
+  local loaded
   local output
 
   output="$(auditctl -s 2>/dev/null || true)"
   state="$(awk '$1 == "enabled" { print $2; exit }' <<< "${output}")"
+  check="$(augenrules --check 2>&1 || true)"
   if [[ "${state}" == "2" ]]; then
-    output="$(augenrules --check 2>&1 || true)"
-    if [[ "${output}" == *"changed"* ]]; then
+    if [[ "${check}" == *"changed"* ]]; then
       warn "Audit rules are locked until the next reboot; the new rules will apply after it"
     else
       log "Audit rules are locked and up to date"
     fi
+    return 0
+  fi
+
+  # Loading starts by deleting all rules, so skip it when there is nothing new.
+  loaded="$(auditctl -l 2>/dev/null || true)"
+  if [[ "${check}" == *"No change"* && -n "${loaded}" && "${loaded}" != "No rules"* ]]; then
+    log "Audit rules are already loaded"
     return 0
   fi
 
@@ -1380,14 +1505,18 @@ configure_auditd() {
   remove_old_audit_rules
   install_audit_refresh_script
   "${AUDIT_REFRESH_SCRIPT}"
-  generate_audit_base_rules | write_file "${AUDIT_RULES_DIR}/10-init-sh-base.rules" "0640" "root" "root"
-  generate_audit_rules | write_file "${AUDIT_RULES_DIR}/50-init-sh.rules" "0640" "root" "root"
+  write_file "${AUDIT_RULES_DIR}/10-init-sh-base.rules" "0640" "root" "root" < <(generate_audit_base_rules)
+  write_file "${AUDIT_RULES_DIR}/50-init-sh.rules" "0640" "root" "root" < <(generate_audit_rules)
+
+  FILES_CHANGED=0
   configure_auditd_daemon
 
   # Load first: the restart below loads the same rules but hides any errors.
   load_audit_rules
   systemctl enable auditd
-  systemctl restart auditd
+  if [[ "${FILES_CHANGED}" -gt 0 ]] || ! systemctl is-active --quiet auditd; then
+    systemctl restart auditd
+  fi
 }
 
 print_certbot_hint() {
@@ -1492,6 +1621,7 @@ health_admin_user() {
 health_fail2ban() {
   local jail
   local logpath
+  local -a nginx_jails=()
 
   if ! systemctl is-active --quiet fail2ban; then
     health_problem "fail2ban service: not active"
@@ -1499,7 +1629,11 @@ health_fail2ban() {
   fi
   health_ok "fail2ban service: active"
 
-  for jail in sshd nginx-http-auth nginx-botsearch; do
+  if [[ "${WEB_MODE}" -eq 1 ]]; then
+    nginx_jails=(nginx-http-auth nginx-botsearch)
+  fi
+
+  for jail in sshd "${nginx_jails[@]}"; do
     if fail2ban-client status "${jail}" >/dev/null 2>&1; then
       health_ok "fail2ban jail ${jail}: running"
     else
@@ -1507,7 +1641,7 @@ health_fail2ban() {
     fi
   done
 
-  for jail in nginx-http-auth nginx-botsearch; do
+  for jail in "${nginx_jails[@]}"; do
     logpath="$(fail2ban-client get "${jail}" logpath 2>/dev/null || true)"
     if [[ "${logpath}" == *"/var/log/nginx/"* ]]; then
       health_ok "fail2ban jail ${jail}: reads the nginx log"
@@ -1551,17 +1685,38 @@ health_auditd() {
   fi
 }
 
-health_summary() {
-  log "Health summary:"
-
-  health_ssh
-  health_admin_user
+health_web() {
+  local port
+  local ufw_status
 
   if systemctl is-active --quiet nginx; then
     health_ok "nginx service: active"
   else
     health_problem "nginx service: not active"
   fi
+
+  ufw_status="$(ufw status 2>/dev/null || true)"
+  for port in 80 443; do
+    if grep -Eq "^${port}(/tcp)?[[:space:]]+ALLOW" <<< "${ufw_status}"; then
+      health_ok "Port ${port}: allowed in ufw"
+    else
+      health_problem "Port ${port}: not allowed in ufw"
+    fi
+  done
+
+  if (systemctl is-enabled --quiet certbot.timer 2>/dev/null && systemctl is-active --quiet certbot.timer 2>/dev/null) || \
+     (systemctl is-enabled --quiet snap.certbot.renew.timer 2>/dev/null && systemctl is-active --quiet snap.certbot.renew.timer 2>/dev/null); then
+    health_ok "certbot.timer: enabled and active"
+  else
+    health_problem "certbot.timer: not enabled/active"
+  fi
+}
+
+health_summary() {
+  log "Health summary:"
+
+  health_ssh
+  health_admin_user
 
   if grep -q '^Status: active' <<< "$(ufw status 2>/dev/null || true)"; then
     health_ok "ufw: active"
@@ -1571,11 +1726,8 @@ health_summary() {
 
   health_fail2ban
 
-  if (systemctl is-enabled --quiet certbot.timer 2>/dev/null && systemctl is-active --quiet certbot.timer 2>/dev/null) || \
-     (systemctl is-enabled --quiet snap.certbot.renew.timer 2>/dev/null && systemctl is-active --quiet snap.certbot.renew.timer 2>/dev/null); then
-    health_ok "certbot.timer: enabled and active"
-  else
-    health_problem "certbot.timer: not enabled/active"
+  if [[ "${WEB_MODE}" -eq 1 ]]; then
+    health_web
   fi
 
   if systemctl is-enabled --quiet unattended-upgrades; then
@@ -1611,7 +1763,6 @@ install_packages() {
   # Required packages for baseline server setup.
   local base_packages=(
     ca-certificates
-    certbot
     curl
     fail2ban
     python3-systemd
@@ -1621,7 +1772,6 @@ install_packages() {
     htop
     iproute2
     ncdu
-    nginx
     openssh-server
     sudo
     unattended-upgrades
@@ -1647,7 +1797,6 @@ install_packages() {
     rsync
     iotop
     atop
-    python3-certbot-nginx
   )
 
   if kernel_has_audit; then
@@ -1666,6 +1815,9 @@ install_packages() {
 
   log "Installing optional diagnostic/security packages"
   for pkg in "${optional_packages[@]}"; do
+    if has_deb_installed "${pkg}"; then
+      continue
+    fi
     if apt-cache show "${pkg}" >/dev/null 2>&1; then
       if apt_get install "${pkg}"; then
         log "Installed optional package: ${pkg}"
@@ -1676,6 +1828,12 @@ install_packages() {
       warn "Optional package not found in apt repo: ${pkg}"
     fi
   done
+
+  # A separate step: nginx fails to install when another server holds port 80, and
+  # that must not stop the security setup.
+  if [[ "${WEB_MODE}" -eq 1 ]]; then
+    run_step "Installing web packages" apt_get install nginx certbot python3-certbot-nginx
+  fi
 }
 
 main() {
@@ -1693,6 +1851,7 @@ main() {
   ssh_key="$(fetch_primary_ssh_key)"
 
   # 3) Update the system and install tooling.
+  resolve_web_mode
   install_packages
 
   # 4) Set up access. If this fails, stop before password login is turned off.
@@ -1705,12 +1864,14 @@ main() {
   # 5) Configure security controls and core services, each on its own.
   run_step "SSH hardening" configure_ssh
   run_step "Firewall" configure_ufw
-  run_step "nginx" configure_nginx
+  if [[ "${WEB_MODE}" -eq 1 ]]; then
+    run_step "nginx" configure_nginx
+    run_step "Certbot renewal" configure_certbot_renewal
+  fi
   run_step "fail2ban" configure_fail2ban
   run_step "Automatic updates" configure_unattended_upgrades
   run_step "Audit" configure_auditd
   run_step "Shell history" configure_shell_history
-  run_step "Certbot renewal" configure_certbot_renewal
   run_step "etckeeper" configure_etckeeper
 
   # 6) Run post-configuration checks and print operator hints.
@@ -1723,7 +1884,9 @@ main() {
   fi
 
   log "Bootstrap complete."
-  print_certbot_hint
+  if [[ "${WEB_MODE}" -eq 1 ]]; then
+    print_certbot_hint
+  fi
 }
 
 main "$@"
